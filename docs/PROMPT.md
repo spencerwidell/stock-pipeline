@@ -20,7 +20,7 @@ Here's my current context:
 **Learning goal:** CLI/Bash fluency + DS pipeline skills
   toward a lead DS role
 
-**Last session summary:** See docs/SESSION_LOG.md
+**Last session summary:** [PASTE CONTENTS OF docs/SESSION_LOG.md BELOW]
 **Current focus:** [FILL IN — e.g. "Saving data as Parquet"]
 
 Please pick up where we left off. I'll paste my terminal
@@ -57,4 +57,9 @@ The more specific you are about what you're stuck on or trying
 to do next, the faster we move.
 
 ---
+
 *Refine this workflow as patterns emerge across sessions.*
+
+Note: Claude cannot read your files directly. Always paste the
+contents of SESSION_LOG.md into the chat — don't just reference it.
+Use `cat docs/SESSION_LOG.md` in your terminal to get the text.

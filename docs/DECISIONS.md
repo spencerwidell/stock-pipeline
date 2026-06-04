@@ -66,4 +66,15 @@ PAT generated with `repo` scope only — minimum permissions
 needed. Stored via credential helper after first use.
 
 ---
+## AI Tooling
+
+**Claude Code over GitHub Copilot (for now)**
+Already included in Max $200/month plan — no additional cost.
+Runs in WSL terminal, aligns with CLI learning goals, supports
+agentic workflows. VS Code extension also included. Will
+reassess Copilot if inline autocomplete becomes a felt need
+after several sessions with Claude Code.
+
+---
+
 *Add new decisions here as the project evolves.*
