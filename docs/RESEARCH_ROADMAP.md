@@ -197,3 +197,34 @@ No signal should be evaluated without regime context. A signal that works in bea
 
 **Note:** This roadmap is a living document. Empirical findings section updates
 every session. Session arc updates when plans change based on what we learn.
+
+## Research Mission (added Session 9)
+
+The goal is not to replicate existing systems but to empirically validate,
+challenge, and improve on them.
+
+Commercial systems like the Larsson Line (support/resistance state machine),
+Wyckoff/VSA frameworks, and momentum-based systems are built on intuition
+and selectively backtested. They sell signals without showing the work.
+
+This project does the opposite:
+- Every claim is treated as a hypothesis
+- Every signal is tested across multiple market regimes
+- All code, data, and findings are version-controlled and public
+- Complexity is added only when simpler models fail
+
+**The Larsson Line as a benchmark (Session 11 target):**
+The Larsson Line is a support/resistance state machine with three states:
+up (price above resistance line), down (price below support line),
+inconclusive (price between lines). Flips between states are the signals.
+
+This is buildable from first principles using LAG() window functions to
+track swing highs and lows, then a state machine to assign up/down/
+inconclusive per bar. Once built we can:
+- Test whether the flip signal has statistically significant forward returns
+- Compare it against the 200MA regime classifier
+- Test whether combining Larsson state + VSA label improves signal strength
+- Identify which market regimes it works in vs fails in
+
+If our empirical version outperforms or refines the commercial one, that
+is a publishable finding and a strong portfolio differentiator.
