@@ -411,14 +411,62 @@ nano docs/SESSION_LOG.md             # update session log
 
 ---
 
-## Session 7 — (upcoming)
+---
+
+## Session 7 — June 6, 2026
+
+### What we accomplished
+
+**VSA bar classification (research layer 1)**
+- Built `vsa_features.py` — first analytical script in the stack
+- Added three new columns to the dataset:
+  - `direction` — up/down based on close vs open
+  - `spread` — high minus low (bar range in dollars)
+  - `rel_volume` — volume divided by 10-day rolling average per ticker
+- Saved enriched dataset to `data/stock_vsa.parquet`
+- Queried high relative volume bars (rel_volume > 1.5) with DuckDB
+- Key findings:
+  - IBM May 21: 3.18x volume, $22.69 spread, up bar — strongest
+    signal in dataset, matches 8.77% daily return from Session 6
+  - May 29 cluster: IBM, ORCL, PLTR, MSFT all high volume same day
+    — correlated market move with volume confirmation
+  - SOFI May 29: high volume down bar, $0.91 spread — "effort with
+    no result", potentially bearish VSA signal
+
+### Commands used this session
+```bash
+nano vsa_features.py                 # create VSA feature script
+python vsa_features.py               # run it
+python -c "..."                      # one-liner DuckDB query
+git add, git commit, git push        # commit cycle
+```
+
+### Key concepts learned
+- VSA starts deterministic: classify bars by direction, spread,
+  and relative volume before any ML
+- Relative volume (vol / rolling mean) is more meaningful than
+  raw volume — normalizes across tickers and time
+- `groupby().transform()` applies a rolling calculation per ticker
+  without collapsing the DataFrame
+- Wide spread + high volume = significant bar in VSA
+- High volume + narrow spread = "effort with no result" — supply
+  absorbing demand
+- The analytical stack ladder: deterministic features must exist
+  before statistical or ML layers can build on them
+
+### Mistakes made and what they taught
+None this session.
+
+---
+
+## Session 8 — (upcoming)
 
 ### Plan
-- Add VSA bar classification to the pipeline — label each bar as
-  up/down, measure spread and volume relative to recent average
-- Write first deterministic features into the Parquet dataset
-- Begin building the analytical foundation for Wyckoff phase detection
-- Stretch: parameterize analyze.py to accept a ticker argument
+- Add VSA bar labels: classify bars as one of ~6 named types
+  (up thrust, selling climax, no demand, no supply, etc.)
+- Write first statistical queries: are high-volume up bars
+  followed by continuation or reversal?
+- Begin building the hypothesis-testing layer of the stack
 
 ---
 
