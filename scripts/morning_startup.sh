@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source /home/datasci/miniconda3/etc/profile.d/conda.sh
-
-echo "Activating environment. . ."
-conda activate stock
-
 cd "$(dirname "$0")/.."
 DATA_DIR="data"
 
@@ -21,5 +16,5 @@ git pull --rebase
 echo "Disk check:"
 df -h . | tail -n 1
 
-echo "Ready."
+echo "Ready. Run: conda activate stock"
 
