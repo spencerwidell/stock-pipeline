@@ -1,65 +1,24 @@
-# Session Workflow
+# Session Start Prompt
 
-A repeatable pattern for starting and ending every session.
-Copy the relevant block into Claude at the start/end of each session.
-
----
-
-## SESSION START prompt
-
-Paste this at the beginning of each new conversation with Claude:
+Paste this at the start of each new conversation:
 
 ---
-I'm continuing work on my stock-pipeline learning project.
-Here's my current context:
+I'm continuing my stock-pipeline project.
 
-**Project:** Stock data pipeline using Polygon.io API
-**Location:** ~/projects/stock-pipeline (WSL, Ubuntu 22.04)
-**Environment:** conda env `stock` (Python 3.11)
-**GitHub:** github.com/spencerwidell/stock-pipeline
-**Learning goal:** CLI/Bash fluency + DS pipeline skills
-  toward a lead DS role
+**Repo:** github.com/spencerwidell/stock-pipeline
+**Env:** WSL Ubuntu 22.04, conda `stock`, Python 3.11
+**Goal:** CLI/Bash fluency + DS pipeline skills toward lead DS role
 
-**Last session summary:** [PASTE CONTENTS OF docs/SESSION_LOG.md BELOW]
-**Current focus:** [FILL IN — e.g. "Saving data as Parquet"]
+**Current stack:**
+- fetch_stock.py → data/stock_ohlcv.parquet (15 tickers, ~21 days)
+- vsa_features.py → data/stock_vsa.parquet (+ direction, spread, rel_volume)
+- analyze.py — DuckDB analytical queries
+- scripts/morning_startup.sh, run_pipeline.sh
 
-Please pick up where we left off. I'll paste my terminal
-output as we go.
+**Last session:** Built vsa_features.py — VSA bar classification
+(direction, spread, rel_volume). Queried high-volume bars with DuckDB.
+
+**This session:** [FILL IN]
+
+[PASTE SESSION_LOG.md if needed for deeper context]
 ---
-
-## SESSION END checklist
-
-Before closing each session:
-
-1. `git status` — make sure nothing uncommitted is sitting around
-2. `git add` and `git commit` any remaining work
-3. `git push` — local and remote should match
-4. Update `docs/SESSION_LOG.md`:
-   - Fill in what was accomplished
-   - Update the "upcoming" section with revised next steps
-5. Commit the updated session log:
-   `git add docs/SESSION_LOG.md`
-   `git commit -m "Update session log after session N"`
-   `git push`
-
-## Between sessions
-
-- Your project lives at `~/projects/stock-pipeline`
-- Always open via the **Ubuntu app**, not PowerShell
-- Always `conda activate stock` before running any Python
-- Check `git status` before starting work — clean tree = safe starting point
-
-## When starting a new Claude conversation
-
-Claude loses the chat history when you start a new conversation.
-The session start prompt above gives it the context it needs.
-The more specific you are about what you're stuck on or trying
-to do next, the faster we move.
-
----
-
-*Refine this workflow as patterns emerge across sessions.*
-
-Note: Claude cannot read your files directly. Always paste the
-contents of SESSION_LOG.md into the chat — don't just reference it.
-Use `cat docs/SESSION_LOG.md` in your terminal to get the text.
