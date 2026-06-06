@@ -59,6 +59,24 @@ The project uses Wyckoff/VSA as the analytical framework, but with a specific pr
 
 The progression mirrors the analytical stack: deterministic bar rules → statistical validation → sequence patterns → context augmentation.
 
+## Universe Design
+
+The universe is designed in phases, expanding deliberately as the research matures:
+
+Phase 1 (Sessions 9-11): Current 15 tickers + QQQ constituents (~115 total). Validate VSA signal exists on liquid, institutionally-traded names where Wyckoff's Composite Man theory should apply most strongly.
+
+Phase 2 (Sessions 12-13): Expand to full SPY constituents (~500 tickers). Test whether signals generalize beyond technology. Compare signal strength by sector.
+
+Phase 3 (Sessions 14+): Add IWM small-cap sample and IWD value factor slice. Full factor grid coverage: large/mid/small × value/growth × sector.
+
+The universe expands in phases rather than all at once for a specific reason: if VSA doesn't work on the most liquid names in the market, it won't work in noisier environments. Prove signal first, then test generalizability.
+
+The ETF-based stratified design covers the full Wyckoff phase space for ML training. Tech names tend to be phase-correlated — when NVDA is in Markup, MSFT likely is too. A diverse universe ensures all four Wyckoff phases (Accumulation, Markup, Distribution, Markdown) are represented in the training data at any given time, because different sectors and styles cycle at different rates. Value stocks may be accumulating while tech is distributing. Small-caps may be in Markdown while large-cap growth is in Markup. This natural phase staggering across the universe is not a portfolio construction consideration — it is a machine learning data quality requirement. A classifier trained only on a single-sector universe will learn that sector's phase timing, not the universal characteristics of the phases themselves.
+
+Every ticker in the universe will carry metadata labels for sector, industry, market cap tier, style (value/growth/blend), and index membership. This enables signal analysis to be sliced by any dimension and supports the core research question: are VSA signals universal or do they require segment-specific thresholds?
+
+Known limitation: any historical universe based on current index membership has survivorship bias — companies that failed or were acquired are absent. Point-in-time index membership data is the correct long-term solution. This is noted as a future improvement.
+
 ## Open Research Questions
 
 These are the genuinely unanswered questions we plan to test empirically:
@@ -80,6 +98,11 @@ These are the genuinely unanswered questions we plan to test empirically:
 ### Practical Implementation
 - **What's the false positive rate of each VSA classification?** If you flag 100 "No Demand" bars, how many precede actual declines?
 - **Can you combine multiple weak signals into a strong one?** Does No Demand + proximity to resistance + downtrend improve prediction?
+
+### Universe and Training Data Questions
+- **Does phase diversity in the training universe meaningfully improve Wyckoff phase classifier performance vs a single-sector universe?**
+- **Do VSA signal thresholds require segment-specific calibration (tech vs value, large vs small) or are universal thresholds sufficient?**
+- **What is the minimum observations-per-phase required for a reliable classifier? How many tickers and what time window achieves that?**
 
 These questions are not rhetorical. They're the research agenda. Every session builds tools to answer one or more of them.
 
