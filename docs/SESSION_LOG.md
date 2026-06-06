@@ -364,15 +364,61 @@ git add, git commit, git push             # commit cycle
 
 ---
 
-## Session 6 — (upcoming)
+---
+
+## Session 6 — June 6, 2026
+
+### What we accomplished
+
+**DuckDB installation and first queries (research stack)**
+- Installed DuckDB 1.5.3 into the `stock` conda environment
+- Learned that DuckDB has no CLI entry point via `python -m` —
+  used Python interactive shell instead
+- Queried `data/stock_ohlcv.parquet` directly with SQL — no pandas
+  load, no ETL step, file stays on disk
+- Ran three analytical queries:
+  - Top 5 single-day closes (META dominated)
+  - Average close by ticker over the period (META → SOFI range)
+  - Top 10 daily returns by (close - open) / open
+- Noticed May 28-29 appeared across multiple tickers in the daily
+  returns — correlated market move, worth investigating in VSA work
+- Built `analyze.py` — reusable script wrapping all three queries
+  with a helper function to print clean output without row index
+
+### Commands used this session
+```bash
+pip install duckdb                   # install DuckDB
+python                               # open Python interactive shell
+git add, git commit, git push        # commit cycle
+nano docs/SESSION_LOG.md             # update session log
+```
+
+### Key concepts learned
+- DuckDB queries Parquet files directly with SQL — the file path
+  goes in the FROM clause as a string literal
+- No ETL step needed: DuckDB + Parquet is the full analytics stack
+  for single-user research
+- Calculated columns (daily return %) are computed in the query,
+  not in Python — keeps the script clean
+- `Alt+U` is undo in nano (M = Meta = Alt key)
+- `to_string(index=False)` removes pandas row numbers from printed output
+
+### Mistakes made and what they taught
+| Problem | What happened | Lesson |
+|---|---|---|
+| `python -m duckdb` failed | No __main__ module in duckdb package | Use `python` shell and import duckdb directly |
+| `print(results)` NameError | Typo — variable was named `result` | Read the error message — Python told you exactly what was wrong |
+
+---
+
+## Session 7 — (upcoming)
 
 ### Plan
-- Install DuckDB and query Parquet files directly with SQL
-- Learn basic DuckDB CLI usage from the terminal
-- Write first analytical queries: price ranges, volume leaders,
-  daily returns
-- Understand why DuckDB + Parquet eliminates the ETL step
-- Stretch: parameterize run_pipeline.sh to accept a date range
+- Add VSA bar classification to the pipeline — label each bar as
+  up/down, measure spread and volume relative to recent average
+- Write first deterministic features into the Parquet dataset
+- Begin building the analytical foundation for Wyckoff phase detection
+- Stretch: parameterize analyze.py to accept a ticker argument
 
 ---
 
