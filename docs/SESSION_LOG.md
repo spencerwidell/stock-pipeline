@@ -311,18 +311,70 @@ tail -f logs/fetch.log               # live log monitoring
   single-user research, client-server for multi-user production
 
 ---
+---
 
-## Session 5 — (upcoming)
+## Session 5 — June 6, 2026
+
+### What we accomplished
+
+**Shell scripting (Module 6)**
+- Created `scripts/` directory to house operational scripts
+- Built `morning_startup.sh`:
+  - Sources conda explicitly for non-interactive shells
+  - Activates the `stock` environment
+  - Guards against missing `data/` directory with loud error + exit 1
+  - Pulls latest from GitHub with --rebase
+  - Reports disk space with df -h
+- Built `run_pipeline.sh`:
+  - Uses `cd "$(dirname "$0")/.."` to always run from project root
+  - Creates timestamped log file so runs never overwrite each other
+  - Launches fetch_stock.py with nohup in the background
+  - Reports PID and tail command for live monitoring
+- Made both scripts executable with `chmod +x` (stored in Git as mode 100755)
+- Added `logs/` to `.gitignore` — generated output, not source
+
+### Commands used this session
+mkdir, touch, nano                        # create and edit files
+chmod +x script.sh                        # make executable
+ls -lah script.sh                         # verify permissions
+./script.sh                               # run a script
+cat script.sh                             # verify file contents
+conda info --base                         # find conda install path
+echo "logs/" >> .gitignore               # append to gitignore
+git add, git commit, git push             # commit cycle
+
+### Key concepts learned
+- Non-interactive shells don't source .bashrc — conda needs
+  `source /path/to/conda.sh` explicitly inside scripts
+- `set -euo pipefail` stops a script immediately on any error
+  instead of blundering forward — caught the conda failure cleanly
+- Working directory follows the caller, not the script —
+  `cd "$(dirname "$0")/.."` fixes this robustly
+- `chmod +x` is a one-time operation stored in file metadata;
+  Git records it as mode 100755
+- Timestamped log filenames (`date +%Y%m%d_%H%M`) prevent
+  consecutive runs from overwriting each other's logs
+- `$!` captures the PID of the last backgrounded process
+
+### Mistakes made and what they taught
+| Problem | What happened | Lesson |
+|---|---|---|
+| `conda activate` failed in script | Non-interactive shell, no .bashrc | Source conda.sh explicitly |
+| Log file not found after cd fix | Paths still used `../` after cd to root | After cd, all paths are relative to new location |
+
+---
+
+## Session 6 — (upcoming)
 
 ### Plan
-- Shell scripting with bash — create `morning_startup.sh` and
-  `run_pipeline.sh` to automate the daily data pull
-- Learn the `set -euo pipefail` safety flags for scripts
-- Understand the shebang line `#!/bin/bash` and making scripts
-  executable with `chmod +x`
-- Automate the fetch workflow: activate conda environment, run fetch,
-  log results, all from one command
-- Stretch: add a check to skip weekends (no trading on Sat/Sun)
+- Install DuckDB and query Parquet files directly with SQL
+- Learn basic DuckDB CLI usage from the terminal
+- Write first analytical queries: price ranges, volume leaders,
+  daily returns
+- Understand why DuckDB + Parquet eliminates the ETL step
+- Stretch: parameterize run_pipeline.sh to accept a date range
+
+---
 
 ### Starting checklist
 - [ ] Open Ubuntu app (not PowerShell)
