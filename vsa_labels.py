@@ -37,5 +37,3 @@ df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)
 
 # Summary
 print(df["vsa_label"].value_counts().to_string())
-print()
-print(df[df["vsa_label"] != "neutral"][["ticker", "date", "direction", "rel_spread", "rel_volume", "vsa_label"]].to_string(index=False))

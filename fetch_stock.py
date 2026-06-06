@@ -36,7 +36,7 @@ TICKERS = [
 # Last 30 calendar days. The market is closed on weekends/holidays, so the
 # API simply returns fewer rows than 30 — that's expected, not an error.
 END_DATE = datetime.now(timezone.utc).date()
-START_DATE = END_DATE - timedelta(days=30)
+START_DATE = END_DATE - timedelta(days=365 * 6)
 
 
 # ---------------------------------------------------------------------------
