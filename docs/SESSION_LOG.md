@@ -200,18 +200,85 @@ git status                          # check working tree
 
 ---
 
-## Session 3 — (upcoming)
+## Session 3 — June 5, 2026
+
+### What we accomplished
+
+**Terminal inspection of Parquet files (Module 6)**
+- Learned to inspect binary data files *without* loading them into Python
+- `ls -lah data/` — see file sizes in human-readable format (16K)
+- `find data/ -name "*.parquet"` — locate files by pattern across
+  the directory tree
+- `du -h data/` — measure directory size on disk (20K including overhead)
+- `wc -l fetch_stock.py` — count lines in script files
+- `df -h .` — check available disk space on the filesystem
+- Used pyarrow to read Parquet schema and metadata *without* loading
+  the full dataset — `pq.read_schema()` and `pq.ParquetFile().metadata`
+  show row count (330), column types, compression codec, all without
+  materializing the data
+
+**Background job pattern with nohup (Module 7)**
+- Learned to run long scripts in the background with `nohup` so they
+  survive terminal closure
+- Pattern: `nohup python script.py > logfile.log 2>&1 &`
+- The `LOGFILE` variable trick: define once at the top, use throughout
+  the script — makes log redirection cleaner
+- `tail -f logs/fetch.log` — monitor a growing log file in real time
+- Understood that live scrolling with `tail -f` will be experienced
+  organically on a future long-running job (not forced today)
+
+**The find -exec pattern (Module 6)**
+- `find data/ -name "*.parquet" -exec ls -lh {} \;` — run a command
+  on each found file
+- The `{}` placeholder represents the matched filename
+- The `\;` terminates the `-exec` action
+- Combines search and action in one command
+
+### Commands used this session
+```bash
+ls -lah data/                        # human-readable file sizes
+find data/ -name "*.parquet"         # locate files by pattern
+du -h data/                          # directory size on disk
+wc -l fetch_stock.py                 # count lines in a file
+df -h .                              # filesystem disk usage
+find ... -exec ls -lh {} \;          # find + execute on matches
+nohup python script.py > log 2>&1 &  # background job with logging
+tail -f logs/fetch.log               # live log monitoring
+```
+
+### Key concepts learned
+- Binary files like Parquet can't be inspected with `cat` — use
+  dedicated tools like pyarrow to read metadata/schema
+- `find` is the search tool for locating files by name, type, or age
+- `du` measures actual disk usage (includes overhead), `ls -lah` shows
+  file size only
+- `wc -l` counts newlines — useful for quick script size checks
+- `nohup` keeps a process running after logout; `&` backgrounds it
+- `> logfile.log 2>&1` redirects both stdout and stderr to one log
+- `tail -f` follows a growing file — perfect for watching logs live
+- The `LOGFILE` variable pattern centralizes the log path in scripts
+- `find -exec` combines search and action — no need for a separate loop
+
+### Mistakes made and what they taught
+| Problem | What happened | Lesson |
+|---|---|---|
+| Tried `cat` on Parquet file | Binary garbage printed to screen | Binary files need format-aware readers |
+| Forgot `\;` on `-exec` | Syntax error from `find` | `-exec` needs explicit terminator |
+| Ran long script in foreground | Terminal stuck waiting | Use `nohup ... &` for long jobs |
+
+---
+
+## Session 4 — (upcoming)
 
 ### Plan
-- Inspect Parquet and data files from the terminal *without* loading
-  them into Python:
-  - `find` — locate data files by name/pattern across the tree
-  - `du` — measure file and directory sizes on disk
-  - `wc` — count lines/words/bytes
-- Run the fetch script as a background job with `nohup` so it keeps
-  running after the terminal closes; redirect output to a log file
-  and check on it later
-- (Stretch) cast `volume` to `int64` during the cleanup step
+- Shell scripting with bash — create `morning_startup.sh` to automate
+  the daily data pull
+- Learn the `set -euo pipefail` safety flags for scripts
+- Understand the shebang line `#!/bin/bash` and making scripts executable
+  with `chmod +x`
+- Automate the fetch workflow: activate conda environment, run fetch,
+  log results, all from one command
+- Stretch: add a check to skip weekends (no trading on Sat/Sun)
 
 ### Starting checklist
 - [ ] Open Ubuntu app (not PowerShell)
