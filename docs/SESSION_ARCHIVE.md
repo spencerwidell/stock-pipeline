@@ -411,3 +411,20 @@ nano docs/SESSION_LOG.md             # update session log
 | `print(results)` NameError | Typo — variable was named `result` | Read the error message — Python told you exactly what was wrong |
 
 ---
+
+cat >> docs/SESSION_ARCHIVE.md << 'EOF'
+
+---
+
+## Session 7 — June 6, 2026
+
+**Built:** `vsa_features.py` — first analytical layer
+- `direction` (up/down), `spread` (high-low), `rel_volume` (vol/10d ma)
+- Saved to `data/stock_vsa.parquet`
+
+**Key findings:** IBM May 21 3.18x volume up bar, May 29 cluster
+across multiple tickers, SOFI effort with no result.
+
+**Concepts:** groupby().transform(), wide spread + high volume =
+significant bar, high volume + narrow spread = supply absorbing demand
+EOF
