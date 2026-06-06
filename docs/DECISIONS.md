@@ -77,4 +77,43 @@ after several sessions with Claude Code.
 
 ---
 
+## Data Storage & Querying
+
+**DuckDB over PostgreSQL**
+Chose DuckDB as the SQL query engine for this project because:
+- Embedded database — no server process to manage, no authentication
+- Queries Parquet files directly without import/ETL steps
+- Full SQL support for analytics (window functions, CTEs, aggregations)
+- Perfect fit for single-user research environment on WSL
+- Can scale to production later if needed (DuckDB supports larger-than-RAM datasets)
+
+PostgreSQL would have required server setup, port management, and
+user/password configuration — unnecessary complexity for a local
+research workflow. DuckDB gives us SQL semantics with filesystem
+simplicity.
+
+**Parquet as the storage format**
+Columnar, compressed, schema-preserving. DuckDB reads it natively.
+Future sessions will query `SELECT * FROM 'data/*.parquet'` directly
+without loading into a separate database.
+
+---
+
+## Research Framework
+
+**VSA before Classic Wyckoff**
+Starting with Volume Spread Analysis (bar-by-bar classification)
+before progressing to full Wyckoff phase detection (accumulation,
+markup, distribution, markdown) because:
+- VSA features are deterministic, SQL-computable, and interpretable
+- They provide the ground truth labels for later sequence modeling
+- Can't detect accumulation *phases* without first detecting
+  accumulation *bars*
+
+This progression is documented in `docs/RESEARCH_ROADMAP.md` — the
+five-layer analytical stack ensures we prove signal exists at the
+simple level before building complex models.
+
+---
+
 *Add new decisions here as the project evolves.*

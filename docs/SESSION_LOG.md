@@ -268,14 +268,58 @@ tail -f logs/fetch.log               # live log monitoring
 
 ---
 
-## Session 4 — (upcoming)
+## Session 4 — June 5, 2026 (afternoon)
+
+### What we accomplished
+
+**Created RESEARCH_ROADMAP.md (documentation)**
+- Documented the full research vision: production-grade research
+  platform built from first principles
+- Captured the five-layer analytical stack:
+  1. Deterministic/Rule-Based (VSA bar classification)
+  2. Statistical/Probabilistic (correlation, hypothesis testing)
+  3. Machine Learning (sequence models, phase detection)
+  4. LLM Augmentation (contextual analysis)
+  5. Production Infrastructure (backtesting, monitoring)
+- Explained the VSA → Wyckoff progression and why we start with
+  bar-by-bar features before phase detection
+- Listed the open research questions we plan to answer empirically
+- Documented the session arc (Sessions 4-16+) with corrected tooling:
+  DuckDB instead of PostgreSQL
+
+**Updated DECISIONS.md (documentation)**
+- Added the DuckDB choice: embedded, no server, queries Parquet
+  directly, perfect for single-user research
+- Documented the VSA-before-Wyckoff decision and linked to the
+  RESEARCH_ROADMAP for the full rationale
+- Clarified that Parquet + DuckDB means no ETL step — query files
+  directly with SQL
+
+**Updated SESSION_LOG.md (this file)**
+- Recorded Session 4 accomplishments
+- Updated Session 5+ plan to align with the corrected roadmap
+
+### Key concepts learned
+- Research documentation serves two purposes: align on vision at the
+  start, and provide context for future sessions when the project
+  spans weeks/months
+- The analytical stack is a ladder: each rung must hold weight before
+  you step to the next. Deterministic → statistical → ML → LLM is
+  not arbitrary; it's the empirical testing sequence.
+- DuckDB eliminates the server/client model — it's SQLite for analytics
+- Tool choices should match the environment: embedded database for
+  single-user research, client-server for multi-user production
+
+---
+
+## Session 5 — (upcoming)
 
 ### Plan
-- Shell scripting with bash — create `morning_startup.sh` to automate
-  the daily data pull
+- Shell scripting with bash — create `morning_startup.sh` and
+  `run_pipeline.sh` to automate the daily data pull
 - Learn the `set -euo pipefail` safety flags for scripts
-- Understand the shebang line `#!/bin/bash` and making scripts executable
-  with `chmod +x`
+- Understand the shebang line `#!/bin/bash` and making scripts
+  executable with `chmod +x`
 - Automate the fetch workflow: activate conda environment, run fetch,
   log results, all from one command
 - Stretch: add a check to skip weekends (no trading on Sat/Sun)
