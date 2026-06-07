@@ -24,7 +24,41 @@ df["rel_spread"] = (df["spread"] / df["spread_ma10"]).round(2)
 df["vol_ma10"] = df.groupby("ticker")["volume"].transform(
     lambda x: x.rolling(10, min_periods=1).mean()
 )
+
 df["rel_volume"] = (df["volume"] / df["vol_ma10"]).round(2)
+
+# Close position within bar (0=closed at low, 1=closed at high)
+df["close_pos"] = ((df["close"] - df["low"]) /
+                   (df["high"] - df["low"])).round(3)
+
+# Upper and lower wick ratios
+bar_range = df["high"] - df["low"]
+df["upper_wick"] = ((df["high"] - df[["open","close"]].max(axis=1)) /
+                    bar_range).round(3)
+df["lower_wick"] = ((df[["open","close"]].min(axis=1) - df["low"]) /
+                    bar_range).round(3)
+
+# Effort — spread * volume normalized
+df["effort"] = (df["rel_spread"] * df["rel_volume"]).round(3)
+
+# Rate of change — 20 day momentum
+df["roc_20"] = ((df["close"] - df.groupby("ticker")["close"].transform(
+    lambda x: x.shift(20))) /
+    df.groupby("ticker")["close"].transform(
+    lambda x: x.shift(20)) * 100).round(2)
+
+# Distance from 52-week high and low
+df["high_52w"] = df.groupby("ticker")["high"].transform(
+    lambda x: x.rolling(252, min_periods=1).max()
+)
+df["low_52w"] = df.groupby("ticker")["low"].transform(
+    lambda x: x.rolling(252, min_periods=1).min()
+)
+df["dist_52w_high"] = ((df["close"] - df["high_52w"]) /
+                        df["high_52w"] * 100).round(2)
+df["dist_52w_low"] = ((df["close"] - df["low_52w"]) /
+                       df["low_52w"] * 100).round(2)
+
 
 
 # 200-day MA and regime
@@ -66,4 +100,5 @@ df["channel_pos"] = ((df["close"] - df["ma20"]) / df["ma20_std"]).round(2)
 # Save
 df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)
 print(f"Saved {len(df)} rows to data/stock_vsa.parquet")
-print(df[["ticker", "date", "direction", "spread", "rel_spread", "rel_volume"]].head(10).to_string(index=False))
+print(df[["ticker", "date", "close_pos", "upper_wick", "lower_wick",
+          "effort", "roc_20", "dist_52w_high"]].head(10).to_string(index=False))

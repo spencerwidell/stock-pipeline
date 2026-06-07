@@ -10,18 +10,24 @@ from sklearn.preprocessing import LabelEncoder
 df = pd.read_parquet("data/stock_vsa.parquet")
 df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
 
-# Target
+# SPY benchmark
+spy = df[df["ticker"] == "SPY"][["date", "close"]].copy()
+spy["spy_return_5d"] = (spy["close"].shift(-5) / spy["close"] - 1) * 100
+spy = spy[["date", "spy_return_5d"]]
+df = df.merge(spy, on="date", how="left")
+
+# Alpha target
 df["return_5d"] = df.groupby("ticker")["close"].transform(
-    lambda x: x.shift(-5) / x - 1
-) * 100
+    lambda x: (x.shift(-5) / x - 1) * 100)
+df["alpha_5d"] = df["return_5d"] - df["spy_return_5d"]
 
-def classify_return(r):
+def classify(r):
     if pd.isna(r): return None
-    if r > 1.0: return "up"
-    if r < -1.0: return "down"
-    return "flat"
+    if r > 1.0: return "outperform"
+    if r < -1.0: return "underperform"
+    return "inline"
 
-df["target"] = df["return_5d"].apply(classify_return)
+df["target"] = df["alpha_5d"].apply(classify)
 df = df.dropna(subset=["target"])
 
 # Encode categoricals
@@ -32,14 +38,8 @@ df["vsa_encoded"]    = le_vsa.fit_transform(df["vsa_label"])
 df["wl_encoded"]     = le_wl.fit_transform(df["wl_state"])
 df["regime_encoded"] = le_reg.fit_transform(df["regime"])
 
-# Feature sets to compare
+# Feature sets
 FEATURE_SETS = {
-    "ma_only": [
-        "dist_ma200", "ma200_slope", "channel_pos"
-    ],
-    "vsa_only": [
-        "vsa_encoded", "score_vsa", "rel_volume", "rel_spread"
-    ],
     "widell_only": [
         "wl_encoded", "score_wl", "composite"
     ],
@@ -66,9 +66,9 @@ FEATURE_SETS = {
 y = df["target"]
 tscv = TimeSeriesSplit(n_splits=5)
 
-mlflow.set_experiment("widell_feature_isolation_v2")
+mlflow.set_experiment("widell_alpha_classifier")
 
-print("Feature Set Comparison:")
+print("Alpha Target (SPY-relative) Feature Comparison:")
 print("=" * 55)
 print(f"{'Feature Set':<20} {'Accuracy':>10} {'F1':>10}")
 print("-" * 55)
@@ -99,7 +99,7 @@ for name, features in FEATURE_SETS.items():
     acc = accuracy_score(all_true, all_preds)
     f1  = f1_score(all_true, all_preds, average="weighted")
 
-    with mlflow.start_run(run_name=f"v2_{name}"):
+    with mlflow.start_run(run_name=f"alpha_{name}"):
         mlflow.log_param("feature_set", name)
         mlflow.log_metric("accuracy", acc)
         mlflow.log_metric("f1", f1)
@@ -107,5 +107,12 @@ for name, features in FEATURE_SETS.items():
     print(f"{name:<20} {acc:>10.3f} {f1:>10.3f}")
 
 print()
-print(f"{'Baseline (always up)':<20} {'0.443':>10}")
-print(f"{'Baseline (random)':<20} {'0.363':>10}")
+print(f"{'Naive baseline':<20} {'0.368':>10}")
+print(f"{'Random baseline':<20} {'0.333':>10}")
+
+# Feature importance from last model
+importances = pd.Series(model.feature_importances_,
+                        index=FEATURE_SETS["all_features"])
+print()
+print("Feature Importances (all_features model):")
+print(importances.sort_values(ascending=False).to_string())
