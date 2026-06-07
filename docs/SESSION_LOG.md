@@ -168,3 +168,64 @@ Green light to begin ML layer.
 - [ ] `./scripts/morning_startup.sh`
 - [ ] `conda activate stock`
 - [ ] `git status`
+
+---
+
+## Session 16 — June 7, 2026
+
+**Built:** `ml_classifier.py` and `ml_feature_test.py`
+- RandomForest with TimeSeriesSplit (5 folds)
+- MLflow experiment tracking (widell_vsa_classifier, widell_feature_isolation)
+- Feature isolation test: MA only, VSA only, Widell only, all features
+
+**Baselines established:**
+- Always predict "up": 0.443 (most common class = 44.3% of bars)
+- Random baseline: 0.363
+
+**Feature isolation results:**
+- All features:  0.362 — at random baseline
+- MA only:       0.332 — below random
+- Widell only:   0.331 — below random
+- VSA only:      0.317 — worst of all
+
+**The VSA chapter is closed.**
+No feature set beats naive baseline. VSA labels are the weakest
+feature set tested. Adding all features together barely reaches random.
+
+**The gap between DuckDB and ML findings:**
+DuckDB showed real average differences (Widell up = +2.38%).
+ML cannot classify individual bars reliably because variance is too
+high. These signals work as filters that shift average outcomes,
+not as classifiers for individual bar prediction. This is a
+meaningful distinction for practical use.
+
+**Research pivot confirmed:**
+Signals are useful as overlays and filters in a rules-based system.
+ML classification of individual bars is not the right application.
+The Widell Line + regime framework is the original contribution.
+VSA labels are background context, not primary signal.
+
+**Next focus — what IS working:**
+- Widell Line state separation is real and consistent
+- Regime-conditional signals shift averages meaningfully
+- Composite scoring as a filter (score 2+ vs score -3 and below)
+- These work as portfolio filters, not trade-by-trade classifiers
+
+---
+
+## Session 17 — (upcoming)
+
+- VSA in sequence — test consecutive label patterns
+- Weekly bar aggregation — does weekly VSA improve signal?
+- After completion: pivot to Widell Line deeper investigation
+- Parameter optimization: does N=5 or N=10 swing window improve
+  state separation vs N=3?
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `git status`
