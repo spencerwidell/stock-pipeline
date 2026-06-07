@@ -53,13 +53,19 @@ FEATURE_SETS = {
         "effort", "roc_20", "dist_52w_high", "dist_52w_low",
         "dist_ma200", "ma200_slope", "channel_pos",
     ],
-    "all_features": [
+"all_features": [
         "wl_encoded", "vsa_encoded", "regime_encoded",
         "composite", "rel_volume", "rel_spread",
         "dist_ma200", "ma200_slope", "channel_pos",
         "score_wl", "score_vsa", "score_regime",
         "close_pos", "upper_wick", "lower_wick",
         "effort", "roc_20", "dist_52w_high", "dist_52w_low",
+        "rsi_14", "macd_hist", "macd_cross",
+    ],
+"momentum_stack": [
+        "rsi_14", "macd_hist", "macd_cross",
+        "roc_20", "dist_52w_high", "dist_52w_low",
+        "dist_ma200", "ma200_slope",
     ],
 }
 
@@ -111,8 +117,10 @@ print(f"{'Naive baseline':<20} {'0.368':>10}")
 print(f"{'Random baseline':<20} {'0.333':>10}")
 
 # Feature importance from last model
+last_features = list(FEATURE_SETS.keys())[-1]
 importances = pd.Series(model.feature_importances_,
-                        index=FEATURE_SETS["all_features"])
+                        index=FEATURE_SETS[last_features])
+
 print()
 print("Feature Importances (all_features model):")
 print(importances.sort_values(ascending=False).to_string())
