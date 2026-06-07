@@ -229,3 +229,48 @@ VSA labels are background context, not primary signal.
 - [ ] `./scripts/morning_startup.sh`
 - [ ] `conda activate stock`
 - [ ] `git status`
+
+---
+
+## Session 17 — June 8, 2026
+
+**VSA sequence test — consecutive labels:**
+- buying_climax 2 consecutive: -0.48% (59 bars) — signal reverses
+- no_supply 2 consecutive: +0.89% — marginal improvement
+- 3-consecutive samples too small to trust (6 bars max)
+- Conclusion: consecutive labels don't strengthen VSA signal
+
+**VSA weekly bar test — 4 week forward returns:**
+- All labels positive (1.17% to 3.13%)
+- No theoretical ordering — effort_down nearly matches effort_up
+- Market upward drift swamps all label differences
+- Conclusion: weekly VSA shows drift, not signal
+
+**VSA chapter fully closed.**
+Tested across: daily next-day, daily 5-10 day, daily consecutive
+sequence, weekly 4-week. No consistent standalone predictive signal
+found across timeframes or methods.
+
+**The pivot:**
+VSA served as scaffolding that led to the Widell Line — which shows
+consistent, theoretically ordered signal separation. The original
+contribution of this project is the Widell Line framework, not VSA.
+
+---
+
+## Session 18 — (upcoming)
+
+- Widell Line parameter optimization — test N=2, N=5, N=10
+  swing window vs current N=3
+- Does wider window produce cleaner state separation?
+- Test Widell Line on weekly bars
+- Begin thinking about practical signal generation system
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `git status`
