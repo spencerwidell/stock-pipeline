@@ -118,3 +118,53 @@ weight signals by segment volatility.
 - Weight by segment volatility
 - Test composite score forward returns vs individual signals
 - Begin thinking about ML feature matrix
+
+---
+
+## Session 15 — June 7, 2026
+
+**Built:** `composite_score.py` — additive signal scoring
+- score_wl: wl_state mapped to +2/0/-2
+- score_flip: flip direction +1/-1/0
+- score_vsa: vsa_label mapped to +2 to -2
+- score_regime: bull/mixed/bear mapped to +1/0/-1
+- composite: sum of all four, range -6 to +6
+
+**Score vs 5-day return:**
+- Score 2+: consistently +1.47% to +2.15%
+- Score -3 and below: negative to flat
+- Middle zone (-1 to +1): noisy, no clear edge
+
+**Score by segment:**
+| Segment | High (2+) | Neutral | Low (-3) | Spread |
+|---|---|---|---|---|
+| Tech/Growth | +2.16% | +0.85% | -0.63% | 2.79% |
+| Value/Defensive | +0.99% | +0.20% | -0.18% | 1.17% |
+| Market ETFs | +0.49% | +0.33% | +0.21% | 0.28% |
+
+**Key finding:** Composite score is universal — high beats neutral
+beats low in every segment. Spread scales with volatility.
+Market ETFs insufficient spread to be actionable.
+
+**Layer 2 complete:** Features built in Layer 1 have measurable,
+consistent predictive power across segments and regimes.
+Green light to begin ML layer.
+
+---
+
+## Session 16 — (upcoming)
+
+- Begin ML layer — feature matrix preparation
+- Define target variable: 5-day forward return bucketed into
+  up/flat/down classes
+- Train first classifier on composite features
+- Evaluate whether ML improves on the simple composite score
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `git status`
