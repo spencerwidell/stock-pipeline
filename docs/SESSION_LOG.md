@@ -274,3 +274,65 @@ contribution of this project is the Widell Line framework, not VSA.
 - [ ] `./scripts/morning_startup.sh`
 - [ ] `conda activate stock`
 - [ ] `git status`
+
+---
+
+## Session 18 — June 8, 2026
+
+**Built:** New features in vsa_features.py, ml_alpha_test.py
+
+**New features added:**
+- close_pos: where in the bar did price close (0=low, 1=high)
+- upper_wick, lower_wick: rejection ratios
+- effort: rel_spread * rel_volume combined
+- roc_20: 20-day rate of change (momentum)
+- dist_52w_high, dist_52w_low: distance from 52-week extremes
+
+**Widell Line parameter optimization (widell_optimize.py):**
+- Tested N=2,3,5,7,10 swing window
+- N=3 confirmed as optimal — spread collapses at N=5
+- Original parameter choice empirically validated
+
+**ML alpha target test (SPY-relative outperformance):**
+- Switching from raw return to alpha removed market drift
+- Naive baseline dropped from 0.443 to 0.368
+- Results:
+  - widell_only:    0.352 (below naive)
+  - new_features:   0.400 (beats naive by +0.032)
+  - widell_plus_new: 0.412 (beats naive by +0.044)
+  - all_features:   0.410
+
+**First time beating naive baseline.**
+
+**Feature importances:**
+- dist_52w_high: 24.9% — dominant predictor
+- dist_52w_low:  21.4%
+- ma200_slope:   13.2%
+- dist_ma200:    12.4%
+- roc_20:         8.1%
+- vsa_encoded:    0.08% — confirmed irrelevant
+- score_vsa:      0.11% — confirmed irrelevant
+
+**Key finding:** 52-week distance features dominate. Stocks near
+52-week lows recovering outperform; stocks near highs consolidate.
+The Widell Line adds 3-4% importance — modest but real contribution.
+VSA labels confirmed irrelevant in ML context.
+
+---
+
+## Session 19 — (upcoming)
+
+- Hyperparameter tuning — max_depth, min_samples_leaf, n_estimators
+- Test deeper trees now that we have a signal worth tuning
+- Add segment as a feature (tech/value/market encoding)
+- Consider adding more tickers to strengthen the training set
+- Update RESEARCH_ROADMAP.md with final findings
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `git status`
