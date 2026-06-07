@@ -89,3 +89,32 @@ practically useful than tech despite lower average return.
 - [ ] `./scripts/morning_startup.sh`
 - [ ] `conda activate stock`
 - [ ] `git status`
+
+---
+
+## Session 14 — June 7, 2026
+
+**Widell Line validation across segments:**
+
+| Segment | Up | Inconclusive | Down | Spread |
+|---|---|---|---|---|
+| Tech/Growth | +2.38% | +0.95% | -0.83% | 3.21% |
+| Value/Defensive | +1.17% | +0.23% | -0.44% | 1.61% |
+| Market ETFs | +0.65% | +0.34% | -0.33% | 0.98% |
+
+**Key finding:** Widell Line is a universal framework — up > inconclusive
+> down ordering holds across all three segments. Signal strength scales
+with volatility. Tech produces the widest spread, market ETFs the narrowest.
+
+**Implication:** Framework is valid as a general tool. Threshold
+calibration may need to be segment-specific. A composite score could
+weight signals by segment volatility.
+
+---
+
+## Session 15 — (upcoming)
+
+- Build composite signal score combining regime + wl_state + vsa_label
+- Weight by segment volatility
+- Test composite score forward returns vs individual signals
+- Begin thinking about ML feature matrix
