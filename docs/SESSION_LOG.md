@@ -4,7 +4,7 @@ For sessions 1-7 see docs/SESSION_ARCHIVE.md
 
 ---
 
-## Project state (as of Session 11)
+## Project state (as of Session 12)
 
 **Environment:** WSL Ubuntu 22.04, conda env `stock` (Python 3.11)
 **GitHub:** github.com/spencerwidell/stock-pipeline
@@ -31,54 +31,55 @@ For sessions 1-7 see docs/SESSION_ARCHIVE.md
 
 ---
 
-## Session 10 — June 6, 2026
-
-**Built:** Regime feature set in vsa_features.py
-- MA20, MA50, MA200, dist_ma200, ma200_slope, regime, channel_pos
-
-**Key finding — buying_climax conditioned on MA regime:**
-- bear: -0.35%, bull: +1.13%, mixed: +6.72% over 5 days
-- Signal lives in regime transitions, not confirmed trends
-- Validates the Larsson Line inconclusive zone insight empirically
-
----
-
 ## Session 11 — June 6, 2026
 
 **Built:** `widell_line.py` — the Widell Line state machine
-- Swing high/low detection using N=3 bar window each side
-- Forward-fills resistance (swing highs) and support (swing lows)
-- Three states: up (above resistance), down (below support),
-  inconclusive (between lines)
-- wl_flip: True when state changes from previous bar
-- Named after Spencer Widell — original empirical framework
-
-**Key findings — Widell Line forward returns (5-day):**
-- up state: +2.38% (3,294 bars)
-- inconclusive: +0.95% (16,744 bars)
-- down state: -0.83% (1,882 bars)
-- Clean separation, ordered exactly as theory predicts
-
-**Flip analysis:**
-- Flip into up: +1.84% — weaker than established up (+2.56%)
-  Fresh breakouts sometimes fail before continuing
-- Flip into inconclusive from down: -0.52% vs established down -0.99%
-  Losing the down state improves forward returns significantly
-- Flip into inconclusive: +1.30% vs established inconclusive +0.91%
-
-**Next test (Session 12):** Combine Widell Line state + VSA
-buying_climax in mixed regime — does the combination produce
-stronger signal than either alone?
+- Three states: up (+2.38%), inconclusive (+0.95%), down (-0.83%)
+- Clean separation ordered exactly as theory predicts
+- Flip into up (+1.84%) weaker than established up (+2.56%)
 
 ---
 
-## Session 12 — (upcoming)
+## Session 12 — June 7, 2026
 
-- Test combined signal: Widell Line flip to inconclusive +
-  VSA buying_climax in mixed MA regime
-- Add momentum features: rate of change (5, 10, 20, 50 day)
-- Add MA crossover signals (20/50, 50/200)
-- Begin thinking about signal combination scoring
+**Combined signal test:** Widell inconclusive + buying_climax + mixed regime
+
+Headline: +11.53% over 5 days across 104 bars — appeared strong.
+
+**Stress test by year revealed it's a 2022 artifact:**
+- 2020: +0.67% (6 bars)
+- 2021: -0.25% (14 bars)
+- 2022: +58.05% (22 bars) ← drives the entire average
+- 2023: -1.26% (13 bars)
+- 2024: -2.71% (14 bars)
+- 2025: -0.38% (29 bars)
+- 2026: -4.87% (6 bars)
+
+**Key lesson:** Backtests can be completely dominated by a single
+regime year. The +11.53% headline was a 2022 bear market artifact,
+not a robust edge. Commercial systems that show headline returns
+without regime breakdown are hiding this risk.
+
+**What remains valid:**
+- The signal may be real specifically in bear markets
+- 2022's +58% on 22 bars is not noise — it's a bear market pattern
+- The question is whether 2022 is repeatable or a once-per-decade event
+- Need more bear market data to answer this (2000-2002, 2008-2009
+  would be the test — requires broader historical data)
+
+**Research integrity finding:** The discipline to stress-test the
+headline result is what separates rigorous research from marketing.
+This is the core value of the empirical approach.
+
+---
+
+## Session 13 — (upcoming)
+
+- Expand universe to include SPY, QQQ — market regime ground truth
+- Add value/defensive names (JPM, BRK.B, PG) for cross-regime testing
+- Test whether combined signal holds on non-tech names
+- Investigate whether 2022 bear market pattern is sector-specific
+- Consider pulling longer history (2018-2019) for more bear data
 
 ---
 
