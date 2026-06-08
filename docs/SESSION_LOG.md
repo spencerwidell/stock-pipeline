@@ -434,3 +434,47 @@ All models cluster 0.408-0.417. Further gains require new data types.
 - [ ] `conda activate stock`
 - [ ] `git status`
 - [ ] `pytest tests/ -v`
+
+---
+
+## Session 21 — June 8, 2026
+
+**Built:** run_checks.sh, daily_signals.py, updated RESEARCH_ROADMAP
+
+**run_checks.sh:**
+- Runs full pytest suite (20 tests)
+- Reports data freshness (latest date, ticker count, row count)
+- Run after conda activate stock each morning
+
+**daily_signals.py:**
+- Shows current Widell Line state for all 21 tickers
+- Includes regime, composite score, RSI, 52w distance, VSA label
+- Highlights flips with lightning bolt
+- Summary: universe state counts, high/low score counts
+- Today's reading: 8 flips, 1 up, 12 inconclusive, 8 down
+  QQQ and SPY selling climax — broad market move confirmed
+
+**RESEARCH_ROADMAP.md fully updated:**
+- All 8 empirical findings documented
+- Widell Line contribution formalized
+- Session arc updated through Session 21
+- Upcoming sessions: backtesting, universe expansion, LLM
+
+---
+
+## Session 22 — (upcoming)
+
+- Backtesting harness: simulate trading Widell Line flip signals
+- Include transaction costs, slippage, position sizing
+- Compare: flip-based entry vs composite score filter
+- Baseline: buy-and-hold SPY
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `git status`
