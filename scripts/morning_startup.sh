@@ -16,5 +16,5 @@ git pull --rebase
 echo "Disk check:"
 df -h . | tail -n 1
 
-echo "Ready. Run: conda activate stock"
+echo "Ready. Run: conda activate stock && ./scripts/run_checks.sh"
 
