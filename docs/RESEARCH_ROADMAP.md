@@ -2,229 +2,208 @@
 
 ## Project Vision
 
-This is a production-grade research platform built from first principles, not a portfolio project. The goal is to empirically test whether Volume Spread Analysis and Wyckoff principles contain predictive signal, and if so, to quantify that signal in a way that can be used systematically.
+This is a production-grade research platform built from first principles,
+not a portfolio project. The goal is to empirically test whether Volume
+Spread Analysis and Wyckoff principles contain predictive signal, and if
+so, to quantify that signal in a way that can be used systematically.
 
-Most market analysis frameworks are built on tradition and intuition rather than empirical validation. This project challenges that by treating every claim as a hypothesis to be tested. We start with the simplest deterministic rules, measure their behavior across real data, and build complexity only when simpler models fail.
-
-The infrastructure is designed to support serious research: versioned data, reproducible pipelines, SQL-first analysis for transparency, and clean separation between data acquisition, feature engineering, and modeling.
+Most market analysis frameworks are built on tradition and intuition rather
+than empirical validation. This project challenges that by treating every
+claim as a hypothesis to be tested. We start with the simplest deterministic
+rules, measure their behavior across real data, and build complexity only
+when simpler models fail.
 
 ## The Analytical Stack
 
-The research progresses through five distinct layers, each building on the foundation of the previous:
+### Layer 1: Deterministic / Rule-Based — COMPLETE
+VSA bar classifications, Widell Line state machine, regime features,
+composite scoring. All implemented and validated.
 
-### Layer 1: Deterministic / Rule-Based
-**What it is:** Direct boolean logic applied to raw OHLCV data. If volume > average AND spread < threshold, classify as accumulation.
+### Layer 2: Statistical / Probabilistic — COMPLETE
+Hypothesis testing across daily (1d, 5d, 10d), weekly, and consecutive
+sequence timeframes. Regime-conditioned analysis. Segment comparison.
+All findings documented below.
 
-**What belongs here:** VSA bar classifications, support/resistance level detection, trend rules, higher highs/lower lows swing structure, moving average regime filters, pattern matching expressible as SQL window functions.
+### Layer 3: Machine Learning — COMPLETE
+Random Forest, XGBoost GPU, Optuna tuning, LSTM sequence model.
+Best accuracy: 0.417 (XGBoost + Optuna, SPY-relative alpha target).
+Ceiling reached with current feature set and universe size.
 
-**Why it comes first:** Deterministic rules are transparent, debuggable, and produce the same result every time. They force you to articulate exactly what you mean by "accumulation" or "strength" before adding statistical complexity. If a deterministic rule has no signal, a probabilistic version won't magically create one.
+### Layer 4: LLM Augmentation — UPCOMING
+News-to-feature extraction, sentiment scoring, earnings transcript
+analysis. Will augment signals that already work, not create new ones.
 
-### Layer 2: Statistical / Probabilistic
-**What it is:** Measuring distributions, correlations, and statistical significance of the patterns detected in Layer 1. Does "no demand" actually correlate with price decline? How strong is that correlation? Is it ticker-specific or universal?
-
-**What belongs here:** Hypothesis testing on VSA classifications, volume distribution analysis, correlation studies between bar types and future returns, regime-conditioned signal testing.
-
-**Why it comes after Layer 1:** You need the deterministic features first. This layer answers "do these rules actually mean anything?" before you invest in complex models.
-
-### Layer 3: Machine Learning
-**What it is:** Pattern recognition over sequences of VSA features, phase detection, multi-factor models that combine dozens of signals.
-
-**What belongs here:** Sequence models for Wyckoff phase transitions, feature importance analysis, ensemble methods over VSA+price structure, anomaly detection.
-
-**Why it comes after Layer 2:** If the statistical layer shows no correlation between your features and outcomes, ML will just overfit noise. ML excels at finding complex interactions between features that already have marginal predictive power.
-
-### Layer 4: LLM Augmentation
-**What it is:** Using language models to contextualize numerical patterns with news, sentiment, or earnings transcripts.
-
-**What belongs here:** News-to-feature extraction, sentiment scoring, fundamental data ingestion, contextual pattern explanation.
-
-**Why it comes after Layer 3:** LLMs add context to signals that already work. They don't create signals from scratch.
-
-### Layer 5: Production Infrastructure
-**What it is:** Real-time ingestion, backtesting harness, monitoring, alerting, portfolio construction, risk management.
-
-**Why it comes last:** Infrastructure supports a validated research finding. Building production systems before you have a working model is premature optimization.
-
-## The Wyckoff Foundation
-
-The project uses Wyckoff/VSA as the analytical framework, but with a specific progression:
-
-**Start with VSA (Volume Spread Analysis):** Individual bar classification based on volume, spread, and close position. Each bar gets a deterministic label: No Demand, Climactic Action, Test, etc.
-
-**Progress to Classic Wyckoff:** Phase detection (Accumulation, Markup, Distribution, Markdown) requires sequence modeling across multiple bars. This belongs in Layer 3 because it's sequential pattern recognition.
-
-**Why start with VSA:** Bar-by-bar features are SQL-friendly, deterministic, and provide the inputs for phase detection later. You can't detect accumulation phases until you can reliably detect individual accumulation bars.
-
-## Empirical Findings (updated as research progresses)
-
-### Finding 1 — VSA labels do not predict next-day returns (Sessions 8-9)
-With 21,920 rows across 6 years, all VSA labels produce next-day returns of 0.10-0.17% — indistinguishable from the market's natural upward drift. Next-day is too short a horizon for VSA patterns to play out.
-
-### Finding 2 — VSA labels show weak signal at 5-10 day horizons (Session 9)
-At 5 days, buying_climax leads at +3.11% and effort_up at +0.34%.
-At 10 days, buying_climax +4.23%, effort_up +1.91%.
-However this average is heavily distorted by 2022.
-
-### Finding 3 — buying_climax is regime-conditional (Session 9)
-By year:
-- 2022 (bear): +17.20% over 5 days — strong mean reversion signal
-- 2021/2023/2024 (bull): +0.83% to +1.32% — weak
-- 2025/2026 (current): -0.71% to -1.63% — negative
-
-In 2022, buying_climax was the ONLY label with strong positive returns.
-All other labels were near zero or negative that year.
-
-**Interpretation:** buying_climax marks exhaustion points in bear market
-selloffs. Short-term traders buy the dip, price snaps back 5-10 days,
-then the bear trend resumes. This is mean reversion, not trend reversal.
-The signal is not universal — it requires regime classification first.
-
-### Finding 4 — classical VSA theory partially contradicted (Session 9)
-Theory says climax bars = bearish (distribution). Data shows climax bars
-produce positive forward returns in most regimes. However no_supply and
-no_demand behave as theory predicts (weakest forward returns).
-
-## Feature Roadmap (Layer 1 expansion)
-
-Based on Sessions 8-9 findings, the following features are planned before
-moving to statistical modeling:
-
-### Regime Classification (Session 10)
-- 200-day MA: price above = bull, below = bear (simplest, most tested)
-- MA stack: 20/50/200 alignment for trend strength and momentum
-- Higher highs / lower lows: swing structure using LAG() window functions
-  — price-action based regime, no indicator lag
-
-### Momentum Features (Session 11)
-- Rate of change: (close - close_Nd) / close_Nd for N = 5, 10, 20, 50 days
-- MA crossovers: 20/50, 50/200 — classic momentum signals
-- Distance from 52-week high/low — measures trend exhaustion
-
-### Price Structure Features (Session 12)
-- Higher highs / lower lows sequence length — how many consecutive bars
-  confirm the current trend structure
-- Swing high/low detection using rolling window comparisons
-- Support/resistance proximity
-
-### Volume Profile (Session 13)
-- Institutional proxy: abnormally large volume bars relative to time of day
-  (requires intraday data — check Polygon minute aggregates)
-- Volume trend: is volume expanding or contracting within a trend
-
-### Universe Expansion (Session 14)
-Add to the current 15 tech/growth tickers:
-- SPY, QQQ — market regime ground truth
-- JPM, BRK.B, PG — value/defensive names for cross-regime comparison
-- XOM, GLD — commodities proxy, different cycle behavior
-Rationale: current universe is highly correlated tech/growth stocks.
-All findings may be tech-bull-regime artifacts. Diverse universe
-tests generalizability.
-
-## Open Research Questions
-
-### Regime Questions (now the priority)
-- Does buying_climax edge persist within confirmed bear regimes, or
-  is 2022 a one-year anomaly?
-- What regime classifier best separates the signal? 200MA, swing
-  structure, or drawdown-based?
-- Do VSA thresholds (1.5x volume, 1.5x spread) need regime-specific
-  calibration?
-
-### Signal Structure Questions
-- Does combining regime + VSA label produce a stronger signal than
-  either alone?
-- What is the optimal forward window for each label type?
-- Do signals strengthen on weekly bars where noise is filtered out?
-
-### Universe Questions
-- Are findings tech-sector artifacts or universal VSA signals?
-- Do value stocks (JPM, BRK.B) show different VSA signal structure
-  than growth stocks?
-- Does signal strength correlate with liquidity or market cap?
-
-### Practical Implementation
-- What is the false positive rate of each VSA classification within
-  a confirmed regime?
-- Can multiple weak signals (regime + VSA + momentum) combine into
-  a tradeable edge?
-- What position sizing and stop-loss logic is implied by the
-  mean-reversion character of the buying_climax signal?
-
-## The Session Arc (revised)
-
-### Completed
-- Sessions 1-3: Infrastructure — WSL, conda, Git, GitHub, Parquet pipeline
-- Sessions 4-5: Shell automation — morning_startup.sh, run_pipeline.sh
-- Session 6: DuckDB — SQL queries directly on Parquet
-- Sessions 7-8: VSA features and bar classification
-- Session 9: Dataset expansion (6 years), multi-horizon hypothesis testing,
-  regime analysis — buying_climax regime-conditional finding
-
-### Planned
-- Session 10: Regime classifier — 200MA bull/bear, re-run VSA tests
-  conditioned on regime
-- Session 11: Higher highs/lower lows swing structure, MA stack (20/50/200)
-- Session 12: Momentum features — rate of change, MA crossovers,
-  distance from 52-week high/low
-- Session 13: Universe expansion — add SPY, QQQ, value and commodity names
-- Session 14: Re-run all hypothesis tests on expanded universe,
-  test for tech-sector bias
-- Session 15: First ML layer — regime-conditioned signal combination
-- Session 16: Wyckoff phase detection as sequence classification problem
-- Session 17+: LLM augmentation, production infrastructure
-
-## Guiding Principles
-
-### 1. Learn from First Principles
-Don't accept Wyckoff or VSA as gospel. Treat every claim as a hypothesis. "Accumulation is characterized by high volume and narrow spread" is a testable proposition, not an axiom.
-
-### 2. Deterministic Before Probabilistic
-If you can't write a deterministic rule that shows even weak signal, a probabilistic model won't save you. Start with the simplest possible logic.
-
-### 3. Interpretable Before Complex
-A 10-factor linear model that you can explain beats a 100-feature neural network that you can't. Interpretability is not a luxury; it's required for iterating on hypotheses.
-
-### 4. Infrastructure Before Analysis
-SQL pipelines, versioned data, and reproducible queries are not "nice to have." They're prerequisites for trusting your results.
-
-### 5. Test Everything Empirically
-Intuition and market folklore are starting points, not conclusions. Every claim must survive contact with real data before it earns a place in the model.
-
-### 6. Regime First
-No signal should be evaluated without regime context. A signal that works in bear markets and fails in bull markets is not a broken signal — it is a regime-conditional signal. Know which regime you are in before applying any rule.
+### Layer 5: Production Infrastructure — UPCOMING
+Daily signal generation (daily_signals.py started), backtesting harness,
+monitoring, alerting, position sizing, execution simulation.
 
 ---
 
-**Note:** This roadmap is a living document. Empirical findings section updates
-every session. Session arc updates when plans change based on what we learn.
+## Empirical Findings
 
-## Research Mission (added Session 9)
+### Finding 1 — VSA labels do not predict returns (Sessions 7-17)
+Tested across daily next-day, daily 5-10 day, consecutive sequences,
+and weekly bars. No consistent standalone predictive signal found.
+VSA labels rank last in ML feature importance (0.08%).
+VSA served as theoretical scaffolding that led to the Widell Line.
+**VSA chapter closed.**
 
-The goal is not to replicate existing systems but to empirically validate,
-challenge, and improve on them.
+### Finding 2 — The Widell Line shows consistent state separation (Session 11)
+Original swing-structure state machine. N=3 confirmed optimal via
+widell_optimize.py. Three states validated across all segments:
 
-Commercial systems like the Larsson Line (support/resistance state machine),
-Wyckoff/VSA frameworks, and momentum-based systems are built on intuition
-and selectively backtested. They sell signals without showing the work.
+| State | Bars | 5-Day Return |
+|---|---|---|
+| up | 5,031 | +2.38% |
+| inconclusive | 23,333 | +0.95% |
+| down | 2,598 | -0.83% |
+
+Spread scales with volatility: tech 3.21%, value 1.61%, market 0.98%.
+Universal framework — ordering holds across all three segments.
+
+### Finding 3 — Signal is regime-conditional (Sessions 9-10)
+buying_climax by year: 2022 bear market +17.20%, 2023-2026 flat/negative.
+MA stack regime (bull/mixed/bear) conditions the signal significantly.
+Mixed regime buying_climax: +6.72% over 5 days — strongest combination.
+But stress-test revealed 2022 dominates; signal inconsistent across years.
+
+### Finding 4 — Flip into up weaker than established up (Session 11)
+- Established up state: +2.56%
+- Flip into up: +1.84%
+Fresh breakouts sometimes fail before continuing. The flip is the
+signal moment but established state is the stronger predictor.
+
+### Finding 5 — Composite score works at extremes (Session 15)
+Score ≥2: consistently +1.47% to +2.16% across segments.
+Score ≤-3: negative to flat on tech, weak on value.
+Middle zone (-1 to +1): noisy, no edge.
+Works as a filter, not a trade-by-trade classifier.
+
+### Finding 6 — 52-week distance dominates ML features (Session 18)
+dist_52w_high: 24.9%, dist_52w_low: 21.4% in XGBoost importance.
+This is the well-known 52-week high effect (George & Hwang, 2004).
+The Widell Line adds incremental value on top: wl_encoded 11.1%,
+score_wl 10.5% — ranks 1st and 2nd among non-momentum features.
+
+### Finding 7 — ML ceiling at 0.417 with current data (Sessions 16-20)
+All models cluster 0.408-0.417 on SPY-relative alpha target.
+Naive baseline: 0.368. Random baseline: 0.333.
+LSTM (0.412) does not outperform XGBoost (0.417).
+Sequence model overhead not justified for daily OHLCV features.
+Further gains require new data types or broader universe.
+
+### Finding 8 — Value/defensive more consistent than tech (Session 13)
+buying_climax value/defensive: positive in 5 of 7 years, no outlier.
+buying_climax tech/growth: dominated by 2022 (+17.20%).
+Consistency often more valuable than magnitude in a trading system.
+
+---
+
+## The Widell Line — Original Contribution
+
+The Widell Line is an empirically validated swing-structure state machine:
+
+1. Detects swing highs (resistance) and swing lows (support) using
+   a confirmed-optimal N=3 bar window each side
+2. Forward-fills resistance and support lines
+3. Assigns state: up (above resistance), down (below support),
+   inconclusive (between lines)
+4. Detects flips — state changes bar to bar
+
+Key properties validated empirically:
+- N=3 optimal: spread collapses at N=5 (down state goes positive)
+- Universal: up > inconclusive > down in all three market segments
+- Regime-aware: combined with MA stack produces actionable filters
+- Top ML feature: ranks #1 and #2 in XGBoost importance
+
+Named after Spencer Widell. Built from first principles, validated
+against 6 years of daily data across 21 tickers and 3 segments.
+Compared against and found to outperform classical VSA labels.
+
+---
+
+## Research Mission
+
+The goal is not to replicate existing systems but to empirically
+validate, challenge, and improve on them.
+
+Commercial systems like the Larsson Line (support/resistance state
+machine) and Wyckoff/VSA frameworks are built on intuition and
+selectively backtested. They sell signals without showing the work.
 
 This project does the opposite:
 - Every claim is treated as a hypothesis
-- Every signal is tested across multiple market regimes
-- All code, data, and findings are version-controlled and public
-- Complexity is added only when simpler models fail
+- Every signal tested across multiple market regimes
+- All code, data, and findings version-controlled and public
+- Complexity added only when simpler models fail
 
-**The Larsson Line as a benchmark (Session 11 target):**
-The Larsson Line is a support/resistance state machine with three states:
-up (price above resistance line), down (price below support line),
-inconclusive (price between lines). Flips between states are the signals.
+The Larsson Line benchmark: our empirical version (Widell Line)
+produces clean state separation (3.21% spread on tech) validated
+across 6 years. The mixed/inconclusive regime insight — that
+transition zones matter — was derived from data, not purchased.
 
-This is buildable from first principles using LAG() window functions to
-track swing highs and lows, then a state machine to assign up/down/
-inconclusive per bar. Once built we can:
-- Test whether the flip signal has statistically significant forward returns
-- Compare it against the 200MA regime classifier
-- Test whether combining Larsson state + VSA label improves signal strength
-- Identify which market regimes it works in vs fails in
+---
 
-If our empirical version outperforms or refines the commercial one, that
-is a publishable finding and a strong portfolio differentiator.
+## Universe Design
+
+Current (21 tickers):
+- Tech/growth (15): AMZN, NVDA, MSFT, META, TSLA, ELF, CELH,
+  PLTR, AVGO, SOFI, TSM, NOW, IBM, CRM, ORCL
+- Market (2): SPY, QQQ
+- Value/defensive (4): JPM, PG, XOM, GLD
+
+Expansion path:
+- Phase 2: QQQ constituents (~115 tickers) — validate signal on
+  liquid institutionally-traded names
+- Phase 3: SPY constituents (~500 tickers) — test generalizability
+- Phase 4: Full factor grid — sector, style, cap size diversity
+
+Universe expansion driven by ML training data quality, not portfolio
+construction. Tech names are phase-correlated — diverse universe
+ensures all Wyckoff phases represented in training data.
+
+---
+
+## Session Arc
+
+### Completed
+- Sessions 1-3: Infrastructure — WSL, conda, Git, Parquet pipeline
+- Sessions 4-5: Shell automation — morning_startup.sh, run_pipeline.sh
+- Session 6: DuckDB — SQL directly on Parquet
+- Sessions 7-8: VSA features and bar classification
+- Session 9: Dataset expansion (6 years), hypothesis testing
+- Session 10: Regime classifier — MA stack, channel position
+- Session 11: Widell Line — swing state machine, N=3 validated
+- Session 12: Combined signal test — 2022 artifact lesson
+- Session 13: Universe expansion — value/defensive/market added
+- Session 14: Widell Line validated across all segments
+- Session 15: Composite signal scoring (-6 to +6)
+- Session 16: ML baseline — Random Forest, feature isolation
+- Session 17: VSA sequence and weekly tests — chapter closed
+- Session 18: New features (RSI, MACD, 52w distance), alpha target
+- Session 19: XGBoost GPU, Optuna, pytest suite
+- Session 20: LSTM — no improvement over XGBoost, ceiling confirmed
+- Session 21: run_checks.sh, daily_signals.py, roadmap updated
+
+### Upcoming
+- Session 22: Backtesting harness — simulate trading the Widell
+  Line flip signals with realistic transaction costs
+- Session 23: Universe expansion to QQQ constituents
+- Session 24: LLM augmentation — earnings sentiment as feature
+- Session 25+: Production pipeline, monitoring, alerting
+
+---
+
+## Guiding Principles
+
+1. **Learn from First Principles** — treat every claim as a hypothesis
+2. **Deterministic Before Probabilistic** — simple rules first
+3. **Interpretable Before Complex** — explainability is required
+4. **Infrastructure Before Analysis** — reproducibility is prerequisite
+5. **Test Everything Empirically** — intuition is a starting point
+6. **Regime First** — no signal evaluated without regime context
+7. **Stress Test Headlines** — year-by-year breakdown is mandatory
+
+---
+
+*This roadmap is a living document. Updated through Session 21.*
