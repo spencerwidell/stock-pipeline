@@ -336,3 +336,57 @@ VSA labels confirmed irrelevant in ML context.
 - [ ] `./scripts/morning_startup.sh`
 - [ ] `conda activate stock`
 - [ ] `git status`
+
+---
+
+## Session 19 — June 8, 2026
+
+**Built:** ml_xgboost.py, ml_tune.py, ml_optuna.py, tests/test_pipeline.py
+
+**XGBoost vs Random Forest (GPU, alpha target):**
+- RandomForest: 0.408
+- XGBoost GPU:  0.413 — marginal improvement
+- XGBoost feature importances shifted: wl_encoded now #1 at 11.3%
+  vs buried in Random Forest. Gradient boosting finds Widell Line
+  interactions that Random Forest misses.
+
+**Hyperparameter tuning:**
+- Manual grid search: best 0.413 (depth=4, lr=0.05)
+- Optuna 50 trials: best 0.417 (depth=4, lr=0.046, n_est=337)
+- Marginal gain — likely near ceiling for this feature set/dataset
+
+**GPU enabled:** RTX 4090 confirmed working with XGBoost device=cuda
+Each Optuna trial ~7 seconds vs minutes on CPU.
+
+**MLflow UI:** Running at localhost:5000, 5 experiments tracked.
+All runs logged with parameters, metrics, and model artifacts.
+
+**Test suite:** 20 pytest tests, all passing in 0.31 seconds.
+Covers: data integrity, feature ranges, regime values, VSA labels,
+Widell Line state separation, pipeline consistency.
+
+**Key insight:** We are near the ceiling at 0.417 with this feature
+set. To improve meaningfully need either:
+1. More training data (expand universe further)
+2. New feature types (options flow, sentiment, fundamentals)
+3. Different model architecture (sequence model for temporal patterns)
+
+---
+
+## Session 20 — (upcoming)
+
+- Update RESEARCH_ROADMAP.md with all ML findings
+- Add pytest to morning_startup.sh as a health check
+- Add segment encoding as a feature and retest
+- Consider sequence model (LSTM or transformer) for temporal patterns
+- Begin thinking about production signal generation
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `git status`
+- [ ] `pytest tests/ -v`
