@@ -48,6 +48,7 @@ FEATURES = [
     "effort", "roc_20", "dist_52w_high", "dist_52w_low",
     "dist_ma200", "ma200_slope", "channel_pos",
     "rsi_14", "macd_hist", "macd_cross",
+    "rsi_trend", "composite_trend", "momentum_5", "wl_duration",
 ]
 
 X = df[FEATURES].fillna(0)

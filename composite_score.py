@@ -44,6 +44,36 @@ df["composite"] = (
     df["score_regime"]
 )
 
+# Sequence features — require full pipeline to be complete
+df["rsi_trend"] = df.groupby("ticker")["rsi_14"].transform(
+    lambda x: x - x.shift(5)
+).round(2)
+
+df["composite_trend"] = df.groupby("ticker")["composite"].transform(
+    lambda x: x - x.shift(5)
+).round(2)
+
+df["momentum_5"] = df.groupby("ticker")["close"].transform(
+    lambda x: (x / x.shift(5) - 1) * 100
+).round(2)
+
+def state_duration(series):
+    duration = []
+    count = 0
+    prev = None
+    for val in series:
+        if val == prev:
+            count += 1
+        else:
+            count = 1
+        duration.append(count)
+        prev = val
+    return pd.Series(duration, index=series.index)
+
+df["wl_duration"] = df.groupby("ticker")["wl_state"].transform(state_duration)
+
+
+
 # Save
 df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)
 
