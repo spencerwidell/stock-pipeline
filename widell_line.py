@@ -63,10 +63,9 @@ def add_widell(group):
 
     return group
 
-tickers = df["ticker"].values
 df = df.groupby("ticker", group_keys=False).apply(add_widell)
-df.insert(0, "ticker", tickers)
-
+if "ticker" not in df.columns:
+    df.insert(0, "ticker", df.index.get_level_values("ticker"))
 
 # Save
 df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)
