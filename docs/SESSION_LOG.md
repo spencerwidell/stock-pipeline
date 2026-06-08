@@ -390,3 +390,47 @@ set. To improve meaningfully need either:
 - [ ] `conda activate stock`
 - [ ] `git status`
 - [ ] `pytest tests/ -v`
+
+---
+
+## Session 20 — June 8, 2026
+
+**Built:** ml_lstm.py, sequence features, updated README and DECISIONS
+
+**Sequence features added to composite_score.py:**
+- rsi_trend: RSI change over 5 bars
+- composite_trend: composite score change over 5 bars
+- momentum_5: 5-bar price return
+- wl_duration: consecutive bars in current Widell state
+
+**LSTM results:**
+- Accuracy: 0.412 — identical to XGBoost
+- Sequence model does not outperform gradient boosting
+- Daily OHLCV patterns not complex enough to justify LSTM overhead
+- XGBoost + engineered sequence features captures same information
+
+**ML ceiling confirmed at ~0.417**
+All models cluster 0.408-0.417. Further gains require new data types.
+
+**Documentation updated:**
+- README.md: full project overview with all findings
+- DECISIONS.md: complete record of all architectural choices
+
+---
+
+## Session 21 — (upcoming)
+
+- Update RESEARCH_ROADMAP.md with final ML findings
+- Add pytest to morning_startup.sh health check
+- Begin Layer 4 planning: LLM augmentation
+- Consider daily signal generation script
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `git status`
+- [ ] `pytest tests/ -v`
