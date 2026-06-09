@@ -207,3 +207,28 @@ ensures all Wyckoff phases represented in training data.
 ---
 
 *This roadmap is a living document. Updated through Session 21.*
+
+## Fundamental Augmentation (added Session 25)
+
+Polygon Financials API provides quarterly/annual fundamental data.
+Adding a fundamentals score alongside the Widell Line composite score
+creates a two-dimensional signal: technical + fundamental.
+
+**Fundamental Score (0-5):**
+- Revenue growth > 20% YoY: +1
+- Gross margin > 50%: +1
+- Forward PE < 30: +1
+- PEG ratio < 1.5: +1
+- Positive free cash flow: +1
+
+**Combined signal interpretation:**
+- Widell score ≥ 2 + Fundamental score ≥ 4: highest conviction entry
+- Widell score ≥ 2 + Fundamental score ≤ 2: technical signal only, caution
+- Widell score ≤ -3 + Fundamental score ≥ 4: great company, bad timing, wait
+- Widell score ≤ -3 + Fundamental score ≤ 2: avoid entirely
+
+**Planned session:** Session 27
+- Fetch Polygon Financials for all 88 tickers
+- Build fundamental scoring model
+- Add fundamental score to dashboard
+- Test whether fundamental score improves backtest results
