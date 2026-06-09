@@ -43,6 +43,15 @@ TICKERS = [
     "XLV", "XLP",
     # International
     "EEM",
+    # Watchlist
+    "AXON", "PANW", "ZETA", "SNOW", "MU", "BE", "ASML",
+    "HOOD", "GOOG", "MSTR", "NFLX", "BKNG", "AMD", "AAPL",
+    "FCX", "FANG", "COST", "CAT", "CMI", "CVX", "MELI",
+    "ZS", "CRWD", "ALAB", "BIDU", "ANET", "CDNS", "APP",
+    "ISRG", "VRT", "NXE", "SMR", "CRDO", "CEG", "DVN",
+    "RTX", "NBIS", "LITE", "GEV", "ARM", "GLW", "PWR",
+    "LRCX", "AMAT", "ONDS", "RKLB", "ASTS", "RGTI", "QBTS",
+    "IONQ", "SERV", "UEC", "CCJ", "URG", "LEU", "CRWV",
 ]
 
 END_DATE   = datetime.now(timezone.utc).date()

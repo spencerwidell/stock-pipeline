@@ -7,6 +7,9 @@ df = pd.read_parquet("data/stock_ohlcv.parquet")
 # Sort so rolling calculations work correctly
 df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
 
+# Remove bars with near-zero volume — data quality issue (e.g. NXE 2023-05-30)
+df = df[df["volume"] > 1000].reset_index(drop=True)
+
 # Bar direction
 df["direction"] = (df["close"] > df["open"]).map({True: "up", False: "down"})
 
@@ -124,6 +127,19 @@ df["ma20_std"] = df.groupby("ticker")["close"].transform(
     lambda x: x.rolling(20, min_periods=1).std()
 )
 df["channel_pos"] = ((df["close"] - df["ma20"]) / df["ma20_std"]).round(2)
+
+# Gap features — overnight price gap
+df["gap_pct"] = (df.groupby("ticker").apply(
+    lambda x: (x["open"] - x["close"].shift(1)) / x["close"].shift(1) * 100
+).reset_index(level=0, drop=True)).round(3)
+
+# Gap with volume — gap backed by high volume = conviction move
+df["gap_volume"] = (df["gap_pct"] * df["rel_volume"]).round(3)
+
+# Friday close signal — does Friday direction predict Monday?
+df["day_of_week"] = pd.to_datetime(df["date"]).dt.dayofweek  # 0=Mon 4=Fri
+df["is_friday"] = (df["day_of_week"] == 4).astype(int)
+
 
 # Save
 df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)
