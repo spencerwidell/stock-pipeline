@@ -478,3 +478,58 @@ All models cluster 0.408-0.417. Further gains require new data types.
 - [ ] `conda activate stock`
 - [ ] `./scripts/run_checks.sh`
 - [ ] `git status`
+
+---
+
+## Session 22 — June 8, 2026
+
+**Built:** backtest.py, backtest_v2.py, backtest_v3.py, sector_map.py
+Fixed META data corruption (FB/META ticker stitch)
+
+**META data fix:**
+Polygon's META ticker contained wrong historical prices (~$15 vs ~$340).
+Root cause: different company previously traded as META.
+Fix: fetch FB (pre Oct 2021) + META (post Oct 2021), stitch together.
+First close now correctly $236.73 in June 2020.
+
+**Backtest V3 — apples to apples (same 15 names):**
+System avg: 241.4% vs Buy-and-hold avg: 222.2%
+System wins by +19.2% including NVDA/AVGO generational outliers.
+
+**Excluding NVDA and AVGO (generational AI plays):**
+System avg: 202.3% vs Buy-and-hold avg: 107.9%
+System edge: +94.4 percentage points
+System beats BAH: 9/13 names
+
+**Key insight — system value varies by stock type:**
+- Volatile growth (PLTR, ELF, CELH, META): system adds significant value
+- Steady compounders (MSFT, ORCL, IBM, TSM): BAH wins, system times poorly
+- Losers/turnarounds (SOFI, CRM): system protects by reducing exposure
+- Generational trends (NVDA, AVGO): just hold, don't time
+
+**Portfolio framework:**
+- High conviction secular trends: hold, use system only for breakdown alerts
+- Volatile growth names: use Widell Line for entry timing and sizing
+- Value/turnaround plays: system entry signals add real value
+
+**Top-down filter added:** sector_map.py maps each stock to its
+parent sector ETF and broad market ETF for top-down confirmation.
+
+---
+
+## Session 23 — (upcoming)
+
+- Position sizing backtest: full/half/zero based on Widell state
+- Add gap + volume feature (daily open vs prev close)
+- Friday close signal test
+- Begin thinking about alert system for signal changes
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `git status`
