@@ -717,3 +717,58 @@ PLTR example: bear/inconclusive/negative composite = wait, not buy.
 - [ ] `./scripts/run_checks.sh`
 - [ ] `git status`
 - [ ] Check http://18.188.180.99:8501
+
+---
+
+## Session 26 — June 9, 2026
+
+**Built:** Gap from flip and pullback target features
+
+**New features added:**
+- flip_price: price at the moment of Widell state flip (widell_line.py)
+- flip_date: date of the last flip
+- pullback_target: resistance level broken at flip (where old resistance = new support)
+- gap_from_flip: % move since flip day (are you chasing?)
+
+**Daily signals enhanced:**
+- Flips section now shows gap and pullback target
+- New "Up State — Entry & Pullback Analysis" section
+- Color coded: 🟢 AT ENTRY (<2%), 🟡 ELEVATED (2-5%), 🔴 CHASING (>5%)
+
+**Dashboard updated:**
+- Same gap/pullback intelligence in Streamlit
+- New up state section with chase indicator
+- gap_from_flip column color coded in table
+- Guide tab updated with gap explanation and example
+
+**AWS deployment:**
+- git pull + systemctl restart streamlit workflow established
+- One-liner deploy from AWS terminal: git pull && sudo systemctl restart streamlit
+
+**Real world validation:**
+- AMAT: gap=+9.4%, pullback→$448 — chasing territory
+- ASML/CAT: Day 1 flips, gap near 0% — entry zone
+- System correctly identified the semi equipment sector rotation
+
+**Key workflow for tomorrow:**
+- Check dashboard after 4:30 PM ET for fresh data
+- Up State section shows today's actual gaps
+- If ASML/CAT still in up state with gap < 5% — validated entry
+
+---
+
+## Session 27 — (upcoming)
+
+- Telegram bot for daily flip alerts
+- Polygon Financials API — fundamental scoring
+- Pine Script Widell Line for TradingView
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] Check http://18.188.180.99:8501
