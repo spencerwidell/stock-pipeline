@@ -772,3 +772,48 @@ PLTR example: bear/inconclusive/negative composite = wait, not buy.
 - [ ] `conda activate stock`
 - [ ] `./scripts/run_checks.sh`
 - [ ] Check http://18.188.180.99:8501
+
+---
+
+## Session 27 — June 9, 2026
+
+**Built:** telegram_alert.py — daily push notifications
+
+**Telegram bot setup:**
+- Bot: @widell_line_bot (Widell Line Signals)
+- Token stored in .env (never in Git)
+- Chat ID stored in .env
+
+**Alert content:**
+- Daily summary: up/inconclusive/down counts + flip count
+- Flips today with state, score, gap from flip
+- Up state analysis: entry/elevated/chasing status + pullback target
+- High score opportunities (≥2, not yet up)
+- Dashboard link
+
+**AWS cron updated:**
+- Pipeline + telegram_alert.py runs at 9:30 PM UTC (4:30 PM ET) weekdays
+- Fully automated end to end — no laptop required
+
+**Complete automated workflow:**
+Polygon API → features → labels → Widell Line → composite score
+→ Telegram alert on phone → Dashboard for full details
+
+---
+
+## Session 28 — (upcoming)
+
+- Polygon Financials API — fundamental scoring
+- Revenue growth, gross margin, forward PE, PEG, FCF
+- Fundamental score (0-5) alongside Widell composite
+- Add to dashboard and Telegram alerts
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] Check http://18.188.180.99:8501
