@@ -27,18 +27,30 @@ API_KEY = os.environ["POLYGON_API_KEY"]
 # ---------------------------------------------------------------------------
 # 2. Configuration: which tickers and what date range
 # ---------------------------------------------------------------------------
+
 TICKERS = [
     # Original tech/growth
     "AMZN", "NVDA", "MSFT", "META", "TSLA",
     "ELF", "CELH", "PLTR", "AVGO", "SOFI",
     "TSM", "NOW", "IBM", "CRM", "ORCL",
-    # Market regime ground truth
-    "SPY", "QQQ",
+    # Broad market
+    "SPY", "QQQ", "IWM",
     # Value/defensive
-    "JPM", "BRK-B", "PG",
-    # Commodities proxy
-    "XOM", "GLD",
+    "JPM", "PG", "XOM", "GLD",
+    # Sub-tech ETFs
+    "SMH", "IGV", "SKYY",
+    # Financials
+    "XLF", "KRE",
+    # Energy
+    "XLE", "ICLN",
+    # Defensive
+    "XLV", "XLP",
+    # International
+    "EEM",
 ]
+
+
+
 # Last 30 calendar days. The market is closed on weekends/holidays, so the
 # API simply returns fewer rows than 30 — that's expected, not an error.
 END_DATE = datetime.now(timezone.utc).date()
