@@ -588,3 +588,19 @@ PLTR example: bear/inconclusive/negative composite = wait, not buy.
 - [ ] `./scripts/run_checks.sh`
 - [ ] `git status`
 - [ ] `python daily_signals.py`
+
+**Daily signals enhanced:**
+- Added Days in state column — consecutive days holding current state
+- Added MA200 and MA50 actual price levels
+- Added Flips today summary section at bottom
+- ASML/CAT: Day 1 flips, score +4, actionable tomorrow if confirmed
+- AMAT: Day 8, score +3 — validated and holding
+- AAPL/BKNG: Day 1 negative flips, warning signals
+
+**Signal validation framework:**
+- Day 1 flip: unvalidated, watch tomorrow
+- Day 2-3: early validation, position sizing 50%
+- Day 5+: validated trend, full position
+- Flip back to inconclusive: exit or reduce
+- Composite drops below 0 on up state: warning
+- Volume dries up (rel_volume < 0.7) on follow-through: weak signal
