@@ -604,3 +604,68 @@ PLTR example: bear/inconclusive/negative composite = wait, not buy.
 - Flip back to inconclusive: exit or reduce
 - Composite drops below 0 on up state: warning
 - Volume dries up (rel_volume < 0.7) on follow-through: weak signal
+
+---
+
+## Session 24 — June 8, 2026
+
+**Built:** run_daily.sh, dashboard.py, requirements.txt, environment.yml
+
+**run_daily.sh — full pipeline automation:**
+- Fetches data, runs all feature scripts, tests, generates signals
+- Runs end to end in ~52 seconds
+- Logs to logs/daily_YYYYMMDD_HHMM.log
+
+**Cron job scheduled:**
+- 30 13 * * 1-5 (1:30 PM Phoenix / 4:30 PM Eastern, weekdays)
+- Cron already running since June 6
+- WSL limitation: laptop must be on for cron to fire
+- Cloud VM is the production solution (upcoming)
+
+**Environment captured:**
+- requirements.txt: 131 packages, exact versions
+- environment.yml: full conda environment snapshot
+
+**Streamlit dashboard — dashboard.py:**
+- Tab 1: Signals — live signal table with color coding
+  - Summary metrics (up/inconclusive/down/flips/high score)
+  - Flips today section with action items
+  - Filterable full universe table
+  - Score distribution chart
+  - Ticker history with price and composite charts
+- Tab 2: Guide — complete reference documentation
+  - What is the Widell Line
+  - Three states explained with returns
+  - Composite score breakdown
+  - Regime definitions
+  - Flip signal types
+  - Entry and exit checklists
+  - Column reference
+
+**Cloud deployment plan (Session 25):**
+- AWS/GCP free tier VM
+- Deploy pipeline + dashboard
+- Always-on cron at market close
+- Accessible from phone/browser anywhere
+- Telegram bot for flip alerts
+
+---
+
+## Session 25 — (upcoming)
+
+- Cloud VM setup (AWS EC2 free tier)
+- Deploy pipeline and dashboard to cloud
+- Configure cron on cloud server
+- Telegram bot for daily flip alerts
+- Pine Script Widell Line for TradingView
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `git status`
+- [ ] `python daily_signals.py` or `streamlit run dashboard.py`
