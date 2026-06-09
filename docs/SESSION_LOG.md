@@ -533,3 +533,58 @@ parent sector ETF and broad market ETF for top-down confirmation.
 - [ ] `conda activate stock`
 - [ ] `./scripts/run_checks.sh`
 - [ ] `git status`
+
+---
+
+## Session 23 — June 8, 2026
+
+**Universe expansion:** 32 → 88 tickers
+Added full watchlist: AXON, PANW, SNOW, MU, ASML, GOOG, NFLX,
+BKNG, AMD, AAPL, FCX, COST, CAT, CMI, CVX, MELI, ZS, CRWD,
+ALAB, BIDU, ANET, CDNS, APP, ISRG, VRT, NXE, SMR, CRDO, CEG,
+DVN, RTX, NBIS, LITE, GEV, ARM, GLW, PWR, LRCX, AMAT, ONDS,
+RKLB, ASTS, RGTI, QBTS, IONQ, SERV, UEC, CCJ, URG, LEU, CRWV,
+ZETA, HOOD, MSTR, FANG, MELI, BE, and others.
+ALOY, XE, SLVR, RNRK, USAR not found on Polygon.
+
+**Gap features added to vsa_features.py:**
+- gap_pct: overnight gap as % of prior close
+- gap_volume: gap_pct * rel_volume (conviction gap)
+- day_of_week, is_friday: for Friday close signal testing
+
+**Data quality fix:**
+- Filter bars with volume < 1000 (NXE bad data row removed)
+- Test updated to reflect improved data quality
+
+**Daily signals with full universe — key observations:**
+- ASML, CAT: 🟢 up, score +4, flipped today — strong entries
+- AMAT: 🟢 up, score +3 — established semiconductor equipment strength
+- AAPL: 🔴 down, score -3, flip today — largest company breaking down
+- BKNG: 🔴 down, score -4, flip today — consumer discretionary warning
+- Uranium basket mixed: CCJ/URG holding, LEU/UEC breaking down
+- SPY/QQQ inconclusive bull +1 — market in holding pattern
+
+**Watchlist philosophy confirmed:**
+System most valuable for screening opportunities before buying.
+Prevents falling knife purchases by requiring confirmed entry signal.
+PLTR example: bear/inconclusive/negative composite = wait, not buy.
+
+---
+
+## Session 24 — (upcoming)
+
+- Friday close signal test — does Friday direction predict Monday?
+- Gap + volume signal test — do conviction gaps predict direction?
+- Position sizing backtest on expanded universe
+- Consider alert system: daily email/notification when signals flip
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `git status`
+- [ ] `python daily_signals.py`
