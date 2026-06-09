@@ -3,7 +3,7 @@ import duckdb
 from datetime import date
 
 print(f"Widell Line Daily Signals — {date.today()}")
-print("=" * 85)
+print("=" * 95)
 
 df = duckdb.query("""
     WITH latest AS (
@@ -11,6 +11,7 @@ df = duckdb.query("""
                regime, composite, rsi_14, dist_52w_high,
                dist_ma200, ma200, ma50, ma20,
                vsa_label, wl_duration,
+               flip_price, resistance,
                ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
         FROM 'data/stock_vsa.parquet'
     )
@@ -21,8 +22,11 @@ df = duckdb.query("""
            ROUND(dist_ma200, 1) as dist_ma200,
            ROUND(ma200, 2) as ma200,
            ROUND(ma50, 2) as ma50,
-           wl_duration,
-           vsa_label
+           CAST(wl_duration AS INT) as days,
+           vsa_label,
+           ROUND(flip_price, 2) as flip_price,
+           ROUND(resistance, 2) as pullback_target,
+           ROUND((close - flip_price) / flip_price * 100, 1) as gap_from_flip
     FROM latest
     WHERE rn = 1
     ORDER BY composite DESC, wl_state, ticker
@@ -40,8 +44,7 @@ for _, row in df.iterrows():
     icon  = state_icon.get(row["wl_state"], "?")
     ricon = regime_icon.get(row["regime"], "?")
     flip  = " ⚡" if row["wl_flip"] else ""
-    days  = int(row["wl_duration"]) if pd.notna(row["wl_duration"]) else 0
-
+    days  = int(row["days"]) if pd.notna(row["days"]) else 0
     print(f"{row['ticker']:<6} {row['close']:>7.2f} "
           f"{icon} {row['wl_state']:<13}"
           f"{ricon} {row['regime']:<8}"
@@ -68,15 +71,26 @@ print(f"Universe: {up} up  {inc} inconclusive  {down} down  |  {flips} flip(s) t
 print(f"High score (>=2): {(df['composite'] >= 2).sum()} tickers")
 print(f"Low score (<=-3): {(df['composite'] <= -3).sum()} tickers")
 
-# New flips today worth watching
 print(f"\nFlips today:")
-flipped = df[df["wl_flip"] == True][["ticker","wl_state","regime","composite","rsi","vsa_label"]]
+flipped = df[df["wl_flip"] == True]
 if len(flipped) > 0:
     for _, row in flipped.iterrows():
         icon  = state_icon.get(row["wl_state"], "?")
         ricon = regime_icon.get(row["regime"], "?")
+        gap   = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
+        pb    = f"{row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
         print(f"  {row['ticker']:<6} {icon} {row['wl_state']:<13} "
               f"{ricon} {row['regime']:<8} score={row['composite']:>3}  "
-              f"rsi={row['rsi']:>5.1f}  {row['vsa_label']}")
+              f"rsi={row['rsi']:>5.1f}  gap={gap}  pullback→{pb}  {row['vsa_label']}")
 else:
     print("  None today")
+
+print(f"\nUp state — gap from flip vs pullback target:")
+up_df = df[df["wl_state"] == "up"].copy()
+if len(up_df) > 0:
+    for _, row in up_df.iterrows():
+        gap = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
+        pb  = f"{row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
+        days = int(row["days"]) if pd.notna(row["days"]) else 0
+        print(f"  {row['ticker']:<6} close={row['close']:>8.2f}  "
+              f"gap={gap:>7}  pullback→{pb}  days={days}")

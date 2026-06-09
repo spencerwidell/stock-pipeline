@@ -60,7 +60,11 @@ def add_widell(group):
 
     # Detect flips
     group["wl_flip"] = group["wl_state"] != group["wl_state"].shift(1)
-
+    # Price at the flip — forward filled so every bar knows the last flip price
+    group["flip_price"] = group["close"].where(group["wl_flip"])
+    group["flip_price"] = group["flip_price"].ffill()
+    group["flip_date"] = group["date"].where(group["wl_flip"])
+    group["flip_date"] = group["flip_date"].ffill()
     return group
 
 df = df.groupby("ticker", group_keys=False).apply(add_widell)
