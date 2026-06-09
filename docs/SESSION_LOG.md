@@ -669,3 +669,51 @@ PLTR example: bear/inconclusive/negative composite = wait, not buy.
 - [ ] `./scripts/run_checks.sh`
 - [ ] `git status`
 - [ ] `python daily_signals.py` or `streamlit run dashboard.py`
+
+---
+
+## Session 25 — June 9, 2026
+
+**AWS EC2 deployment — fully operational**
+
+**Infrastructure:**
+- Instance: t3.micro, Ubuntu 24.04, US-East-2 (Ohio)
+- IP: 18.188.180.99
+- Storage: 30GB
+- Free tier: 12 months
+
+**What's running on the server:**
+- Full pipeline: fetch → vsa_features → vsa_labels → widell_line → composite_score
+- 20/20 pytest tests passing
+- Cron job: 9:30 PM UTC (4:30 PM Eastern) weekdays — fully automatic
+- Streamlit dashboard: http://18.188.180.99:8501 — accessible from any device
+- Systemd service keeps dashboard alive permanently, restarts on reboot
+
+**Key files on server:**
+- ~/stock-pipeline/ — full repo clone
+- ~/.env — Polygon API key (copied manually, not in Git)
+- /etc/systemd/system/streamlit.service — dashboard auto-start
+- crontab — daily pipeline automation
+
+**Access:**
+- Dashboard: http://18.188.180.99:8501 (any browser, any device)
+- SSH: ssh -i ~/.ssh/stock-pipeline-key.pem ubuntu@18.188.180.99
+
+---
+
+## Session 26 — (upcoming)
+
+- Telegram bot for daily flip alerts
+- Push notifications when Widell Line flips occur
+- Pine Script Widell Line for TradingView
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `git status`
+- [ ] Check http://18.188.180.99:8501
