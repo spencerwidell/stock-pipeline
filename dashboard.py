@@ -11,7 +11,8 @@ def load_signals():
         WITH latest AS (
             SELECT ticker, date, close, wl_state, wl_flip,
                    regime, composite, rsi_14, dist_52w_high,
-                   dist_ma200, ma200, ma50, wl_duration, vsa_label,
+                   dist_ma200, ma200, ma50, vsa_label, wl_duration,
+                   flip_price, resistance,
                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
             FROM 'data/stock_vsa.parquet'
         )
@@ -21,7 +22,10 @@ def load_signals():
                ROUND(dist_52w_high,1) as dist_52w_hi,
                ROUND(dist_ma200,1) as dist_ma200,
                ROUND(ma200,2) as ma200, ROUND(ma50,2) as ma50,
-               CAST(wl_duration AS INT) as days, vsa_label
+               CAST(wl_duration AS INT) as days, vsa_label,
+               ROUND(flip_price,2) as flip_price,
+               ROUND(resistance,2) as pullback_target,
+               ROUND((close - flip_price) / flip_price * 100, 1) as gap_from_flip
         FROM latest WHERE rn = 1
         ORDER BY composite DESC, wl_state, ticker
     """).df()
@@ -43,11 +47,42 @@ with tab1:
 
     flips = df[df["wl_flip"]==True]
     if len(flips) > 0:
-        st.subheader("⚡ Flips Today")
+        st.subheader("⚡ Flips Today — Action Items")
         for _, row in flips.iterrows():
             icon = "🟢" if row["wl_state"]=="up" else "🔴" if row["wl_state"]=="down" else "🟡"
-            st.markdown(f"**{row['ticker']}** {icon} {row['wl_state'].upper()} | Score: **{int(row['composite'])}** | RSI: {row['rsi']} | Regime: {row['regime']} | Days: {int(row['days'])} | {row['vsa_label']}")
+            gap  = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
+            pb   = f"${row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
+            st.markdown(
+                f"**{row['ticker']}** {icon} {row['wl_state'].upper()} "
+                f"| Score: **{int(row['composite'])}** "
+                f"| RSI: {row['rsi']} "
+                f"| Regime: {row['regime']} "
+                f"| Days: {int(row['days'])} "
+                f"| Gap from flip: **{gap}** "
+                f"| Pullback target: **{pb}** "
+                f"| {row['vsa_label']}"
+            )
         st.divider()
+
+    st.subheader("🟢 Up State — Entry & Pullback Analysis")
+    up_df = df[df["wl_state"]=="up"].copy()
+    if len(up_df) > 0:
+        for _, row in up_df.iterrows():
+            gap  = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
+            pb   = f"${row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
+            days = int(row["days"]) if pd.notna(row["days"]) else 0
+            chase = "🔴 CHASING" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 5 else \
+                    "🟡 ELEVATED" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
+                    "🟢 AT ENTRY"
+            st.markdown(
+                f"**{row['ticker']}** ${row['close']:.2f} "
+                f"| {chase} gap={gap} "
+                f"| Pullback target: **{pb}** "
+                f"| Days in up: {days} "
+                f"| Score: {int(row['composite'])} "
+                f"| Regime: {row['regime']}"
+            )
+    st.divider()
 
     st.subheader("🔍 Full Universe")
     c1,c2,c3 = st.columns(3)
@@ -70,9 +105,22 @@ with tab1:
         if v<=-3: return "color:#ff4444;font-weight:bold"
         if v<=-1: return "color:#ff8888"
         return ""
+    def cgap(v):
+        if pd.isna(v): return ""
+        if v>5:  return "color:#ff4444;font-weight:bold"
+        if v>2:  return "color:#ffaa00"
+        return "color:#00cc44"
 
-    cols = ["ticker","close","wl_state","regime","composite","rsi","dist_52w_hi","dist_ma200","ma200","ma50","days","vsa_label"]
-    st.dataframe(filt[cols].style.map(cs,subset=["wl_state"]).map(cr,subset=["regime"]).map(csc,subset=["composite"]), use_container_width=True, height=600)
+    cols = ["ticker","close","wl_state","regime","composite","rsi",
+            "dist_52w_hi","dist_ma200","ma200","ma50","days",
+            "gap_from_flip","pullback_target","vsa_label"]
+    st.dataframe(
+        filt[cols].style
+            .map(cs,   subset=["wl_state"])
+            .map(cr,   subset=["regime"])
+            .map(csc,  subset=["composite"])
+            .map(cgap, subset=["gap_from_flip"]),
+        use_container_width=True, height=600)
 
     st.divider()
     st.subheader("📊 Score Distribution")
@@ -81,7 +129,14 @@ with tab1:
     st.divider()
     st.subheader("🔎 Ticker History")
     ticker = st.selectbox("Select ticker", sorted(df["ticker"].unique()))
-    hist = duckdb.query(f"SELECT date, ROUND(close,2) as close, wl_state, regime, composite, ROUND(rsi_14,1) as rsi, vsa_label, wl_flip FROM 'data/stock_vsa.parquet' WHERE ticker='{ticker}' ORDER BY date DESC LIMIT 60").df()
+    hist = duckdb.query(f"""
+        SELECT date, ROUND(close,2) as close, wl_state, regime,
+               composite, ROUND(rsi_14,1) as rsi, vsa_label,
+               wl_flip, ROUND(flip_price,2) as flip_price,
+               ROUND(resistance,2) as pullback_target
+        FROM 'data/stock_vsa.parquet'
+        WHERE ticker='{ticker}' ORDER BY date DESC LIMIT 60
+    """).df()
     st.dataframe(hist, use_container_width=True, height=300)
     c1,c2 = st.columns(2)
     c1.line_chart(hist.set_index("date")["close"], height=200)
@@ -102,6 +157,26 @@ with tab2:
     c3.markdown("### 🔴 Down\nPrice **below support**. Sellers in control.\n\n**5-day avg: -0.83%**\n\n*Avoid entries. Reduce if score ≤ -3 and bear.*")
 
     st.divider()
+    st.header("Gap from Flip & Pullback Target")
+    st.markdown("""
+The **Gap from Flip** shows how far price has moved since the Widell Line flipped to its current state.
+This tells you whether you are entering at the signal or chasing a move.
+
+| Gap | Status | Action |
+|---|---|---|
+| < 2% | 🟢 AT ENTRY | Signal is fresh, entry zone |
+| 2-5% | 🟡 ELEVATED | Elevated risk, consider waiting |
+| > 5% | 🔴 CHASING | Wait for pullback to target |
+
+The **Pullback Target** is the resistance level that was broken when price flipped to up.
+This is where old resistance becomes new support — the ideal re-entry zone after a gap.
+
+**Example:** AMAT flips to up at $450. Gaps to $492 (+9.4%).
+Pullback target is $448. Wait for price to retrace to $448,
+confirm it holds as support, then enter.
+    """)
+
+    st.divider()
     st.header("Composite Score (-6 to +6)")
     st.markdown("""
 | Component | Range | What it measures |
@@ -111,39 +186,15 @@ with tab2:
 | VSA label | +2 to -2 | Volume spread bar type |
 | MA regime | +1/0/-1 | Bull/mixed/bear alignment |
 
-**+4 to +6:** Strong buy signal | **+2 to +3:** Consider entry | **0 to +1:** Neutral hold | **-1 to -2:** Caution | **-3 to -6:** Avoid/exit
-    """)
-
-    st.divider()
-    st.header("Market Regime")
-    st.markdown("""
-| Regime | Condition | Meaning |
-|---|---|---|
-| 📈 Bull | MA20 > MA50 > MA200 | All MAs aligned up |
-| 📉 Bear | MA20 < MA50 < MA200 | All MAs aligned down |
-| ↔️ Mixed | Any other | Transition zone |
-    """)
-
-    st.divider()
-    st.header("⚡ Flips — Entry Signals")
-    st.markdown("""
-- 🟡→🟢 **Breakout:** price crossed above resistance — primary buy signal
-- 🟢→🟡 **Weakening:** fell back below resistance — reduce or watch
-- 🟡→🔴 **Breakdown:** crossed below support — exit signal
-- 🔴→🟡 **Recovery:** selling pressure easing — watch for reversal
-
-**Days in state validation:**
-- Day 1: Unvalidated — watch tomorrow
-- Day 2-3: Early — consider partial position
-- Day 5+: Validated — full position
-- Flip back to inconclusive — signal failed, exit
+**+4 to +6:** Strong buy | **+2 to +3:** Consider entry | **0 to +1:** Neutral | **-1 to -2:** Caution | **-3 to -6:** Avoid
     """)
 
     st.divider()
     st.header("Entry Checklist")
     st.markdown("""
-- ✅ Widell state = up (flipped recently)
+- ✅ Widell state = up
 - ✅ Composite score ≥ 2
+- ✅ Gap from flip < 2% (or wait for pullback to target)
 - ✅ SPY not in down state
 - ✅ Sector ETF not in down state
 - ✅ Regime = bull or mixed
@@ -155,7 +206,7 @@ with tab2:
     st.markdown("""
 - 🚨 State flips to down AND score ≤ -3 AND regime = bear
 - 🚨 Drawdown from peak exceeds 35%
-- 🚨 Sector ETF flips to down while stock in inconclusive
+- 🚨 Sector ETF flips to down
     """)
 
     st.divider()
@@ -168,12 +219,14 @@ with tab2:
 | wl_state | up / inconclusive / down |
 | regime | bull / mixed / bear |
 | composite | Signal score -6 to +6 |
-| rsi | 14-day RSI (>70 overbought, <30 oversold) |
+| rsi | 14-day RSI |
 | dist_52w_hi | % below 52-week high |
 | dist_ma200 | % above/below 200-day MA |
-| ma200 | 200-day MA price level |
-| ma50 | 50-day MA price level |
+| ma200 | 200-day MA price |
+| ma50 | 50-day MA price |
 | days | Days in current state |
+| gap_from_flip | % move since flip (green<2%, yellow 2-5%, red>5%) |
+| pullback_target | Resistance level broken — ideal re-entry zone |
 | vsa_label | VSA bar classification |
     """)
 
