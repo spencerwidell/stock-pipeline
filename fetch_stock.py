@@ -7,15 +7,12 @@ from datetime import datetime, timezone, timedelta
 # ---------------------------------------------------------------------------
 # 1. Load the API key from the .env file
 # ---------------------------------------------------------------------------
-# We keep secrets out of the code. .env holds POLYGON_API_KEY=... and is listed
-# in .gitignore, so the key is never committed. This reads each line into the
-# process environment so os.environ can pick it up below.
 def load_env():
     with open(".env") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
-                continue  # skip blank lines and comments
+                continue
             key, value = line.split("=", 1)
             os.environ[key] = value
 
@@ -27,10 +24,9 @@ API_KEY = os.environ["POLYGON_API_KEY"]
 # ---------------------------------------------------------------------------
 # 2. Configuration: which tickers and what date range
 # ---------------------------------------------------------------------------
-
 TICKERS = [
-    # Original tech/growth
-    "AMZN", "NVDA", "MSFT", "META", "TSLA",
+    # Original tech/growth (FB fetched separately for META history)
+    "AMZN", "NVDA", "MSFT", "TSLA",
     "ELF", "CELH", "PLTR", "AVGO", "SOFI",
     "TSM", "NOW", "IBM", "CRM", "ORCL",
     # Broad market
@@ -49,91 +45,92 @@ TICKERS = [
     "EEM",
 ]
 
-
-
-# Last 30 calendar days. The market is closed on weekends/holidays, so the
-# API simply returns fewer rows than 30 — that's expected, not an error.
-END_DATE = datetime.now(timezone.utc).date()
+END_DATE   = datetime.now(timezone.utc).date()
 START_DATE = END_DATE - timedelta(days=365 * 6)
 
 
 # ---------------------------------------------------------------------------
 # 3. Fetch daily OHLCV for a single ticker
 # ---------------------------------------------------------------------------
-# Uses Polygon's "aggregates" endpoint, which returns one bar per day across a
-# date range. Returns a list of row dicts (one per trading day), or an empty
-# list if the request failed or returned nothing.
-def fetch_ticker(ticker):
+def fetch_ticker(ticker, start=None, end=None, label=None):
+    s = start or START_DATE
+    e = end   or END_DATE
     url = (
-        f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/"
-        f"{START_DATE}/{END_DATE}"
+        f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{s}/{e}"
     )
     params = {
-        "apiKey": API_KEY,
-        "adjusted": "true",   # adjust for splits/dividends
-        "sort": "asc",        # oldest day first
-        "limit": 50000,       # plenty for 30 days of daily bars
+        "apiKey":   API_KEY,
+        "adjusted": "true",
+        "sort":     "asc",
+        "limit":    50000,
     }
-
     response = requests.get(url, params=params)
     data = response.json()
 
-    # resultsCount tells us how many bars came back. 0 means no data (bad
-    # ticker, no trading days, or an API issue) — skip it.
     if data.get("resultsCount", 0) == 0:
-        print(f"  {ticker}: no results ({data.get('status', 'unknown status')})")
+        print(f"  {ticker}: no results ({data.get('status', 'unknown')})")
         return []
 
-    # Reshape each raw bar into a clean, named row. Polygon uses short keys:
-    #   t = timestamp (ms), o/h/l/c = open/high/low/close, v = volume
+    display_name = label or ticker
     rows = []
     for bar in data["results"]:
         ts = datetime.fromtimestamp(bar["t"] / 1000, tz=timezone.utc)
         rows.append({
-            "ticker": ticker,
-            "date": ts.strftime("%Y-%m-%d"),
-            "open": bar["o"],
-            "high": bar["h"],
-            "low": bar["l"],
-            "close": bar["c"],
+            "ticker": display_name,
+            "date":   ts.strftime("%Y-%m-%d"),
+            "open":   bar["o"],
+            "high":   bar["h"],
+            "low":    bar["l"],
+            "close":  bar["c"],
             "volume": bar["v"],
         })
 
-    print(f"  {ticker}: {len(rows)} days")
+    print(f"  {display_name} ({ticker}): {len(rows)} days")
     return rows
 
 
 # ---------------------------------------------------------------------------
-# 4. Loop over every ticker and collect all rows
+# 4. Fetch all tickers
 # ---------------------------------------------------------------------------
-# We accumulate rows from all tickers into one flat list, then build a single
-# DataFrame. The Developer tier allows unlimited API calls, so we fetch the
-# tickers back-to-back with no rate-limit pause.
-print(f"Fetching {len(TICKERS)} tickers from {START_DATE} to {END_DATE}...")
+print(f"Fetching {len(TICKERS) + 1} tickers from {START_DATE} to {END_DATE}...")
 
 all_rows = []
+
+# Standard tickers
 for ticker in TICKERS:
     all_rows.extend(fetch_ticker(ticker))
 
+# META special case:
+# FB = correct pre-rebrand history (pre Oct 2021)
+# META post-rebrand starts Oct 29 2021 with correct prices
+fb_rows   = fetch_ticker("FB",   end="2021-10-28", label="META")
+meta_rows = fetch_ticker("META", start="2021-10-29", label="META")
+all_rows.extend(fb_rows)
+all_rows.extend(meta_rows)
+
 
 # ---------------------------------------------------------------------------
-# 5. Build a DataFrame and save it as Parquet
+# 5. Build DataFrame and save
 # ---------------------------------------------------------------------------
-# A single tidy table: one row per (ticker, date). Parquet is a compressed,
-# columnar format — far smaller and faster to read than CSV, and it preserves
-# data types (dates stay dates, numbers stay numbers).
 if not all_rows:
-    print("No data fetched for any ticker. Nothing to save.")
+    print("No data fetched. Nothing to save.")
 else:
     df = pd.DataFrame(all_rows)
-    df["date"] = pd.to_datetime(df["date"])  # store as real dates, not strings
+    df["date"] = pd.to_datetime(df["date"])
 
-    # Make sure the data/ directory exists before writing into it.
+    # Remove any duplicate META rows from overlap
+    df = df.drop_duplicates(subset=["ticker", "date"]).reset_index(drop=True)
+    df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
+
     os.makedirs("data", exist_ok=True)
-    output_path = "data/stock_ohlcv.parquet"
-
-    # pyarrow is the engine pandas uses to write Parquet.
-    df.to_parquet(output_path, engine="pyarrow", index=False)
+    df.to_parquet("data/stock_ohlcv.parquet", engine="pyarrow", index=False)
 
     print(f"\nSaved {len(df)} rows for {df['ticker'].nunique()} tickers "
-          f"to {output_path}")
+          f"to data/stock_ohlcv.parquet")
+
+    # Verify META
+    meta = df[df["ticker"] == "META"].sort_values("date")
+    print(f"\nMETA sanity check:")
+    print(f"  First: {meta.iloc[0]['date'].date()}  close={meta.iloc[0]['close']:.2f}")
+    print(f"  Last:  {meta.iloc[-1]['date'].date()}  close={meta.iloc[-1]['close']:.2f}")
+    print(f"  Rows:  {len(meta)}")
