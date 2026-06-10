@@ -39,6 +39,19 @@ df = duckdb.query("""
     ORDER BY composite DESC, wl_state, ticker
 """).df()
 
+# Join fundamentals
+import os
+if os.path.exists("data/fundamentals.parquet"):
+    fund_df = pd.read_parquet("data/fundamentals.parquet")[
+        ["ticker","fundamental_score","rev_growth_yoy","gross_margin"]
+    ]
+    df = df.merge(fund_df, on="ticker", how="left")
+else:
+    df["fundamental_score"] = None
+    df["rev_growth_yoy"]    = None
+    df["gross_margin"]      = None
+
+
 state_icon  = {"up": "🟢", "inconclusive": "🟡", "down": "🔴"}
 regime_icon = {"bull": "📈", "mixed": "↔️",  "bear": "📉"}
 
@@ -110,8 +123,10 @@ if len(up_df) > 0:
                     "➡️mid" if zone == "middle" else \
                     "📉low" if zone == "lower" else \
                     "💥brk" if zone == "breakdown" else ""
-        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  "
-                      f"{level}  {zone_icon}  days={days}")
+        fund = f"F:{int(row.get('fundamental_score', 0)) if pd.notna(row.get('fundamental_score')) else 'N'}/5"
+        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  {level}  {zone_icon}  {fund}  days={days}")
+
+
 
 
 print(f"\nInconclusive — breakout levels to watch:")
