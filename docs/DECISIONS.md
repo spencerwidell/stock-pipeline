@@ -155,4 +155,53 @@ Both gitignored. UI accessible at localhost:5000 via:
 
 ---
 
+## Signal Synthesis & Top-Down Workflow
+
+**Conviction score is a buy-zone quality metric, distinct from composite (Session 30)**
+Composite (-6 to +6) measures momentum/signal *direction*; conviction (0-10)
+measures *entry quality* — where price sits in its channel, what you'd own
+(fundamentals), and timing (state + flip recency). They are intentionally
+separate axes: a name can be high-composite but low-conviction (strong but
+extended) or low-composite but high-conviction (quality name resting low in
+its channel). Keeping them separate avoids collapsing "should I act" into a
+single number that hides the trade-off.
+
+**Top-down sector rotation as the second analytical layer (Session 30)**
+Single-name signals don't say whether the *sector* is the place to be.
+sector_rotation.py ranks the 23 sector/thematic ETFs by opportunity, then
+drills into favorable ones for quality laggards (ROOM_TO_RUN / LAGGING / BOTH).
+This makes the workflow top-down: pick the sector, then the name within it.
+
+**Rotation logic lives in sector_rotation.py; the dashboard tab is a port, not a fork (Session 31)**
+The Rotation dashboard tab reuses the same sector_map source of truth and
+mirrors the CLI scanner's ranking + laggard rules exactly. Decision: never let
+the tab and the CLI scanner diverge — when one changes, the other must match
+(conviction_score was added to the CLI Section B in the same session precisely
+to keep them aligned). One set of rules, two surfaces.
+
+## Signal Delivery & Automation
+
+**Two delivery surfaces: Streamlit dashboard (explore) + Telegram (push)**
+The dashboard on AWS is for sitting down and exploring; Telegram is for being
+told what matters without opening anything. Same underlying parquet, different
+interaction modes.
+
+**Two-cron architecture: morning live check + evening full pipeline (Session 31)**
+- 14:30 UTC (10:30 AM ET): morning_alert.py — no pipeline re-run, just live
+  Polygon snapshot prices measured against *yesterday's* computed levels.
+  Answers "what's actionable right now."
+- 21:30 UTC (4:30 PM ET): run_daily.sh — full feature recompute + close alert.
+  Answers "what is true as of today's close."
+Separating "recompute features" (expensive, end-of-day) from "check live prices
+against known levels" (cheap, intraday) keeps the morning check lightweight.
+
+**Morning alert always sends; daily alert is gated by SEND_TELEGRAM (Session 31)**
+The daily pipeline's Telegram push is opt-in (SEND_TELEGRAM=1, set only in the
+AWS cron) so local/manual runs don't ping the phone. The morning alert has no
+gate and sends a heartbeat ("Nothing actionable this morning") even when empty —
+its whole purpose is the morning ping, so silence would be ambiguous with
+failure.
+
+---
+
 *Add new decisions here as the project evolves.*
