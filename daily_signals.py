@@ -11,7 +11,7 @@ df = duckdb.query("""
                regime, composite, rsi_14, dist_52w_high,
                dist_ma200, ma200, ma50, ma20,
                vsa_label, wl_duration,
-               flip_price, resistance,
+               flip_price, resistance, channel_pos, channel_zone,
                ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
         FROM 'data/stock_vsa.parquet'
     )
@@ -23,6 +23,8 @@ df = duckdb.query("""
            ROUND(ma200,2) as ma200,
            ROUND(ma50,2) as ma50,
            CAST(wl_duration AS INT) as days,
+           ROUND(channel_pos, 3) as channel_pos,
+           channel_zone,
            vsa_label,
            ROUND(flip_price,2) as flip_price,
            ROUND(resistance,2) as key_level,
@@ -97,11 +99,20 @@ if len(up_df) > 0:
         gap   = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
         level = f"pullback→{row['key_level']:.2f}" if pd.notna(row["key_level"]) else ""
         days  = int(row["days"]) if pd.notna(row["days"]) else 0
-        chase = "🔴 CHASING" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 5 else \
-                "🟡 ELEVATED" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
+        zone  = row["channel_zone"] if pd.notna(row["channel_zone"]) else ""
+        gap_v = row["gap_from_flip"] if pd.notna(row["gap_from_flip"]) else 0
+        chase = "🔴 CHASING+EXT" if gap_v > 5 and zone == "extended" else \
+                "🔴 CHASING"    if gap_v > 5 else \
+                "🟡 ELEVATED"   if gap_v > 2 else \
                 "🟢 AT ENTRY"
+        zone_icon = "📈ext" if zone == "extended" else \
+                    "📈up"  if zone == "upper" else \
+                    "➡️mid" if zone == "middle" else \
+                    "📉low" if zone == "lower" else \
+                    "💥brk" if zone == "breakdown" else ""
         print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  "
-              f"{level}  days={days}")
+                      f"{level}  {zone_icon}  days={days}")
+
 
 print(f"\nInconclusive — breakout levels to watch:")
 inc_df = df[(df["wl_state"] == "inconclusive") & (df["composite"] >= 1)].head(10)

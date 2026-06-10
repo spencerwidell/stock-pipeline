@@ -1,5 +1,6 @@
 import pandas as pd
 import pyarrow.parquet as pq
+import numpy as np
 
 # Load base data
 df = pd.read_parquet("data/stock_ohlcv.parquet")
@@ -140,6 +141,42 @@ df["gap_volume"] = (df["gap_pct"] * df["rel_volume"]).round(3)
 df["day_of_week"] = pd.to_datetime(df["date"]).dt.dayofweek  # 0=Mon 4=Fri
 df["is_friday"] = (df["day_of_week"] == 4).astype(int)
 
+# 200-day linear regression channel
+def add_regression_channel(group, window=200):
+    closes = group["close"].values
+    n = len(closes)
+    reg_center = np.full(n, np.nan)
+    reg_upper  = np.full(n, np.nan)
+    reg_lower  = np.full(n, np.nan)
+    channel_pos = np.full(n, np.nan)
+
+    for i in range(window - 1, n):
+        y = closes[i - window + 1:i + 1]
+        x = np.arange(window)
+        # Fit linear regression
+        slope, intercept = np.polyfit(x, y, 1)
+        fitted = slope * x + intercept
+        residuals = y - fitted
+        std = np.std(residuals)
+        center = fitted[-1]
+        upper  = center + std
+        lower  = center - std
+        reg_center[i] = round(center, 2)
+        reg_upper[i]  = round(upper, 2)
+        reg_lower[i]  = round(lower, 2)
+        # Channel position: 0=lower band, 1=upper band, 0.5=center
+        band_width = upper - lower
+        if band_width > 0:
+            channel_pos[i] = round((closes[i] - lower) / band_width, 3)
+
+    group = group.copy()
+    group["reg_center"]  = reg_center
+    group["reg_upper"]   = reg_upper
+    group["reg_lower"]   = reg_lower
+    group["channel_pos"] = channel_pos
+    return group
+
+df = df.groupby("ticker", group_keys=False).apply(add_regression_channel)
 
 # Save
 df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)

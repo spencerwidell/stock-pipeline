@@ -72,7 +72,16 @@ def state_duration(series):
 
 df["wl_duration"] = df.groupby("ticker")["wl_state"].transform(state_duration)
 
+# Channel zone label
+def get_channel_zone(pos):
+    if pd.isna(pos):  return "unknown"
+    if pos > 1.0:     return "extended"
+    if pos >= 0.75:   return "upper"
+    if pos >= 0.25:   return "middle"
+    if pos >= 0.0:    return "lower"
+    return "breakdown"
 
+df["channel_zone"] = df["channel_pos"].apply(get_channel_zone)
 
 # Save
 df.to_parquet("data/stock_vsa.parquet", engine="pyarrow", index=False)
