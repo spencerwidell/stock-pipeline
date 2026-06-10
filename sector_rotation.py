@@ -31,7 +31,7 @@ def load_latest():
     latest = df.sort_values("date").groupby("ticker", as_index=False).tail(1)
     latest = latest[[
         "ticker", "date", "close", "wl_state", "wl_flip",
-        "composite", "channel_zone", "channel_pos",
+        "composite", "conviction_score", "channel_zone", "channel_pos",
     ]].reset_index(drop=True)
 
     if os.path.exists(FUND_PATH):
@@ -117,6 +117,7 @@ def section_b(latest, etf_ranked):
                 reason = "LAGGING"
             rows.append({
                 "ticker": stock, "state": s_state, "composite": s["composite"],
+                "conv": s["conviction_score"],
                 "zone": s["channel_zone"], "channel_pos": s_cpos,
                 "fund": int(f_score), "reason": reason,
             })
@@ -131,14 +132,15 @@ def section_b(latest, etf_ranked):
         eicon = STATE_ICON.get(etf_state, "?")
         ecp   = f"{etf_cpos:.3f}" if pd.notna(etf_cpos) else "n/a"
         print(f"\n▸ {etf_tkr}  {eicon} {etf_state}  zone={e['channel_zone']}  ChPos={ecp}")
-        print(f"  {'Stock':<6} {'State':<14} {'Scr':>4} {'Zone':<9} "
+        print(f"  {'Stock':<6} {'State':<14} {'Scr':>4} {'Conv':>5} {'Zone':<9} "
               f"{'ChPos':>7} {'F':>2}  Why")
-        print("  " + "-" * 62)
+        print("  " + "-" * 70)
         for r in rows:
             icon = STATE_ICON.get(r["state"], "?")
             cp   = f"{r['channel_pos']:.3f}" if pd.notna(r["channel_pos"]) else "  n/a"
+            conv = f"{int(r['conv'])}/10" if pd.notna(r["conv"]) else "  n/a"
             print(f"  {r['ticker']:<6} {icon} {str(r['state']):<11} "
-                  f"{int(r['composite']):>4} {str(r['zone']):<9} "
+                  f"{int(r['composite']):>4} {conv:>5} {str(r['zone']):<9} "
                   f"{cp:>7} {r['fund']:>2}  {r['reason']}")
 
     if not any_hits:

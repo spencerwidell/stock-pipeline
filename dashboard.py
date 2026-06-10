@@ -3,6 +3,8 @@ import pandas as pd
 import duckdb
 from datetime import date
 
+from sector_map import SECTOR_ETFS, get_constituents
+
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
 @st.cache_data(ttl=300)
@@ -36,7 +38,29 @@ def load_signals():
         ORDER BY composite DESC, wl_state, ticker
     """).df()
 
-tab1, tab2, tab3 = st.tabs(["📊 Signals", "📋 Fundamentals", "📖 Guide"])
+@st.cache_data(ttl=300)
+def load_rotation():
+    import os
+    latest = duckdb.query("""
+        WITH latest AS (
+            SELECT ticker, date, close, wl_state, wl_flip, composite,
+                   conviction_score, channel_zone, channel_pos,
+                   ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
+            FROM 'data/stock_vsa.parquet'
+        )
+        SELECT ticker, wl_state, wl_flip, composite, conviction_score,
+               channel_zone, channel_pos
+        FROM latest WHERE rn = 1
+    """).df()
+    if os.path.exists("data/fundamentals.parquet"):
+        fund = pd.read_parquet("data/fundamentals.parquet")[["ticker","fundamental_score"]]
+        latest = latest.merge(fund, on="ticker", how="left")
+    else:
+        latest["fundamental_score"] = pd.NA
+    return latest
+
+
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
@@ -336,3 +360,126 @@ Unlike composite (momentum/signal direction), conviction rewards buying quality 
 
     st.divider()
     st.caption("Built by Spencer Widell | github.com/spencerwidell/stock-pipeline | Not financial advice.")
+
+with tab4:
+    st.title("🔄 Sector Rotation")
+    st.caption(f"Data as of {date.today()} — rank sectors by opportunity, then find quality laggards within them")
+
+    rot = load_rotation()
+
+    STATE_ICON = {"up": "🟢", "inconclusive": "🟡", "down": "🔴"}
+    STATE_RANK = {"up": 0, "inconclusive": 1, "down": 2}
+    MIN_FUND = 3
+
+    # ----------------------------------------------------------------------
+    # Section A — ETF / sector ranking
+    # ----------------------------------------------------------------------
+    st.subheader("Section A — Sector / Thematic ETF Ranking")
+    st.caption("Best opportunity (favorable state + lower channel) at top")
+
+    etf = rot[rot["ticker"].isin(SECTOR_ETFS)].copy()
+    etf["state_rank"] = etf["wl_state"].map(STATE_RANK).fillna(3)
+    etf = etf.sort_values(["state_rank", "channel_pos"], na_position="last").reset_index(drop=True)
+    etf["state"] = etf["wl_state"].map(STATE_ICON).fillna("?") + " " + etf["wl_state"].astype(str)
+
+    etf_view = etf[["ticker","state","composite","channel_zone","channel_pos"]].rename(
+        columns={"state":"wl_state"})
+
+    def cs_state(v):
+        if "up" in str(v):           return "background-color:#1a472a;color:white"
+        if "down" in str(v):         return "background-color:#6b1a1a;color:white"
+        if "inconclusive" in str(v): return "background-color:#4a3800;color:white"
+        return ""
+    def csc(v):
+        if pd.isna(v): return ""
+        if v>=3:  return "color:#00ff88;font-weight:bold"
+        if v>=1:  return "color:#88ff88"
+        if v<=-3: return "color:#ff4444;font-weight:bold"
+        if v<=-1: return "color:#ff8888"
+        return ""
+    def czone(v):
+        if v=="lower":     return "color:#00ff88;font-weight:bold"
+        if v=="middle":    return "color:#88ff88"
+        if v=="extended":  return "color:#ff4444;font-weight:bold"
+        if v=="upper":     return "color:#ffaa00"
+        return ""
+
+    st.dataframe(
+        etf_view.style
+            .map(cs_state, subset=["wl_state"])
+            .map(csc,      subset=["composite"])
+            .map(czone,    subset=["channel_zone"])
+            .format({"channel_pos": "{:.3f}"}, na_rep="n/a"),
+        use_container_width=True, height=600)
+
+    st.divider()
+
+    # ----------------------------------------------------------------------
+    # Section B — constituent laggard scan
+    # ----------------------------------------------------------------------
+    st.subheader("Section B — Constituent Laggard Scan")
+    st.caption(f"For favorable ETFs (up state or lower/middle zone): F ≥ {MIN_FUND} constituents "
+               "with more room to run than their sector, or lagging its momentum")
+
+    by_ticker = rot.set_index("ticker")
+    favorable = etf[(etf["wl_state"]=="up") | (etf["channel_zone"].isin(["lower","middle"]))]
+
+    laggards = []
+    for _, e in favorable.iterrows():
+        etf_tkr, etf_state, etf_cpos = e["ticker"], e["wl_state"], e["channel_pos"]
+        for stock in get_constituents(etf_tkr):
+            if stock not in by_ticker.index:
+                continue
+            s = by_ticker.loc[stock]
+            f_score = s["fundamental_score"]
+            if pd.isna(f_score) or f_score < MIN_FUND:
+                continue
+            s_cpos, s_state = s["channel_pos"], s["wl_state"]
+            room_to_run = pd.notna(s_cpos) and pd.notna(etf_cpos) and s_cpos < etf_cpos
+            lagging = etf_state == "up" and s_state in ("inconclusive", "down")
+            if not (room_to_run or lagging):
+                continue
+            tag = "BOTH" if room_to_run and lagging else "ROOM_TO_RUN" if room_to_run else "LAGGING"
+            laggards.append({
+                "ticker": stock, "sector_etf": etf_tkr, "tag": tag,
+                "fundamental_score": int(f_score), "channel_zone": s["channel_zone"],
+                "channel_pos": s_cpos, "conviction_score": s["conviction_score"],
+            })
+
+    if laggards:
+        lag_df = pd.DataFrame(laggards).sort_values(
+            "channel_pos", na_position="last").reset_index(drop=True)
+        lag_view = lag_df[["ticker","sector_etf","tag","fundamental_score",
+                           "channel_zone","conviction_score","channel_pos"]]
+
+        def ctag(v):
+            if v=="BOTH":        return "background-color:#1a472a;color:white;font-weight:bold"
+            if v=="ROOM_TO_RUN": return "color:#00ff88"
+            if v=="LAGGING":     return "color:#ffaa00"
+            return ""
+        def cf(v):
+            if pd.isna(v): return ""
+            if v==5: return "background-color:#1a472a;color:white"
+            if v==4: return "background-color:#2d5a1b;color:white"
+            if v==3: return "color:#88ff88"
+            return ""
+        def ccv(v):
+            if pd.isna(v): return ""
+            if v>=8: return "background-color:#1a472a;color:white;font-weight:bold"
+            if v>=6: return "color:#00ff88;font-weight:bold"
+            if v>=4: return "color:#88ff88"
+            return ""
+
+        st.dataframe(
+            lag_view.style
+                .map(ctag,  subset=["tag"])
+                .map(cf,    subset=["fundamental_score"])
+                .map(czone, subset=["channel_zone"])
+                .map(ccv,   subset=["conviction_score"])
+                .format({"channel_pos": "{:.3f}"}, na_rep="n/a"),
+            use_container_width=True, height=500)
+
+        st.caption("**ROOM_TO_RUN** = stock channel below its sector · "
+                   "**LAGGING** = stock state weaker than its up sector · **BOTH** = both")
+    else:
+        st.info("No qualifying constituents today.")
