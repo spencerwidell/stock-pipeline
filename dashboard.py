@@ -12,7 +12,7 @@ def load_signals():
             SELECT ticker, date, close, wl_state, wl_flip,
                    regime, composite, rsi_14, dist_52w_high,
                    dist_ma200, ma200, ma50, vsa_label, wl_duration,
-                   flip_price, resistance, channel_zone,
+                   flip_price, channel_zone,
                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
             FROM 'data/stock_vsa.parquet'
         )
