@@ -890,3 +890,48 @@ Polygon API → features → labels → Widell Line → composite score
 - [ ] `./scripts/morning_startup.sh`
 - [ ] `conda activate stock`
 - [ ] Check http://18.188.180.99:8501
+
+---
+
+## Session 29 — June 9, 2026
+
+**Built:** fetch_fundamentals.py — Polygon Financials API integration
+
+**Data source:** Polygon vX/reference/financials endpoint
+- 67 tickers with data, 21 skipped (ETFs + international: ASML, TSM, ARM, CCJ)
+- Quarterly data, 8 quarters fetched per ticker
+- Fields: revenue, gross_profit, operating_income, net_income, EPS, operating_CF
+
+**Fundamental score (0-5):**
+- Revenue growth YoY > 20%: +1
+- Gross margin > 50%: +1
+- Operating margin > 15%: +1
+- EPS growth YoY > 10%: +1
+- Positive operating cash flow: +1
+
+**Score 5 (Elite):** NVDA, AVGO, PLTR, ANET, APP, MU, CRDO, ISRG, ALAB
+**Score 4 (Strong):** MSFT, AMD, CAT, CRWD, GOOG, META, CRM, LRCX, VRT, CELH
+
+**Two-layer signal — up state today:**
+- CAT: Widell +4, F:4/5, AT ENTRY, upper channel — highest conviction
+- AMAT: Widell +3, F:3/5, CHASING+EXT — wait for pullback
+- AXON: Widell +2, F:3/5, CHASING+EXT — wait for pullback
+- ASML: Widell +4, F:N/A — strong signal, missing fundamentals
+
+**Integrated into:**
+- daily_signals.py: F:X/5 shown in up state section
+- telegram_alert.py: F:X/5 shown in up state alert
+- dashboard.py: new Fundamentals tab (3rd tab)
+
+**fetch_fundamentals.py runs separately (not daily):**
+- Run quarterly or after earnings season
+- Fundamentals change slowly — no need for daily refresh
+
+---
+
+## Session 30 — (upcoming)
+
+- Sector rotation scanner
+- Index flip → scan constituents for laggards
+- Money rotation between sectors/indexes
+- Multi-layer conviction score combining all signals
