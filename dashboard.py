@@ -91,7 +91,7 @@ with tab1:
                 f_str   = f"F:{f_score}/5" if f_score is not None else "F:N/A"
                 days    = int(row["days"]) if pd.notna(row["days"]) else 0
                 pb      = f"pb→${row['key_level']:.2f}" if pd.notna(row.get("key_level")) else ""
-                line = f"**{row['ticker']}** — ${row['close']:.2f} · W:{w_score} · {f_str} · {chase} · {zone} · {pb} · d:{days}"
+                line = f"{row['ticker']:<6} — ${row['close']:.2f} · W:{w_score} · {f_str} · {chase} · {zone} · {pb} · d:{days}"
                 st.markdown(line)
             st.divider()
 
