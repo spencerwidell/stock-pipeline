@@ -943,3 +943,31 @@ Polygon API → features → labels → Widell Line → composite score
 - Tab order: Signals → Fundamentals → Guide
 - Combined Signal shows: ticker · entry status · Widell score · fundamental score · channel zone · pullback target · days
 
+
+---
+
+## Session 30 — (upcoming)
+
+- Sector rotation scanner: index flip → scan constituents for laggards
+- Money rotation between sectors/indexes
+- Multi-layer conviction score combining Widell + Channel + Fundamentals
+- Consider Claude Code (Opus) for file editing efficiency
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `python daily_signals.py`
+- [ ] Check http://18.188.180.99:8501
+- [ ] SSH to AWS if pipeline changes needed:
+      ssh -i ~/.ssh/stock-pipeline-key.pem ubuntu@18.188.180.99
+
+## AWS deploy workflow
+- Local changes → git push
+- AWS: git checkout -- <file> if conflicts, then git pull
+- sudo systemctl restart streamlit
+- One-liner: ssh -i ~/.ssh/stock-pipeline-key.pem ubuntu@18.188.180.99 "cd ~/stock-pipeline && git pull && sudo systemctl restart streamlit"
