@@ -344,11 +344,65 @@ updated to expect vsa == ohlcv[volume>1000].
 
 ## Session 32 — (upcoming)
 
-- Review first live morning alert tomorrow — confirm prices and levels look right
-- Consider adding pre-market data if Polygon tier supports it
-- Pine Script Widell Line for TradingView
+**First task:** Review first live morning alert — confirm prices and levels look
+right on a live market day.
 
----
+### Roadmap — features to build in priority order
+
+**1. Earnings dates flag** *(Low effort)*
+- Polygon earnings calendar endpoint
+- Flag in morning alert and dashboard when any tracked ticker reports within 7 days
+- Format: 🗓️ warning on existing signals — not a separate system
+- Prevents acting on signals about to be invalidated by an earnings event
+
+**2. Holdings YAML + position context** *(Low effort)*
+- Simple `holdings.yaml`: ticker → portfolio weight %
+- No transaction tracking — broker handles that
+- Changes signal language from abstract to personal:
+  - "You hold 5%, pulled back to entry zone — consider add"
+  - "You hold 8%, extended above channel — consider trim"
+- Surfaces in dashboard and both Telegram alerts
+- Update manually after meaningful trades — not daily maintenance
+
+**3. Universe management CLI** *(Medium effort)*
+- Single `universe.yaml` as one source of truth
+- Two tiers: `core_holdings` and `watchlist`
+- `python manage_universe.py --add TICKER --sector ETF --broad ETF`
+- `python manage_universe.py --remove TICKER`
+- Command handles everything: updates universe.yaml, sector_map.py, fetches
+  history, runs full pipeline, confirms live in dashboard
+- Morning alerts prioritize core_holdings over watchlist names
+- Removing cleans up parquet without touching anything else
+
+**4. Moat score** *(Medium effort)*
+- `moat_score.py` — calls Claude API with a structured prompt per ticker
+- Returns: moat score 1-5 + one-sentence summary (network effects, switching
+  costs, cost advantages, intangibles)
+- Runs quarterly — moats don't change monthly
+- Stores in `data/moat.parquet`
+- Surfaces in dashboard alongside F score
+- Example: ISRG: Moat 5/5 — Robotic surgery monopoly, surgeon training lock-in,
+  10yr switching cost
+
+**5. Valuation layer** *(Medium effort)*
+- PE, PEG, price-to-FCF from existing Polygon financials data (already fetched)
+- Bridges technical positioning and fundamental value
+- F score measures quality — valuation measures price paid for that quality
+- Add `valuation_score` to conviction scoring
+
+**6. Exit/trim framework** *(Medium effort)*
+- Uses holdings.yaml + channel position together
+- Systematic answer to: when do I trim, when do I exit?
+- Trim target: upper channel breach
+- Exit warning: breakdown zone + Widell down state
+- Stop level per held position surfaced in morning alert
+
+### Design principles for all new features
+- Holdings file is a weight snapshot, not a trade tracker
+- Universe management is one command, not multi-file editing
+- Moat and valuation run quarterly — not daily pipeline overhead
+- Everything surfaces in existing dashboard tabs and Telegram alerts — no new
+  interfaces
 
 ---
 
