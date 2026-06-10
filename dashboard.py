@@ -76,6 +76,36 @@ with tab1:
     c6.metric("🎯 Conviction ≥8", (df["conviction_score"]>=8).sum())
     st.divider()
 
+    # --- High Conviction callout — first thing the user sees ---
+    import os as _os_hc
+    st.subheader("🎯 High Conviction — Conviction ≥ 8")
+    hc = df[df["conviction_score"] >= 8].copy()
+    if _os_hc.path.exists("data/fundamentals.parquet"):
+        _fund_hc = pd.read_parquet("data/fundamentals.parquet")[["ticker","fundamental_score"]]
+        hc = hc.merge(_fund_hc, on="ticker", how="left")
+    else:
+        hc["fundamental_score"] = pd.NA
+    if len(hc) > 0:
+        hc = hc.sort_values("conviction_score", ascending=False)
+        for _, row in hc.iterrows():
+            icon  = "🟢" if row["wl_state"]=="up" else "🔴" if row["wl_state"]=="down" else "🟡"
+            gap   = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
+            pb    = f"{row['level_type']}→${row['key_level']:.2f}" if pd.notna(row["key_level"]) else "N/A"
+            f_str = f"F:{int(row['fundamental_score'])}/5" if pd.notna(row.get("fundamental_score")) else "F:N/A"
+            zone  = row["channel_zone"] if pd.notna(row["channel_zone"]) else "—"
+            st.markdown(
+                f"**{row['ticker']}** {icon} {row['wl_state'].upper()} "
+                f"| Conv: **{int(row['conviction_score'])}/10** "
+                f"| Score: **{int(row['composite'])}** "
+                f"| {f_str} "
+                f"| Zone: {zone} "
+                f"| Gap from flip: **{gap}** "
+                f"| Pullback target: **{pb}**"
+            )
+    else:
+        st.info("No high conviction setups today.")
+    st.divider()
+
     flips = df[df["wl_flip"]==True]
     if len(flips) > 0:
         st.subheader("⚡ Flips Today — Action Items")
