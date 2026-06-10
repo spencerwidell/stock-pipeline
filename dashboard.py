@@ -110,10 +110,10 @@ with tab1:
                 days    = int(row["days"]) if pd.notna(row["days"]) else 0
                 pb      = f"pb→${row['key_level']:.2f}" if pd.notna(row.get("key_level")) else ""
                 st.markdown(
-                    f"**{row['ticker']}** ${row['close']:.2f} "
-                    f"| Widell: **{w_score}** | {f_str} "
+                    f"**{row['ticker']}** — ${row['close']:.2f} "
+                    f"| W:{w_score} | {f_str} "
                     f"| {chase} | {zone} "
-                    f"| {pb} | Days: {days}"
+                    f"| {pb} | d:{days}"
                 )
             st.divider()
 
