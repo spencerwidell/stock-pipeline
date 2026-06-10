@@ -15,17 +15,22 @@ df = duckdb.query("""
                ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
         FROM 'data/stock_vsa.parquet'
     )
-    SELECT ticker, date, ROUND(close, 2) as close,
+    SELECT ticker, date, ROUND(close,2) as close,
            wl_state, wl_flip, regime, composite,
-           ROUND(rsi_14, 1) as rsi,
-           ROUND(dist_52w_high, 1) as dist_52w_hi,
-           ROUND(dist_ma200, 1) as dist_ma200,
-           ROUND(ma200, 2) as ma200,
-           ROUND(ma50, 2) as ma50,
+           ROUND(rsi_14,1) as rsi,
+           ROUND(dist_52w_high,1) as dist_52w_hi,
+           ROUND(dist_ma200,1) as dist_ma200,
+           ROUND(ma200,2) as ma200,
+           ROUND(ma50,2) as ma50,
            CAST(wl_duration AS INT) as days,
            vsa_label,
-           ROUND(flip_price, 2) as flip_price,
-           ROUND(resistance, 2) as pullback_target,
+           ROUND(flip_price,2) as flip_price,
+           ROUND(resistance,2) as key_level,
+           CASE
+               WHEN wl_state = 'up' THEN 'pullback'
+               WHEN wl_state = 'inconclusive' THEN 'breakout'
+               ELSE 'resistance'
+           END as level_type,
            ROUND((close - flip_price) / flip_price * 100, 1) as gap_from_flip
     FROM latest
     WHERE rn = 1
@@ -78,19 +83,32 @@ if len(flipped) > 0:
         icon  = state_icon.get(row["wl_state"], "?")
         ricon = regime_icon.get(row["regime"], "?")
         gap   = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
-        pb    = f"{row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
+        level = f"{row['level_type']}→{row['key_level']:.2f}" if pd.notna(row["key_level"]) else ""
         print(f"  {row['ticker']:<6} {icon} {row['wl_state']:<13} "
               f"{ricon} {row['regime']:<8} score={row['composite']:>3}  "
-              f"rsi={row['rsi']:>5.1f}  gap={gap}  pullback→{pb}  {row['vsa_label']}")
+              f"rsi={row['rsi']:>5.1f}  gap={gap}  {level}  {row['vsa_label']}")
 else:
     print("  None today")
 
-print(f"\nUp state — gap from flip vs pullback target:")
+print(f"\nUp state — entry analysis:")
 up_df = df[df["wl_state"] == "up"].copy()
 if len(up_df) > 0:
     for _, row in up_df.iterrows():
-        gap = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
-        pb  = f"{row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
-        days = int(row["days"]) if pd.notna(row["days"]) else 0
-        print(f"  {row['ticker']:<6} close={row['close']:>8.2f}  "
-              f"gap={gap:>7}  pullback→{pb}  days={days}")
+        gap   = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
+        level = f"pullback→{row['key_level']:.2f}" if pd.notna(row["key_level"]) else ""
+        days  = int(row["days"]) if pd.notna(row["days"]) else 0
+        chase = "🔴 CHASING" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 5 else \
+                "🟡 ELEVATED" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
+                "🟢 AT ENTRY"
+        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  "
+              f"{level}  days={days}")
+
+print(f"\nInconclusive — breakout levels to watch:")
+inc_df = df[(df["wl_state"] == "inconclusive") & (df["composite"] >= 1)].head(10)
+if len(inc_df) > 0:
+    for _, row in inc_df.iterrows():
+        level = f"breakout→{row['key_level']:.2f}" if pd.notna(row["key_level"]) else ""
+        support = f"support→{row['close']:.2f}"
+        pct_to_breakout = ((row["key_level"] - row["close"]) / row["close"] * 100) if pd.notna(row["key_level"]) else 0
+        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {level}  "
+              f"({pct_to_breakout:+.1f}% away)  score={row['composite']}")
