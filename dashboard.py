@@ -24,7 +24,12 @@ def load_signals():
                ROUND(ma200,2) as ma200, ROUND(ma50,2) as ma50,
                CAST(wl_duration AS INT) as days, vsa_label,
                ROUND(flip_price,2) as flip_price,
-               ROUND(resistance,2) as pullback_target,
+               ROUND(resistance,2) as key_level,
+               CASE
+                   WHEN wl_state = 'up' THEN 'pullback'
+                   WHEN wl_state = 'inconclusive' THEN 'breakout'
+                   ELSE 'resistance'
+               END as level_type,
                ROUND((close - flip_price) / flip_price * 100, 1) as gap_from_flip
         FROM latest WHERE rn = 1
         ORDER BY composite DESC, wl_state, ticker
@@ -51,7 +56,7 @@ with tab1:
         for _, row in flips.iterrows():
             icon = "🟢" if row["wl_state"]=="up" else "🔴" if row["wl_state"]=="down" else "🟡"
             gap  = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
-            pb   = f"${row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
+            pb   = f"{row['level_type']}→${row['key_level']:.2f}" if pd.notna(row["key_level"]) else "N/A"
             st.markdown(
                 f"**{row['ticker']}** {icon} {row['wl_state'].upper()} "
                 f"| Score: **{int(row['composite'])}** "
@@ -69,7 +74,7 @@ with tab1:
     if len(up_df) > 0:
         for _, row in up_df.iterrows():
             gap  = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
-            pb   = f"${row['pullback_target']:.2f}" if pd.notna(row["pullback_target"]) else "N/A"
+            pb   = f"{row['level_type']}→${row['key_level']:.2f}" if pd.notna(row["key_level"]) else "N/A"
             days = int(row["days"]) if pd.notna(row["days"]) else 0
             chase = "🔴 CHASING" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 5 else \
                     "🟡 ELEVATED" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
@@ -113,7 +118,7 @@ with tab1:
 
     cols = ["ticker","close","wl_state","regime","composite","rsi",
             "dist_52w_hi","dist_ma200","ma200","ma50","days",
-            "gap_from_flip","pullback_target","vsa_label"]
+            "gap_from_flip","key_level","level_type","vsa_label"]
     st.dataframe(
         filt[cols].style
             .map(cs,   subset=["wl_state"])
@@ -133,7 +138,7 @@ with tab1:
         SELECT date, ROUND(close,2) as close, wl_state, regime,
                composite, ROUND(rsi_14,1) as rsi, vsa_label,
                wl_flip, ROUND(flip_price,2) as flip_price,
-               ROUND(resistance,2) as pullback_target
+               ROUND(resistance,2) as key_level
         FROM 'data/stock_vsa.parquet'
         WHERE ticker='{ticker}' ORDER BY date DESC LIMIT 60
     """).df()
@@ -226,7 +231,7 @@ confirm it holds as support, then enter.
 | ma50 | 50-day MA price |
 | days | Days in current state |
 | gap_from_flip | % move since flip (green<2%, yellow 2-5%, red>5%) |
-| pullback_target | Resistance level broken — ideal re-entry zone |
+| key_level | Key price level: pullback target (up), breakout level (inconclusive), resistance (down) |
 | vsa_label | VSA bar classification |
     """)
 
