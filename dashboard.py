@@ -138,15 +138,29 @@ with tab1:
         SELECT date, ROUND(close,2) as close, wl_state, regime,
                composite, ROUND(rsi_14,1) as rsi, vsa_label,
                wl_flip, ROUND(flip_price,2) as flip_price,
-               ROUND(resistance,2) as key_level
+               ROUND(resistance,2) as key_level,
+               ROUND(reg_center,2) as reg_center,
+               ROUND(reg_upper,2) as reg_upper,
+               ROUND(reg_lower,2) as reg_lower,
+               channel_zone
         FROM 'data/stock_vsa.parquet'
-        WHERE ticker='{ticker}' ORDER BY date DESC LIMIT 60
-    """).df()
-    st.dataframe(hist, use_container_width=True, height=300)
-    c1,c2 = st.columns(2)
-    c1.line_chart(hist.set_index("date")["close"], height=200)
-    c2.line_chart(hist.set_index("date")["composite"], height=200)
+        WHERE ticker='{ticker}' ORDER BY date DESC LIMIT 90
+    """).df().sort_values("date")
 
+    st.markdown("**Price with 200-day Regression Channel**")
+    channel_df = hist.set_index("date")[["close","reg_upper","reg_center","reg_lower"]].dropna()
+    st.line_chart(channel_df, height=300)
+
+    latest_zone = hist.iloc[-1]["channel_zone"] if len(hist) > 0 else ""
+    latest_pos  = hist.iloc[-1]["close"]
+    st.caption(f"Current channel zone: **{latest_zone}** | Close: ${latest_pos:.2f}")
+
+    c1,c2 = st.columns(2)
+    c1.line_chart(hist.set_index("date")["composite"], height=200)
+    c2.line_chart(hist.set_index("date")["rsi"], height=200)
+
+    st.dataframe(hist[["date","close","wl_state","channel_zone","composite","rsi","vsa_label","wl_flip"]],
+                 use_container_width=True, height=250)
 with tab2:
     st.title("📖 Dashboard Guide")
     st.caption("How to read and use the Widell Line Signal Dashboard")
