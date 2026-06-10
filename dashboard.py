@@ -91,8 +91,11 @@ with tab1:
                 f_str   = f"F:{f_score}/5" if f_score is not None else "F:N/A"
                 days    = int(row["days"]) if pd.notna(row["days"]) else 0
                 pb      = f"pb→${row['key_level']:.2f}" if pd.notna(row.get("key_level")) else ""
-                line = "**" + row['ticker'] + "** $" + f"{row['close']:.2f} | Score: {w_score} | {f_str} | {chase} | {zone} | {pb} | Days: {days}"
-                st.markdown(line)
+                st.markdown(
+                    f"**{row['ticker']}** {chase} "
+                    f"| Score: **{w_score}** | {f_str} "
+                    f"| {zone} | {pb} | Days: {days}"
+                )
             st.divider()
 
     st.subheader("🔍 Full Universe")
