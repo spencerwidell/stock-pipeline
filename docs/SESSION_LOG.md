@@ -971,3 +971,82 @@ Polygon API → features → labels → Widell Line → composite score
 - AWS: git checkout -- <file> if conflicts, then git pull
 - sudo systemctl restart streamlit
 - One-liner: ssh -i ~/.ssh/stock-pipeline-key.pem ubuntu@18.188.180.99 "cd ~/stock-pipeline && git pull && sudo systemctl restart streamlit"
+
+---
+
+## Session 30 — June 9, 2026
+
+**Built:** sector_rotation.py, conviction_score.py, updated sector_map.py
+
+**New ETFs added to universe (97 tickers total):**
+XLK, XLI, XLB, XLY, XLC, ITA, PAVE, GRID, URA — full GICS sector coverage
+plus infrastructure and uranium/nuclear thematic.
+
+**sector_map.py — complete rebuild:**
+- All 88 universe tickers mapped (zero falling to default)
+- Dual mappings first-class: GEV→[XLI, GRID], PWR→[XLI, PAVE]
+- Added get_constituents() reverse lookup and SECTOR_ETFS list
+- 97 total entries (88 stocks + 9 ETF self-maps)
+
+**sector_rotation.py — two-section rotation scanner:**
+- Section A: ranks all 23 ETFs by Widell state + channel zone
+  (favorable + low channel at top, extended/broken at bottom)
+- Section B: for each ETF in up state or lower/middle channel, surfaces
+  F≥3 constituent laggards tagged ROOM_TO_RUN / LAGGING / BOTH,
+  sorted by lowest channel_pos
+- Today's read: XLI up/middle at top; GLD/URA/XLC broken down at bottom;
+  ISRG (F5, lower, BOTH) flagged under XLV; LITE (F4, ROOM_TO_RUN) under XLB
+
+**conviction_score.py — 0–10 score added to stock_vsa.parquet:**
+
+| Layer | Max | Logic |
+|---|---|---|
+| Channel position | 4 | lower=4, middle=3, upper=1, extended=0, breakdown=2, unknown=1 |
+| Fundamentals | 3 | F:5→3, F:4→2, F:3→1, F:0-2→0 |
+| Widell state | 2 | up=2, inconclusive=1, down=0 |
+| Flip recency | 1 | flipped within 5 bars=1, else=0 |
+
+Score 8+ = highest conviction buy zone (good channel entry + quality
+fundamentals + Widell confirming).
+
+**Wired into:**
+- daily_signals.py: Conv column + conv=N/10 in up-state analysis
+- dashboard.py: 🎯 Conviction ≥8 metric, conviction column with green styling,
+  Guide methodology updated
+- telegram_alert.py: conv:N/10 in up-state alert lines
+- scripts/run_daily.sh: conviction_score.py added after composite_score.py
+
+**AWS deploy — important finding:**
+- run_daily.sh hardcoded /home/datasci path — was local-only, never the AWS
+  mechanism. AWS production pipeline runs via inline crontab with
+  /home/ubuntu/miniconda3
+- Crontab patched to insert conviction_score.py before telegram_alert.py
+  (backed up to ~/crontab.bak)
+- Tonight's 21:30 UTC cron verified safe via telegram dry-run
+- **Resolved same session:** made run_daily.sh conda-path-portable (auto-detects
+  conda under $HOME/miniconda3, $HOME/anaconda3, /opt/conda) and pointed the AWS
+  cron at it (SEND_TELEGRAM=1 bash scripts/run_daily.sh) so the pipeline and the
+  cron can no longer drift
+
+**Test suite:** 20/20 passing. GRID low-volume filter fix: test_row_count_preserved
+updated to expect vsa == ohlcv[volume>1000].
+
+---
+
+## Session 31 — (upcoming)
+
+- Run sector_rotation.py as weekly workflow — review rotation signals
+- Consider sector_rotation as 4th dashboard tab
+- Pine Script Widell Line for TradingView
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] `./scripts/run_checks.sh`
+- [ ] `python daily_signals.py`
+- [ ] `python sector_rotation.py`
+- [ ] Check http://18.188.180.99:8501
