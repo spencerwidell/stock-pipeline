@@ -35,7 +35,7 @@ def load_signals():
         ORDER BY composite DESC, wl_state, ticker
     """).df()
 
-tab1, tab2, tab3 = st.tabs(["📊 Signals", "📖 Guide", "📋 Fundamentals"])
+tab1, tab2, tab3 = st.tabs(["📊 Signals", "📋 Fundamentals", "📖 Guide"])
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
@@ -88,6 +88,33 @@ with tab1:
                 f"| Regime: {row['regime']}"
             )
     st.divider()
+
+    # Combined conviction view
+    import os as _os
+    if _os.path.exists("data/fundamentals.parquet"):
+        fund_data = pd.read_parquet("data/fundamentals.parquet")[
+            ["ticker","fundamental_score","rev_growth_yoy","gross_margin"]
+        ]
+        combined = df.merge(fund_data, on="ticker", how="left")
+        up_combined = combined[combined["wl_state"]=="up"].copy()
+        if len(up_combined) > 0:
+            st.subheader("🎯 Combined Signal — Up State")
+            for _, row in up_combined.iterrows():
+                w_score = int(row["composite"])
+                f_score = int(row["fundamental_score"]) if pd.notna(row.get("fundamental_score")) else None
+                gap_v   = row["gap_from_flip"] if pd.notna(row["gap_from_flip"]) else 0
+                zone    = row["channel_zone"] if pd.notna(row["channel_zone"]) else ""
+                chase   = "🔴 CHASING+EXT" if gap_v > 5 and zone=="extended" else                           "🔴 CHASING"    if gap_v > 5 else                           "🟡 ELEVATED"   if gap_v > 2 else                           "🟢 AT ENTRY"
+                f_str   = f"F:{f_score}/5" if f_score is not None else "F:N/A"
+                days    = int(row["days"]) if pd.notna(row["days"]) else 0
+                pb      = f"pb→${row['key_level']:.2f}" if pd.notna(row.get("key_level")) else ""
+                st.markdown(
+                    f"**{row['ticker']}** ${row['close']:.2f} "
+                    f"| Widell: **{w_score}** | {f_str} "
+                    f"| {chase} | {zone} "
+                    f"| {pb} | Days: {days}"
+                )
+            st.divider()
 
     st.subheader("🔍 Full Universe")
     c1,c2,c3 = st.columns(3)
@@ -161,7 +188,7 @@ with tab1:
 
     st.dataframe(hist[["date","close","wl_state","channel_zone","composite","rsi","vsa_label","wl_flip"]],
                  use_container_width=True, height=250)
-with tab3:
+with tab2:
     st.title("📋 Fundamental Scores")
     st.caption("Quarterly financials scored 0-5 across revenue growth, margins, EPS growth, and cash flow")
 
@@ -211,7 +238,7 @@ ETFs and some international tickers (ASML, TSM, ARM) have no fundamental data.
     else:
         st.warning("No fundamentals data found. Run fetch_fundamentals.py first.")
 
-with tab2:
+with tab3:
     st.title("📖 Dashboard Guide")
     st.caption("How to read and use the Widell Line Signal Dashboard")
 
