@@ -935,3 +935,11 @@ Polygon API → features → labels → Widell Line → composite score
 - Index flip → scan constituents for laggards
 - Money rotation between sectors/indexes
 - Multi-layer conviction score combining all signals
+
+**Dashboard fixes (mid-session):**
+- Removed duplicate Up State section
+- Fixed Combined Signal display - card format matching Flips section
+- Fixed AWS server git conflict with git checkout -- dashboard.py
+- Tab order: Signals → Fundamentals → Guide
+- Combined Signal shows: ticker · entry status · Widell score · fundamental score · channel zone · pullback target · days
+
