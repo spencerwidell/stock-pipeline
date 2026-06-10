@@ -26,6 +26,11 @@ df = duckdb.query("""
     WITH latest AS (
         SELECT ticker, date, close, wl_state, wl_flip,
                regime, composite, rsi_14, flip_price, resistance,
+               CASE
+                   WHEN wl_state = 'up' THEN 'pullback'
+                   WHEN wl_state = 'inconclusive' THEN 'breakout'
+                   ELSE 'resistance'
+               END as level_type,
                ROUND((close - flip_price) / flip_price * 100, 1) as gap_from_flip,
                wl_duration,
                ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
@@ -67,7 +72,7 @@ if len(up_df) > 0:
     lines.append("*🟢 Up State:*")
     for _, row in up_df.iterrows():
         gap  = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else ""
-        pb   = f"pb→${row['resistance']:.2f}" if pd.notna(row["resistance"]) else ""
+        pb   = f"{row['level_type']}→${row['resistance']:.2f}" if pd.notna(row["resistance"]) else ""
         chase = "🔴chase" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 5 else \
                 "🟡elev" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
                 "🟢entry"
