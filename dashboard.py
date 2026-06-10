@@ -12,7 +12,7 @@ def load_signals():
             SELECT ticker, date, close, wl_state, wl_flip,
                    regime, composite, rsi_14, dist_52w_high,
                    dist_ma200, ma200, ma50, vsa_label, wl_duration,
-                   flip_price, resistance,
+                   flip_price, resistance, channel_zone,
                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
             FROM 'data/stock_vsa.parquet'
         )
@@ -30,6 +30,7 @@ def load_signals():
                    WHEN wl_state = 'inconclusive' THEN 'breakout'
                    ELSE 'resistance'
                END as level_type,
+               channel_zone,
                ROUND((close - flip_price) / flip_price * 100, 1) as gap_from_flip
         FROM latest WHERE rn = 1
         ORDER BY composite DESC, wl_state, ticker
