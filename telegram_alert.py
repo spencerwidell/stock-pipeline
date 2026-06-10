@@ -41,6 +41,16 @@ df = duckdb.query("""
 
 today = date.today().strftime("%Y-%m-%d")
 
+# Join fundamentals
+import os
+if os.path.exists("data/fundamentals.parquet"):
+    fund_df = pd.read_parquet("data/fundamentals.parquet")[
+        ["ticker","fundamental_score"]
+    ]
+    df = df.merge(fund_df, on="ticker", how="left")
+else:
+    df["fundamental_score"] = None
+
 # Build message
 lines = [f"📈 *Widell Line Signals — {today}*\n"]
 
@@ -77,8 +87,9 @@ if len(up_df) > 0:
                 "🟡elev" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
                 "🟢entry"
         days = int(row["wl_duration"]) if pd.notna(row["wl_duration"]) else 0
+        fund = f"F:{int(row['fundamental_score'])}/5" if pd.notna(row.get('fundamental_score')) else "F:N/A"
         lines.append(f"  *{row['ticker']}* ${row['close']:.2f} "
-                     f"{chase} {gap} {pb} d={days}")
+                     f"{chase} {gap} {pb} {fund} d={days}")
 
 lines.append("")
 
