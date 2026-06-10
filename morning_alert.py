@@ -32,6 +32,9 @@ ENTRY_RANGE_PCT   = 3.0   # within X% of pullback target = entry range
 BREAKOUT_NEAR_PCT = 5.0   # within X% of breakout level = on breakout watch
 BREAKOUT_MOVE_PCT = 1.0   # min open move to flag a possible breakout
 NOTABLE_MOVE_PCT  = 3.0   # |open move| above this = notable
+EARNINGS_SOON     = 7     # flag earnings within this many days
+EARNINGS_PATH     = "data/earnings.parquet"
+HOLDINGS_PATH     = "holdings.yaml"
 
 
 def load_env():
@@ -100,10 +103,51 @@ def pct(a, b):
     return (a - b) / b * 100.0
 
 
+def load_earnings():
+    """data/earnings.parquet -> {ticker: days_until_earnings}. Empty if absent."""
+    if not os.path.exists(EARNINGS_PATH):
+        return {}
+    try:
+        e = pd.read_parquet(EARNINGS_PATH).dropna(subset=["next_earnings_date"])
+        e["next_earnings_date"] = pd.to_datetime(e["next_earnings_date"]).dt.date
+        today = date.today()
+        return {r["ticker"]: (r["next_earnings_date"] - today).days
+                for _, r in e.iterrows()}
+    except Exception:
+        return {}
+
+
+def earn_tag(ticker, earnings):
+    """' 🗓️Nd' if `ticker` reports within EARNINGS_SOON days, else ''."""
+    d = earnings.get(ticker)
+    return f" 🗓️{d}d" if d is not None and 0 <= d <= EARNINGS_SOON else ""
+
+
+def load_holdings():
+    """holdings.yaml -> {ticker: 'weight'}. Empty dict if absent/unreadable."""
+    if not os.path.exists(HOLDINGS_PATH):
+        return {}
+    try:
+        import yaml
+        with open(HOLDINGS_PATH) as f:
+            raw = yaml.safe_load(f) or {}
+        return {str(k).upper(): str(v).strip() for k, v in raw.items() if v is not None}
+    except Exception:
+        return {}
+
+
+def hold_tag(ticker, holdings):
+    """' 💼HELD w' if `ticker` is a current holding, else ''."""
+    w = holdings.get(ticker)
+    return f" 💼HELD {w}" if w else ""
+
+
 def main():
     df = load_latest()
     today = date.today().strftime("%Y-%m-%d")
     snap = fetch_snapshot(df["ticker"].tolist())
+    earnings = load_earnings()
+    holdings = load_holdings()
 
     high_conv, breakout, notable = [], [], []
 
@@ -141,21 +185,23 @@ def main():
         lines.append("*🎯 HIGH CONVICTION IN ENTRY RANGE:*")
         for tkr, price, conv, dist, state in sorted(high_conv, key=lambda x: abs(x[3])):
             lines.append(f"  *{tkr}* ${price:.2f} conv:{conv}/10 "
-                         f"{dist:+.1f}% from pullback ({state})")
+                         f"{dist:+.1f}% from pullback ({state})"
+                         f"{hold_tag(tkr, holdings)}{earn_tag(tkr, earnings)}")
         lines.append("")
 
     if breakout:
         lines.append("*🚀 BREAKOUT WATCH:*")
         for tkr, price, dist, move in sorted(breakout, key=lambda x: -x[3]):
             lines.append(f"  *{tkr}* ${price:.2f} {dist:+.1f}% from breakout "
-                         f"open {move:+.1f}%")
+                         f"open {move:+.1f}%{hold_tag(tkr, holdings)}{earn_tag(tkr, earnings)}")
         lines.append("")
 
     if notable:
         lines.append("*📊 NOTABLE MOVES:*")
         for tkr, price, move, state in sorted(notable, key=lambda x: -abs(x[2])):
             icon = "🟢" if move > 0 else "🔴"
-            lines.append(f"  {icon} *{tkr}* ${price:.2f} {move:+.1f}% ({state})")
+            lines.append(f"  {icon} *{tkr}* ${price:.2f} {move:+.1f}% "
+                         f"({state}){hold_tag(tkr, holdings)}{earn_tag(tkr, earnings)}")
         lines.append("")
 
     if not (high_conv or breakout or notable):

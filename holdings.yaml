@@ -1,0 +1,25 @@
+# Current holdings — a simple snapshot of what you own and roughly how much.
+#
+# Format:  TICKER: weight        (weight is your % of portfolio; "%" optional)
+#
+# This is NOT a transaction ledger — no buy prices, no history. Just update the
+# weights by hand after a meaningful trade. It's used to personalize the alerts
+# and dashboard ("you hold ISRG at 5% — it pulled back to entry today") instead
+# of generic "ISRG is a high-conviction setup".
+#
+# CASH is special: it's money-market dry powder available to buy stock with. The
+# narrative alert reads it as "how much you have to deploy" when deciding whether
+# today is a buy-or-wait day.
+
+NVDA: 11%
+MSFT: 11%
+AMZN: 11%
+ELF:  10%
+SOFI: 8%
+PLTR: 7%
+TSLA: 7%
+META: 7%
+AVGO: 7%
+TSM:  5%
+
+CASH: 16%

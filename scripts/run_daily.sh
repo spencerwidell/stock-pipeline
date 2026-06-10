@@ -49,6 +49,11 @@ if [ "$TEST_RC" -ne 0 ]; then
     echo "WARNING: pytest failed (rc=$TEST_RC) — see $LOG" | tee -a "$LOG"
 fi
 
+# Earnings dates — self-throttling (only refetches when >= REFRESH_DAYS stale),
+# so it's safe to call daily. Fail-soft: a yfinance hiccup must not stop signals.
+echo "Refreshing earnings dates..." | tee -a "$LOG"
+python fetch_earnings.py >> "$LOG" 2>&1 || true
+
 echo "Generating signals..." | tee -a "$LOG"
 python daily_signals.py | tee -a "$LOG"
 
@@ -57,6 +62,12 @@ python daily_signals.py | tee -a "$LOG"
 if [ "${SEND_TELEGRAM:-0}" = "1" ]; then
     echo "Sending Telegram alert..." | tee -a "$LOG"
     python telegram_alert.py >> "$LOG" 2>&1
+
+    # Plain-English LLM briefing (interprets the signals above). Self-contained
+    # and fail-soft — it logs and exits 0 on any error so a Claude API hiccup
+    # never fails the pipeline. `|| true` is belt-and-suspenders for set -e.
+    echo "Sending narrative alert..." | tee -a "$LOG"
+    python narrative_alert.py >> "$LOG" 2>&1 || true
 fi
 
 echo "=== Done $(date) ===" | tee -a "$LOG"

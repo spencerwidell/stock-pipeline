@@ -51,6 +51,21 @@ else:
     df["rev_growth_yoy"]    = None
     df["gross_margin"]      = None
 
+# Join earnings (days until next earnings; <=7 gets a 🗓️ flag)
+EARNINGS_SOON = 7
+if os.path.exists("data/earnings.parquet"):
+    earn_df = pd.read_parquet("data/earnings.parquet")[["ticker", "next_earnings_date"]]
+    df = df.merge(earn_df, on="ticker", how="left")
+    df["earn_days"] = (
+        pd.to_datetime(df["next_earnings_date"]) - pd.Timestamp(date.today())
+    ).dt.days
+else:
+    df["earn_days"] = pd.NA
+
+def earn_tag(days):
+    """' 🗓️Nd' if earnings within EARNINGS_SOON days, else ''."""
+    return f" 🗓️{int(days)}d" if pd.notna(days) and 0 <= days <= EARNINGS_SOON else ""
+
 
 state_icon  = {"up": "🟢", "inconclusive": "🟡", "down": "🔴"}
 regime_icon = {"bull": "📈", "mixed": "↔️",  "bear": "📉"}
@@ -102,7 +117,8 @@ if len(flipped) > 0:
         level = f"{row['level_type']}→{row['key_level']:.2f}" if pd.notna(row["key_level"]) else ""
         print(f"  {row['ticker']:<6} {icon} {row['wl_state']:<13} "
               f"{ricon} {row['regime']:<8} score={row['composite']:>3}  "
-              f"rsi={row['rsi']:>5.1f}  gap={gap}  {level}  {row['vsa_label']}")
+              f"rsi={row['rsi']:>5.1f}  gap={gap}  {level}  {row['vsa_label']}"
+              f"{earn_tag(row['earn_days'])}")
 else:
     print("  None today")
 
@@ -126,7 +142,7 @@ if len(up_df) > 0:
                     "💥brk" if zone == "breakdown" else ""
         fund = f"F:{int(row.get('fundamental_score', 0)) if pd.notna(row.get('fundamental_score')) else 'N'}/5"
         conv = f"conv={int(row['conviction_score'])}/10"
-        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  {level}  {zone_icon}  {fund}  {conv}  days={days}")
+        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  {level}  {zone_icon}  {fund}  {conv}  days={days}{earn_tag(row['earn_days'])}")
 
 
 

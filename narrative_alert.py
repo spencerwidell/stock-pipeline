@@ -1,0 +1,398 @@
+"""LLM narrative alert — the third daily Telegram message.
+
+Runs AFTER the close pipeline (after telegram_alert.py in run_daily.sh). Where the
+close alert dumps the raw signal tables, this one reads the same signals and asks
+Claude to interpret them in plain English: is today a good environment to buy or
+wait, which high-conviction names are actually actionable, and what's worth
+watching tomorrow.
+
+Context fed to Claude:
+  - Date / day of week
+  - SPY & QQQ market state (wl_state, composite, channel zone/position)
+  - Universe counts (up / inconclusive / down, flip count)
+  - Every conviction>=8 name (full signal row)
+  - Flips today (ticker, direction, gap from flip, conviction)
+  - High composite (>=2) names not yet in an up state
+  - OPTIONAL enrichments, picked up automatically when their files exist:
+      * holdings.yaml          -> personalize ("you hold ISRG at 5%")
+      * data/earnings.parquet  -> 🗓️ earnings within 7 days (fetch_earnings.py)
+      * data/moat.parquet      -> moat rating context (moat_score.py)
+
+Claude returns four sections: MARKET CONTEXT, ACTIONABLE SETUPS, WATCH LIST,
+BOTTOM LINE. The message is sent via the same Telegram bot as the other alerts.
+
+Design notes:
+  - Model is claude-sonnet-4-6 (current Sonnet; the roadmap's claude-sonnet-4
+    retires 2026-06-15). Sonnet is the cost-conscious tier for a daily job.
+  - If anything fails (no API key, API error, bad data), we log and skip — the
+    pipeline must never break because the narrative couldn't be generated.
+  - The Telegram message is sent as PLAIN TEXT (no parse_mode). LLM prose can
+    contain stray * _ [ ] that would make Telegram's Markdown parser reject the
+    whole message.
+
+Run via run_daily.sh (after telegram_alert.py) with SEND_TELEGRAM=1, or directly:
+    python narrative_alert.py            # prints narrative, also sends to Telegram
+    python narrative_alert.py --dry-run  # prints narrative + context, no send
+"""
+
+import os
+import sys
+
+import duckdb
+import pandas as pd
+import requests
+from datetime import date
+
+MODEL          = "claude-sonnet-4-6"
+MAX_TOKENS     = 1000
+CONV_MIN       = 8     # high-conviction threshold
+HIGH_COMP_MIN  = 2     # "high composite, not yet up" threshold
+EARNINGS_SOON  = 7     # days; flag earnings within this window
+
+VSA_PATH      = "data/stock_vsa.parquet"
+FUND_PATH     = "data/fundamentals.parquet"
+HOLDINGS_PATH = "holdings.yaml"
+EARNINGS_PATH = "data/earnings.parquet"
+MOAT_PATH     = "data/moat.parquet"
+
+DASHBOARD_URL = "http://18.188.180.99:8501"
+
+
+# ---------------------------------------------------------------------------
+# Env / Telegram (same pattern as telegram_alert.py / morning_alert.py)
+# ---------------------------------------------------------------------------
+def load_env():
+    if not os.path.exists(".env"):
+        return
+    with open(".env") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            k, v = line.split("=", 1)
+            os.environ[k] = v
+
+
+def send_telegram(msg):
+    token   = os.environ.get("TELEGRAM_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        print("No Telegram credentials — skipping send.")
+        return
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    # Plain text on purpose — LLM prose breaks Telegram's Markdown parser.
+    resp = requests.post(url, json={"chat_id": chat_id, "text": msg})
+    if resp.status_code != 200:
+        print(f"Telegram send failed ({resp.status_code}): {resp.text[:200]}")
+
+
+# ---------------------------------------------------------------------------
+# Signal loading
+# ---------------------------------------------------------------------------
+def load_signals():
+    """Latest bar per ticker with the fields the narrative needs."""
+    df = duckdb.query("""
+        WITH latest AS (
+            SELECT ticker, date, close, wl_state, wl_flip, regime,
+                   composite, conviction_score, rsi_14,
+                   flip_price, resistance, channel_pos, channel_zone,
+                   wl_duration, vsa_label,
+                   CASE
+                       WHEN wl_state = 'up' THEN 'pullback'
+                       WHEN wl_state = 'inconclusive' THEN 'breakout'
+                       ELSE 'resistance'
+                   END AS level_type,
+                   ROUND((close - flip_price) / flip_price * 100, 1) AS gap_from_flip,
+                   ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
+            FROM 'data/stock_vsa.parquet'
+        )
+        SELECT * EXCLUDE (rn) FROM latest WHERE rn = 1
+    """).df()
+
+    if os.path.exists(FUND_PATH):
+        fund = pd.read_parquet(FUND_PATH)[["ticker", "fundamental_score",
+                                           "rev_growth_yoy", "gross_margin"]]
+        df = df.merge(fund, on="ticker", how="left")
+    else:
+        df["fundamental_score"] = pd.NA
+        df["rev_growth_yoy"]    = pd.NA
+        df["gross_margin"]      = pd.NA
+    return df
+
+
+def load_holdings():
+    """holdings.yaml -> {ticker: 'weight string'}. Empty dict if absent."""
+    if not os.path.exists(HOLDINGS_PATH):
+        return {}
+    try:
+        import yaml
+        with open(HOLDINGS_PATH) as f:
+            raw = yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"Could not read {HOLDINGS_PATH}: {e}")
+        return {}
+    out = {}
+    for k, v in raw.items():
+        if v is None:
+            continue
+        out[str(k).upper()] = str(v).strip()
+    return out
+
+
+def load_earnings():
+    """data/earnings.parquet -> {ticker: days_until_earnings}. Empty if absent."""
+    if not os.path.exists(EARNINGS_PATH):
+        return {}
+    try:
+        e = pd.read_parquet(EARNINGS_PATH)
+        if "next_earnings_date" not in e.columns:
+            return {}
+        e = e.dropna(subset=["next_earnings_date"]).copy()
+        e["next_earnings_date"] = pd.to_datetime(e["next_earnings_date"]).dt.date
+        today = date.today()
+        return {
+            r["ticker"]: (r["next_earnings_date"] - today).days
+            for _, r in e.iterrows()
+        }
+    except Exception as ex:
+        print(f"Could not read {EARNINGS_PATH}: {ex}")
+        return {}
+
+
+def load_moat():
+    """data/moat.parquet -> {ticker: {rating, type, summary}}. Empty if absent."""
+    if not os.path.exists(MOAT_PATH):
+        return {}
+    try:
+        m = pd.read_parquet(MOAT_PATH)
+        out = {}
+        for _, r in m.iterrows():
+            out[r["ticker"]] = {
+                "rating":  r.get("moat_rating"),
+                "type":    r.get("moat_type"),
+                "summary": r.get("moat_summary"),
+            }
+        return out
+    except Exception as ex:
+        print(f"Could not read {MOAT_PATH}: {ex}")
+        return {}
+
+
+# ---------------------------------------------------------------------------
+# Context formatting
+# ---------------------------------------------------------------------------
+def _earn_tag(ticker, earnings):
+    d = earnings.get(ticker)
+    if d is not None and 0 <= d <= EARNINGS_SOON:
+        return f" | 🗓️ earnings in {d}d"
+    return ""
+
+
+def _hold_tag(ticker, holdings):
+    w = holdings.get(ticker)
+    return f" | HELD {w}" if w else ""
+
+
+def _moat_tag(ticker, moat):
+    m = moat.get(ticker)
+    if not m or m.get("rating") in (None, "") or pd.isna(m.get("rating")):
+        return ""
+    return f" | moat {int(m['rating'])}/5 ({m.get('type','?')})"
+
+
+def _fmt_row(r, holdings, earnings, moat):
+    fund = (f"F{int(r['fundamental_score'])}/5"
+            if pd.notna(r.get("fundamental_score")) else "F?/5")
+    conv = int(r["conviction_score"]) if pd.notna(r["conviction_score"]) else 0
+    gap  = f"{r['gap_from_flip']:+.1f}%" if pd.notna(r["gap_from_flip"]) else "n/a"
+    lvl  = (f"{r['level_type']} ${r['resistance']:.2f}"
+            if pd.notna(r["resistance"]) else r["level_type"])
+    days = int(r["wl_duration"]) if pd.notna(r["wl_duration"]) else 0
+    return (
+        f"  {r['ticker']}: ${r['close']:.2f} | {r['wl_state']} {days}d "
+        f"| conv {conv}/10 | {fund} | zone {r['channel_zone']} "
+        f"(pos {r['channel_pos']:.2f}) | {lvl} | gap-from-flip {gap}"
+        f"{_hold_tag(r['ticker'], holdings)}"
+        f"{_earn_tag(r['ticker'], earnings)}"
+        f"{_moat_tag(r['ticker'], moat)}"
+    )
+
+
+def build_context(df, holdings, earnings, moat):
+    today = date.today()
+    lines = [f"DATE: {today.strftime('%A, %B %d, %Y')}", ""]
+
+    # --- Market backdrop ---
+    lines.append("MARKET (the read on environment):")
+    for sym in ("SPY", "QQQ"):
+        row = df[df["ticker"] == sym]
+        if not len(row):
+            continue
+        r = row.iloc[0]
+        pos = f"{r['channel_pos']:.2f}" if pd.notna(r["channel_pos"]) else "n/a"
+        rsi = f" | RSI {r['rsi_14']:.0f}" if pd.notna(r["rsi_14"]) else ""
+        lines.append(
+            f"  {sym}: {r['wl_state']} | composite {int(r['composite'])} "
+            f"| zone {r['channel_zone']} (pos {pos}){rsi}"
+        )
+    lines.append("")
+
+    # --- Universe counts ---
+    up   = int((df["wl_state"] == "up").sum())
+    inc  = int((df["wl_state"] == "inconclusive").sum())
+    down = int((df["wl_state"] == "down").sum())
+    flips = int(df["wl_flip"].sum())
+    lines.append(
+        f"UNIVERSE ({len(df)} names): {up} up, {inc} inconclusive, "
+        f"{down} down | {flips} flip(s) today"
+    )
+    lines.append("")
+
+    # --- High conviction ---
+    hc = df[(pd.notna(df["conviction_score"])) &
+            (df["conviction_score"] >= CONV_MIN)].sort_values(
+        "conviction_score", ascending=False)
+    lines.append(f"HIGH CONVICTION (score >= {CONV_MIN}) — {len(hc)} name(s):")
+    if len(hc):
+        for _, r in hc.iterrows():
+            lines.append(_fmt_row(r, holdings, earnings, moat))
+    else:
+        lines.append("  none today")
+    lines.append("")
+
+    # --- Flips today ---
+    fl = df[df["wl_flip"] == True].sort_values("composite", ascending=False)
+    lines.append(f"FLIPS TODAY — {len(fl)} name(s):")
+    if len(fl):
+        for _, r in fl.iterrows():
+            lines.append(_fmt_row(r, holdings, earnings, moat))
+    else:
+        lines.append("  none today")
+    lines.append("")
+
+    # --- High composite, not yet up ---
+    hicomp = df[(df["composite"] >= HIGH_COMP_MIN) &
+                (df["wl_state"] != "up")].sort_values("composite", ascending=False)
+    lines.append(f"HIGH SCORE (composite >= {HIGH_COMP_MIN}, not yet up) "
+                 f"— {len(hicomp)} name(s):")
+    if len(hicomp):
+        for _, r in hicomp.iterrows():
+            lines.append(_fmt_row(r, holdings, earnings, moat))
+    else:
+        lines.append("  none today")
+    lines.append("")
+
+    # --- Holdings snapshot (so Claude knows the full portfolio, not just the
+    #     names that happen to be flagged today). CASH is dry powder, surfaced
+    #     separately so Claude can size "buy vs wait" against available cash. ---
+    cash = holdings.get("CASH")
+    stock_holdings = {k: v for k, v in holdings.items() if k != "CASH"}
+    if stock_holdings:
+        held = ", ".join(f"{k} {v}" for k, v in stock_holdings.items())
+        lines.append(f"CURRENT HOLDINGS: {held}")
+    if cash:
+        lines.append(f"DRY POWDER: {cash} cash available to deploy")
+    if stock_holdings or cash:
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+SYSTEM_PROMPT = """You are an investing advisor writing a short daily briefing for \
+Spencer, a long-term investor (NOT a trader). His approach:
+- Owns high-quality companies with durable moats and holds them for years.
+- Buys on pullbacks; refuses to buy at the top of a regression channel (zone \
+"extended" or "upper" = expensive, "lower"/"middle" = better entry).
+- Uses Widell Line flips as TIMING CONFIRMATION, not a primary buy signal. A flip \
+in a weak tape is usually noise.
+- Conviction score >= 8 = his highest-priority setups.
+- Cares about durable moats. When a name shows a moat rating, factor it in: a \
+pullback in a wide-moat name (4-5/5) is more buyable and more forgiving than the \
+same setup in a no-moat (1-2/5) name, which needs tighter timing.
+- Keeps cash as dry powder (shown as DRY POWDER). Having cash to deploy makes a \
+genuinely good pullback more actionable, but he will NOT force a trade just because \
+cash is sitting idle — a weak tape is still a reason to wait.
+- Wants simplicity. He does not want to decode tables — he wants to be told what, \
+if anything, to actually do.
+
+You are given today's signals. The system can't see macro news (CPI prints, geopolitics, \
+Fed) — if the breadth looks off (many flips but market down, SPY/QQQ extended and \
+weak), say so and treat today's flips with appropriate skepticism.
+
+Write EXACTLY these four sections, plain English, no jargon, no tables, concise:
+
+MARKET CONTEXT
+2-3 sentences on what SPY/QQQ are telling us. Is this a good environment to be \
+buying, or to wait?
+
+ACTIONABLE SETUPS
+One short bullet per conviction>=8 name (or write "None today."). For each: is it \
+in a buyable entry zone right now, or is it extended/chasing? Worth acting on or \
+wait? If Spencer already holds it, say so and frame as add-vs-hold. Flag 🗓️ \
+earnings within 7 days as a reason to wait.
+
+WATCH LIST
+One short bullet per name approaching a signal but not ready — what to watch for \
+tomorrow. "None today." is fine.
+
+BOTTOM LINE
+One sentence: what should Spencer actually do today (often "nothing — wait").
+
+Keep the whole thing tight enough to read on a phone. This is sent as a plain-text \
+message, so DO NOT use any Markdown formatting — no #, no **bold**, no horizontal \
+rules (---). Put each of the four section headers in CAPS on its own line, and use \
+a simple "- " for bullets."""
+
+
+def call_claude(context):
+    import anthropic
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError("ANTHROPIC_API_KEY not set")
+    client = anthropic.Anthropic()
+    resp = client.messages.create(
+        model=MODEL,
+        max_tokens=MAX_TOKENS,
+        thinking={"type": "disabled"},  # 1000-token budget; keep it all for prose
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": context}],
+    )
+    return "".join(b.text for b in resp.content if b.type == "text").strip()
+
+
+def main():
+    dry_run = "--dry-run" in sys.argv
+    load_env()
+
+    try:
+        df = load_signals()
+    except Exception as e:
+        print(f"Could not load signals — skipping narrative alert: {e}")
+        return
+
+    holdings = load_holdings()
+    earnings = load_earnings()
+    moat     = load_moat()
+    context  = build_context(df, holdings, earnings, moat)
+
+    if dry_run:
+        print("=== CONTEXT ===")
+        print(context)
+        print("=== /CONTEXT ===\n")
+
+    try:
+        narrative = call_claude(context)
+    except Exception as e:
+        print(f"Claude API call failed — skipping narrative alert: {e}")
+        return
+
+    today = date.today().strftime("%Y-%m-%d")
+    msg = f"🧭 Daily Briefing — {today}\n\n{narrative}\n\n{DASHBOARD_URL}"
+
+    print(msg)
+    if not dry_run:
+        send_telegram(msg)
+        print("\nNarrative alert sent.")
+
+
+if __name__ == "__main__":
+    main()

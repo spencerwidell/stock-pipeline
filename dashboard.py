@@ -60,12 +60,29 @@ def load_rotation():
     return latest
 
 
+@st.cache_data(ttl=300)
+def load_holdings():
+    """holdings.yaml -> {ticker: 'weight'}. Empty dict if absent/unreadable."""
+    import os
+    if not os.path.exists("holdings.yaml"):
+        return {}
+    try:
+        import yaml
+        with open("holdings.yaml") as f:
+            raw = yaml.safe_load(f) or {}
+        return {str(k).upper(): str(v).strip() for k, v in raw.items() if v is not None}
+    except Exception:
+        return {}
+
+
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
     st.caption(f"Data as of {date.today()}")
     df = load_signals()
+    holdings = load_holdings()
+    df["held"] = df["ticker"].map(holdings).fillna("")
 
     c1,c2,c3,c4,c5,c6 = st.columns(6)
     c1.metric("🟢 Up",           (df["wl_state"]=="up").sum())
@@ -93,6 +110,7 @@ with tab1:
             pb    = f"{row['level_type']}→${row['key_level']:.2f}" if pd.notna(row["key_level"]) else "N/A"
             f_str = f"F:{int(row['fundamental_score'])}/5" if pd.notna(row.get("fundamental_score")) else "F:N/A"
             zone  = row["channel_zone"] if pd.notna(row["channel_zone"]) else "—"
+            held  = f" | 💼 **HELD {row['held']}**" if row.get("held") else ""
             st.markdown(
                 f"**{row['ticker']}** {icon} {row['wl_state'].upper()} "
                 f"| Conv: **{int(row['conviction_score'])}/10** "
@@ -101,6 +119,7 @@ with tab1:
                 f"| Zone: {zone} "
                 f"| Gap from flip: **{gap}** "
                 f"| Pullback target: **{pb}**"
+                f"{held}"
             )
     else:
         st.info("No high conviction setups today.")
@@ -187,7 +206,7 @@ with tab1:
         if v>=4: return "color:#88ff88"
         return ""
 
-    cols = ["ticker","close","wl_state","regime","composite","conviction_score","rsi",
+    cols = ["ticker","held","close","wl_state","regime","composite","conviction_score","rsi",
             "dist_52w_hi","dist_ma200","ma200","ma50","days",
             "gap_from_flip","key_level","level_type","vsa_label"]
     st.dataframe(
@@ -241,6 +260,14 @@ with tab2:
     if os.path.exists("data/fundamentals.parquet"):
         fund = pd.read_parquet("data/fundamentals.parquet")
 
+        # Moat scores (qualitative, from moat_score.py) — optional join.
+        has_moat = os.path.exists("data/moat.parquet")
+        if has_moat:
+            moat = pd.read_parquet("data/moat.parquet")[
+                ["ticker", "moat_rating", "moat_type", "moat_summary", "moat_risk"]
+            ]
+            fund = fund.merge(moat, on="ticker", how="left")
+
         # Summary metrics
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("Score 5 (Elite)",    (fund["fundamental_score"]==5).sum())
@@ -260,11 +287,42 @@ with tab2:
             if v <= 1: return "color:#ff8888"
             return ""
 
-        display_cols = ["ticker","fundamental_score","rev_growth_yoy",
-                        "gross_margin","op_margin","eps_growth_yoy","operating_cf_B","as_of"]
-        st.dataframe(
-            filtered[display_cols].style.map(color_fscore, subset=["fundamental_score"]),
-            use_container_width=True, height=600)
+        def color_moat(v):
+            if pd.isna(v): return ""
+            if v >= 5: return "background-color:#1a472a;color:white;font-weight:bold"
+            if v == 4: return "color:#00ff88;font-weight:bold"
+            if v == 3: return "color:#88ff88"
+            if v <= 2: return "color:#ff8888"
+            return ""
+
+        display_cols = ["ticker","fundamental_score"]
+        if has_moat:
+            display_cols += ["moat_rating","moat_type"]
+        display_cols += ["rev_growth_yoy","gross_margin","op_margin",
+                         "eps_growth_yoy","operating_cf_B","as_of"]
+        styler = filtered[display_cols].style.map(color_fscore, subset=["fundamental_score"])
+        if has_moat:
+            styler = styler.map(color_moat, subset=["moat_rating"])
+        st.dataframe(styler, use_container_width=True, height=600)
+
+        # Per-name moat detail (summary + key risk) for names with a moat score.
+        if has_moat:
+            st.divider()
+            st.subheader("🏰 Moat Detail")
+            moat_named = filtered.dropna(subset=["moat_rating"]).sort_values(
+                "moat_rating", ascending=False)
+            if len(moat_named):
+                pick = st.selectbox("Ticker", moat_named["ticker"].tolist(),
+                                    key="moat_pick")
+                r = moat_named[moat_named["ticker"] == pick].iloc[0]
+                st.markdown(
+                    f"**{pick}** — Moat **{int(r['moat_rating'])}/5** "
+                    f"({r['moat_type']})\n\n"
+                    f"**Summary:** {r['moat_summary']}\n\n"
+                    f"**Key risk:** {r['moat_risk']}"
+                )
+            else:
+                st.info("No moat scores for the current filter. Run moat_score.py.")
 
         st.divider()
         st.subheader("Score Methodology")
