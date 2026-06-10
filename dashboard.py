@@ -70,25 +70,7 @@ with tab1:
             )
         st.divider()
 
-    st.subheader("🟢 Up State — Entry & Pullback Analysis")
-    up_df = df[df["wl_state"]=="up"].copy()
-    if len(up_df) > 0:
-        for _, row in up_df.iterrows():
-            gap  = f"{row['gap_from_flip']:+.1f}%" if pd.notna(row["gap_from_flip"]) else "N/A"
-            pb   = f"{row['level_type']}→${row['key_level']:.2f}" if pd.notna(row["key_level"]) else "N/A"
-            days = int(row["days"]) if pd.notna(row["days"]) else 0
-            chase = "🔴 CHASING" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 5 else \
-                    "🟡 ELEVATED" if pd.notna(row["gap_from_flip"]) and row["gap_from_flip"] > 2 else \
-                    "🟢 AT ENTRY"
-            st.markdown(
-                f"**{row['ticker']}** ${row['close']:.2f} "
-                f"| {chase} gap={gap} "
-                f"| Pullback target: **{pb}** "
-                f"| Days in up: {days} "
-                f"| Score: {int(row['composite'])} "
-                f"| Regime: {row['regime']}"
-            )
-    st.divider()
+
 
     # Combined conviction view
     import os as _os
