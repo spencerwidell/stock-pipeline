@@ -35,7 +35,7 @@ def load_signals():
         ORDER BY composite DESC, wl_state, ticker
     """).df()
 
-tab1, tab2 = st.tabs(["📊 Signals", "📖 Guide"])
+tab1, tab2, tab3 = st.tabs(["📊 Signals", "📖 Guide", "📋 Fundamentals"])
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
@@ -161,6 +161,56 @@ with tab1:
 
     st.dataframe(hist[["date","close","wl_state","channel_zone","composite","rsi","vsa_label","wl_flip"]],
                  use_container_width=True, height=250)
+with tab3:
+    st.title("📋 Fundamental Scores")
+    st.caption("Quarterly financials scored 0-5 across revenue growth, margins, EPS growth, and cash flow")
+
+    import os
+    if os.path.exists("data/fundamentals.parquet"):
+        fund = pd.read_parquet("data/fundamentals.parquet")
+
+        # Summary metrics
+        c1,c2,c3,c4 = st.columns(4)
+        c1.metric("Score 5 (Elite)",    (fund["fundamental_score"]==5).sum())
+        c2.metric("Score 4 (Strong)",   (fund["fundamental_score"]==4).sum())
+        c3.metric("Score 3 (Good)",     (fund["fundamental_score"]==3).sum())
+        c4.metric("Score ≤2 (Weak)",    (fund["fundamental_score"]<=2).sum())
+        st.divider()
+
+        # Filter
+        min_f = st.slider("Min Fundamental Score", 0, 5, 0)
+        filtered = fund[fund["fundamental_score"] >= min_f].copy()
+
+        def color_fscore(v):
+            if v == 5: return "background-color:#1a472a;color:white"
+            if v == 4: return "background-color:#2d5a1b;color:white"
+            if v == 3: return "color:#88ff88"
+            if v <= 1: return "color:#ff8888"
+            return ""
+
+        display_cols = ["ticker","fundamental_score","rev_growth_yoy",
+                        "gross_margin","op_margin","eps_growth_yoy","operating_cf_B","as_of"]
+        st.dataframe(
+            filtered[display_cols].style.map(color_fscore, subset=["fundamental_score"]),
+            use_container_width=True, height=600)
+
+        st.divider()
+        st.subheader("Score Methodology")
+        st.markdown("""
+| Metric | Threshold | Points |
+|---|---|---|
+| Revenue growth YoY | > 20% | +1 |
+| Gross margin | > 50% | +1 |
+| Operating margin | > 15% | +1 |
+| EPS growth YoY | > 10% | +1 |
+| Operating cash flow | Positive | +1 |
+
+Score 5 = elite. Score 0-1 = avoid or speculative.
+ETFs and some international tickers (ASML, TSM, ARM) have no fundamental data.
+        """)
+    else:
+        st.warning("No fundamentals data found. Run fetch_fundamentals.py first.")
+
 with tab2:
     st.title("📖 Dashboard Guide")
     st.caption("How to read and use the Widell Line Signal Dashboard")
