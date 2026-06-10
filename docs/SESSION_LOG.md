@@ -830,3 +830,63 @@ Polygon API → features → labels → Widell Line → composite score
 - Shows % distance to breakout for top inconclusive tickers
 - GOOG +8.0% away, ALAB +7.5%, AMD +11.4%
 - Most actionable watchlist signal
+
+---
+
+## Session 28 — June 9, 2026
+
+**Built:** 200-day linear regression channel
+
+**New features in vsa_features.py:**
+- reg_center: best-fit trend line (200-day linear regression)
+- reg_upper: center + 1 standard deviation
+- reg_lower: center - 1 standard deviation
+- channel_pos: position within channel (0=lower, 0.5=center, 1.0=upper, >1=extended)
+
+**New feature in composite_score.py:**
+- channel_zone: extended / upper / middle / lower / breakdown
+
+**Signal enhancements:**
+- Up state section now shows channel zone icon
+- 🔴 CHASING+EXT = both gap>5% AND extended above channel
+- CAT/JPM: AT ENTRY, upper zone — clean setups
+- AMAT/AXON: CHASING+EXT — strongest avoid signal
+- XLV: AT ENTRY, middle zone — best risk/reward
+
+**Dashboard enhancements:**
+- Ticker History now shows price with regression channel
+- Four lines: close, reg_upper, reg_center, reg_lower
+- Channel zone label shown below chart
+- RSI chart added alongside composite
+
+**Backtest v4 findings:**
+- Gap filter adds no value systematically (flip day gap always 0%)
+- Day 2 validation consistently worse (-73% vs BAH on 15 names)
+- Gap intelligence most valuable for manual decision making
+- Full universe: system +475.8% vs BAH +474.0% — razor thin edge
+- System edge concentrated in volatile growth names, not uniform
+
+**Two-layer framework confirmed:**
+- Widell Line: short-term momentum and entry timing
+- Regression channel: long-term trend context
+- PLTR: inconclusive -2 BUT middle of channel = hold, not exit
+- NVDA: down -1 BUT upper channel = normal pullback, not breakdown
+
+---
+
+## Session 29 — (upcoming)
+
+- Polygon Financials API — fundamental scoring
+- Revenue growth, gross margin, forward PE, PEG, FCF
+- Fundamental score (0-5) alongside Widell composite
+- Add to dashboard and Telegram alerts
+- Backtest v5: does fundamental filter improve results?
+
+---
+
+## Session start checklist
+- [ ] Open Ubuntu app
+- [ ] `cd ~/projects/stock-pipeline`
+- [ ] `./scripts/morning_startup.sh`
+- [ ] `conda activate stock`
+- [ ] Check http://18.188.180.99:8501
