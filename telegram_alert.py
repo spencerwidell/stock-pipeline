@@ -25,7 +25,7 @@ def send(msg):
 df = duckdb.query("""
     WITH latest AS (
         SELECT ticker, date, close, wl_state, wl_flip,
-               regime, composite, rsi_14, flip_price, resistance,
+               regime, composite, conviction_score, rsi_14, flip_price, resistance,
                CASE
                    WHEN wl_state = 'up' THEN 'pullback'
                    WHEN wl_state = 'inconclusive' THEN 'breakout'
@@ -88,8 +88,9 @@ if len(up_df) > 0:
                 "🟢entry"
         days = int(row["wl_duration"]) if pd.notna(row["wl_duration"]) else 0
         fund = f"F:{int(row['fundamental_score'])}/5" if pd.notna(row.get('fundamental_score')) else "F:N/A"
+        conv = f"conv:{int(row['conviction_score'])}/10" if pd.notna(row.get('conviction_score')) else ""
         lines.append(f"  *{row['ticker']}* ${row['close']:.2f} "
-                     f"{chase} {gap} {pb} {fund} d={days}")
+                     f"{chase} {gap} {pb} {fund} {conv} d={days}")
 
 lines.append("")
 

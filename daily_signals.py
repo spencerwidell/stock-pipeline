@@ -8,7 +8,7 @@ print("=" * 95)
 df = duckdb.query("""
     WITH latest AS (
         SELECT ticker, date, close, wl_state, wl_flip,
-               regime, composite, rsi_14, dist_52w_high,
+               regime, composite, conviction_score, rsi_14, dist_52w_high,
                dist_ma200, ma200, ma50, ma20,
                vsa_label, wl_duration,
                flip_price, resistance, channel_pos, channel_zone,
@@ -16,7 +16,7 @@ df = duckdb.query("""
         FROM 'data/stock_vsa.parquet'
     )
     SELECT ticker, date, ROUND(close,2) as close,
-           wl_state, wl_flip, regime, composite,
+           wl_state, wl_flip, regime, composite, conviction_score,
            ROUND(rsi_14,1) as rsi,
            ROUND(dist_52w_high,1) as dist_52w_hi,
            ROUND(dist_ma200,1) as dist_ma200,
@@ -56,7 +56,7 @@ state_icon  = {"up": "🟢", "inconclusive": "🟡", "down": "🔴"}
 regime_icon = {"bull": "📈", "mixed": "↔️",  "bear": "📉"}
 
 print(f"\n{'Ticker':<6} {'Close':>7} {'State':<6} {'Regime':<6} "
-      f"{'Scr':>4} {'RSI':>5} {'52wH%':>6} {'MA200%':>7} "
+      f"{'Scr':>4} {'Conv':>5} {'RSI':>5} {'52wH%':>6} {'MA200%':>7} "
       f"{'MA200':>8} {'MA50':>8} {'Days':>5} {'VSA Label'}")
 print("-" * 95)
 
@@ -69,6 +69,7 @@ for _, row in df.iterrows():
           f"{icon} {row['wl_state']:<13}"
           f"{ricon} {row['regime']:<8}"
           f"{row['composite']:>4} "
+          f"{int(row['conviction_score']):>5} "
           f"{row['rsi']:>5.1f} "
           f"{row['dist_52w_hi']:>6.1f}% "
           f"{row['dist_ma200']:>6.1f}% "
@@ -124,7 +125,8 @@ if len(up_df) > 0:
                     "📉low" if zone == "lower" else \
                     "💥brk" if zone == "breakdown" else ""
         fund = f"F:{int(row.get('fundamental_score', 0)) if pd.notna(row.get('fundamental_score')) else 'N'}/5"
-        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  {level}  {zone_icon}  {fund}  days={days}")
+        conv = f"conv={int(row['conviction_score'])}/10"
+        print(f"  {row['ticker']:<6} ${row['close']:>8.2f}  {chase}  gap={gap:>7}  {level}  {zone_icon}  {fund}  {conv}  days={days}")
 
 
 

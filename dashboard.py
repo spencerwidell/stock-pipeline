@@ -10,14 +10,14 @@ def load_signals():
     return duckdb.query("""
         WITH latest AS (
             SELECT ticker, date, close, wl_state, wl_flip,
-                   regime, composite, rsi_14, dist_52w_high,
+                   regime, composite, conviction_score, rsi_14, dist_52w_high,
                    dist_ma200, ma200, ma50, vsa_label, wl_duration,
                    flip_price, resistance, channel_zone,
                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
             FROM 'data/stock_vsa.parquet'
         )
         SELECT ticker, date, ROUND(close,2) as close,
-               wl_state, wl_flip, regime, composite,
+               wl_state, wl_flip, regime, composite, conviction_score,
                ROUND(rsi_14,1) as rsi,
                ROUND(dist_52w_high,1) as dist_52w_hi,
                ROUND(dist_ma200,1) as dist_ma200,
@@ -43,12 +43,13 @@ with tab1:
     st.caption(f"Data as of {date.today()}")
     df = load_signals()
 
-    c1,c2,c3,c4,c5 = st.columns(5)
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
     c1.metric("🟢 Up",           (df["wl_state"]=="up").sum())
     c2.metric("🟡 Inconclusive",  (df["wl_state"]=="inconclusive").sum())
     c3.metric("🔴 Down",         (df["wl_state"]=="down").sum())
     c4.metric("⚡ Flips Today",   int(df["wl_flip"].sum()))
     c5.metric("🔥 High Score ≥2", (df["composite"]>=2).sum())
+    c6.metric("🎯 Conviction ≥8", (df["conviction_score"]>=8).sum())
     st.divider()
 
     flips = df[df["wl_flip"]==True]
@@ -90,10 +91,11 @@ with tab1:
                 chase   = "🔴 CHASING+EXT" if gap_v > 5 and zone=="extended" else                           "🔴 CHASING"    if gap_v > 5 else                           "🟡 ELEVATED"   if gap_v > 2 else                           "🟢 AT ENTRY"
                 f_str   = f"F:{f_score}/5" if f_score is not None else "F:N/A"
                 days    = int(row["days"]) if pd.notna(row["days"]) else 0
+                conv    = int(row["conviction_score"]) if pd.notna(row.get("conviction_score")) else 0
                 pb      = f"pb→${row['key_level']:.2f}" if pd.notna(row.get("key_level")) else ""
                 st.markdown(
                     f"**{row['ticker']}** {chase} "
-                    f"| Score: **{w_score}** | {f_str} "
+                    f"| Score: **{w_score}** | Conv: **{conv}/10** | {f_str} "
                     f"| {zone} | {pb} | Days: {days}"
                 )
             st.divider()
@@ -124,8 +126,14 @@ with tab1:
         if v>5:  return "color:#ff4444;font-weight:bold"
         if v>2:  return "color:#ffaa00"
         return "color:#00cc44"
+    def ccv(v):
+        if pd.isna(v): return ""
+        if v>=8: return "background-color:#1a472a;color:white;font-weight:bold"
+        if v>=6: return "color:#00ff88;font-weight:bold"
+        if v>=4: return "color:#88ff88"
+        return ""
 
-    cols = ["ticker","close","wl_state","regime","composite","rsi",
+    cols = ["ticker","close","wl_state","regime","composite","conviction_score","rsi",
             "dist_52w_hi","dist_ma200","ma200","ma50","days",
             "gap_from_flip","key_level","level_type","vsa_label"]
     st.dataframe(
@@ -133,6 +141,7 @@ with tab1:
             .map(cs,   subset=["wl_state"])
             .map(cr,   subset=["regime"])
             .map(csc,  subset=["composite"])
+            .map(ccv,  subset=["conviction_score"])
             .map(cgap, subset=["gap_from_flip"]),
         use_container_width=True, height=600)
 
@@ -268,6 +277,22 @@ confirm it holds as support, then enter.
     """)
 
     st.divider()
+    st.header("Conviction Score (0 to 10)")
+    st.markdown("""
+A buy-zone quality score that blends *where* price sits, *what* you'd own, and *timing*.
+
+| Component | Range | Scoring |
+|---|---|---|
+| Channel position | 0-4 | lower 4 · middle 3 · breakdown 2 · upper 1 · unknown 1 · extended 0 |
+| Fundamentals | 0-3 | F5 → 3 · F4 → 2 · F3 → 1 · F0-2 → 0 |
+| Widell state | 0-2 | up 2 · inconclusive 1 · down 0 |
+| Flip recency | 0-1 | flipped within last 5 bars → 1 |
+
+**8-10:** Highest-conviction buy zone | **6-7:** Watch closely | **≤5:** Lower conviction.
+Unlike composite (momentum/signal direction), conviction rewards buying quality names *low in their channel*.
+    """)
+
+    st.divider()
     st.header("Entry Checklist")
     st.markdown("""
 - ✅ Widell state = up
@@ -297,6 +322,7 @@ confirm it holds as support, then enter.
 | wl_state | up / inconclusive / down |
 | regime | bull / mixed / bear |
 | composite | Signal score -6 to +6 |
+| conviction_score | Buy-zone quality 0 to 10 (8+ = highest conviction) |
 | rsi | 14-day RSI |
 | dist_52w_hi | % below 52-week high |
 | dist_ma200 | % above/below 200-day MA |

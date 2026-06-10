@@ -52,6 +52,8 @@ TICKERS = [
     "RTX", "NBIS", "LITE", "GEV", "ARM", "GLW", "PWR",
     "LRCX", "AMAT", "ONDS", "RKLB", "ASTS", "RGTI", "QBTS",
     "IONQ", "SERV", "UEC", "CCJ", "URG", "LEU", "CRWV",
+    # New sector/thematic ETFs (session 30)
+    "XLK", "XLI", "XLB", "XLY", "XLC", "ITA", "PAVE", "GRID", "URA",
 ]
 
 END_DATE   = datetime.now(timezone.utc).date()

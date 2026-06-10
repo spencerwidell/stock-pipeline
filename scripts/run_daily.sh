@@ -19,6 +19,7 @@ python vsa_features.py >> "$LOG" 2>&1
 python vsa_labels.py >> "$LOG" 2>&1
 python widell_line.py >> "$LOG" 2>&1
 python composite_score.py >> "$LOG" 2>&1
+python conviction_score.py >> "$LOG" 2>&1
 
 echo "Running tests..." | tee -a "$LOG"
 pytest tests/ -q --tb=short >> "$LOG" 2>&1

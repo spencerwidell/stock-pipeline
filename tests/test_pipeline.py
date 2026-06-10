@@ -150,9 +150,12 @@ def test_widell_three_states_present(vsa):
 # -----------------------------------------------------------------------
 
 def test_row_count_preserved(ohlcv, vsa):
-    """VSA file must have same row count as OHLCV file."""
-    assert len(vsa) == len(ohlcv), \
-        f"Row count mismatch: ohlcv={len(ohlcv)}, vsa={len(vsa)}"
+    """VSA row count must equal OHLCV minus the low-volume junk bars that
+    vsa_features.py drops (volume > 1000 filter)."""
+    expected = int((ohlcv["volume"] > 1000).sum())
+    assert len(vsa) == expected, \
+        f"Row count mismatch: vsa={len(vsa)}, expected (volume>1000)={expected}, " \
+        f"ohlcv total={len(ohlcv)}"
 
 def test_ticker_preserved(ohlcv, vsa):
     """All tickers in OHLCV must appear in VSA."""
