@@ -817,3 +817,16 @@ Polygon API → features → labels → Widell Line → composite score
 - [ ] `conda activate stock`
 - [ ] `./scripts/run_checks.sh`
 - [ ] Check http://18.188.180.99:8501
+
+**Level label fix (added mid-session):**
+- Up state: pullback→ (where to re-enter after gap)
+- Inconclusive: breakout→ (where price needs to go to flip up)
+- Down state: resistance→ (overhead supply)
+- Fixed in daily_signals.py, dashboard.py, and telegram_alert.py
+- MSFT example: breakout→$466 means price must exceed $466 to flip up
+  (it was there June 1 — the data was correct, label was misleading)
+
+**Inconclusive breakout levels added to daily_signals.py:**
+- Shows % distance to breakout for top inconclusive tickers
+- GOOG +8.0% away, ALAB +7.5%, AMD +11.4%
+- Most actionable watchlist signal
