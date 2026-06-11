@@ -29,6 +29,12 @@ HOLDINGS_PATH = "holdings.yaml"
 
 REGIME_THEME   = "Bond_Market"   # monitor-only; excluded from coverage counts
 TLT_TICKER     = "TLT"
+
+# Optional annotations for holdings that map to no theme. Absence of a note just
+# means "off-thesis" with no further qualifier (e.g. ELF — genuinely discretionary).
+OFF_THESIS_NOTES = {
+    "META": "Advertising + speculative AR — not core thesis",
+}
 TARGET_MIN     = 10              # held-positions target band
 TARGET_MAX     = 15
 CONCENTRATION  = 3              # >= this many held in one theme = concentrated
@@ -230,7 +236,8 @@ def get_portfolio_theme_coverage():
     # Holdings that don't map to ANY secular theme — "off-thesis" names worth a
     # conscious look for a thesis-driven concentrated investor.
     themed = {tk for t in themes for tk in (load_themes().get(t["id"], {}).get("names") or [])}
-    unthemed = sorted(tk for tk in holdings if tk not in themed)
+    unthemed = [{"ticker": tk, "note": OFF_THESIS_NOTES.get(tk, "")}
+                for tk in sorted(holdings) if tk not in themed]
 
     return {
         "total_themes": len(themes),

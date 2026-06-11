@@ -12,7 +12,7 @@ AI_Infrastructure:
   thesis: "Compute is the new oil — chips, networking, and data centers are the scarce resource of the AI buildout"
   conviction: high
   constraint: "Valuation — these names get expensive fast; monitor channel position carefully"
-  names: [NVDA, AVGO, ALAB, CRDO, TSM, AMD, AMAT, ASML, LRCX, ARM]
+  names: [NVDA, AVGO, ALAB, CRDO, TSM, AMD, AMAT, ASML, LRCX, ARM, AMZN]
   best_in_class: [NVDA, AVGO]
 
 AI_Software:
@@ -20,7 +20,7 @@ AI_Software:
   thesis: "AI is eating software — platforms and verticalized agents will capture enterprise value at scale"
   conviction: high
   constraint: "Competitive moats less clear than hardware; winner take most but winners not yet determined"
-  names: [PLTR, APP, MSFT, GOOG, NOW, CRM, ORCL, SNOW, CRWD, PANW]
+  names: [PLTR, APP, MSFT, GOOG, NOW, CRM, ORCL, SNOW, CRWD, PANW, AMZN]
   best_in_class: [PLTR, APP]
 
 Power_Grid:
@@ -28,7 +28,7 @@ Power_Grid:
   thesis: "AI data centers need 10x more power — the grid must be rebuilt from scratch; nuclear is the only 24/7 clean answer"
   conviction: high
   constraint: "Regulatory timelines and construction cycles are slow; execution risk is high"
-  names: [GEV, CEG, SMR, PWR, VRT, NXE, CCJ, URA]
+  names: [GEV, CEG, SMR, PWR, VRT, NXE, CCJ, URA, TSLA]
   best_in_class: [GEV, CEG]
 
 US_Reindustrialization:
@@ -88,6 +88,15 @@ Healthcare_Aging:
   constraint: "Regulatory approval timelines and reimbursement risk; slower growth than tech but more defensive"
   names: [ISRG]
   best_in_class: [ISRG]
+
+Physical_AI_Robotics:
+  name: "Physical AI & Robotics"
+  thesis: "AI is moving from software into the physical world — autonomous vehicles, warehouse robotics, surgical systems, and humanoid robots represent the next frontier of AI value capture"
+  conviction: medium
+  constraint: "Valuation risk extreme on TSLA; timeline to profitability on robotics uncertain; regulatory risk on autonomy"
+  names: [TSLA, AMZN, ISRG, SERV]
+  best_in_class: [TSLA, AMZN]
+  notes: "TSLA covers FSD + Optimus + Megapack (overlaps Power Grid theme). AMZN covers AWS hyperscaling + warehouse automation + logistics AI. Both are multi-theme names — owning either gives exposure to 3-4 secular trends simultaneously. ISRG is surgical robotics with a wide moat."
 
 Bond_Market:
   name: "Bond Market Regime"

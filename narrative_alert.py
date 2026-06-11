@@ -279,8 +279,9 @@ def build_context(df, holdings, earnings, moat):
             lines.append("  Concentrated (3+ in one theme): " + "; ".join(
                 f"{c['name']} ({', '.join(c['held_names'])})" for c in cov["concentrated"]))
         if cov["unthemed_holdings"]:
-            lines.append("  Off-thesis holdings (in no theme): "
-                         + ", ".join(cov["unthemed_holdings"]))
+            lines.append("  Off-thesis holdings (in no theme): " + ", ".join(
+                u["ticker"] + (f" — {u['note']}" if u["note"] else "")
+                for u in cov["unthemed_holdings"]))
         lines.append("")
     except Exception as e:
         print(f"theme intelligence unavailable: {e}")

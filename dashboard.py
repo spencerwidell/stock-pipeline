@@ -142,8 +142,9 @@ with tab_themes:
         st.markdown("**Concentrated (3+):** " + "; ".join(
             f"{c['name']} ({', '.join(c['held_names'])})" for c in cov["concentrated"]))
     if cov["unthemed_holdings"]:
-        st.markdown("**Off-thesis holdings (in no theme):** "
-                    + ", ".join(cov["unthemed_holdings"]))
+        st.markdown("**Off-thesis holdings (in no theme):** " + ", ".join(
+            u["ticker"] + (f" ({u['note']})" if u["note"] else "")
+            for u in cov["unthemed_holdings"]))
     st.divider()
 
     # --- Section 3: theme cards (regime shown as the banner above) ---
