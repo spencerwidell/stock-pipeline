@@ -440,14 +440,60 @@ missed context, over/under-caution), and tune the system prompt if needed.
 
 ---
 
-## Session 34 — (upcoming)
+## Session 34 — June 10, 2026
 
-Remaining backlog (see Session 33's "Spencer's new direction" + roadmap below):
-- Review narrative quality after a week of live runs (first task)
-- Interactive Q&A on the app (item B) — **behind authentication** (see
-  memory `public-dashboard-no-api-controls`)
-- Universe management CLI, valuation layer, exit/trim framework, macro calendar
-  awareness (roadmap items 1-4 below)
+**Built:** universe management CLI, valuation layer, exit/trim framework, macro
+calendar — the whole remaining roadmap (#2–#5). Each built, verified, pushed, and
+deployed/verified on AWS the same day.
+
+**#2 Universe management CLI (commit 2a819a4):**
+- `universe.yaml` is now the single source of truth (ticker → sector ETF(s) +
+  broad benchmark), generated from the old SECTOR_MAP (97 tickers, byte-identical).
+- `universe.py`: load/tickers/write helpers. `sector_map.py` + `fetch_stock.py`
+  (and `fetch_fundamentals.py`) now read it — no more hardcoded ticker lists.
+- `manage_universe.py --add/--remove/--list`. Update-only by default (`--run` to
+  fire the pipeline); `--remove` purges the ticker's parquet rows and warns if it's
+  still in holdings.yaml. No core/watchlist tiers — "owned" is derived from
+  holdings.yaml. Verified add→remove round-trip is byte-identical.
+
+**#3 Valuation layer — PE / PEG / P-OCF (commits ca9f672, 60d06b0):**
+- `valuation.py`: compute_valuation(price, row). **Context only, NOT in conviction**
+  (Spencer's call). P-OCF stands in for P/FCF — Polygon financials don't expose capex.
+- `fetch_fundamentals.py` stores TTM inputs (ttm_eps, ttm_ocf, shares,
+  ttm_eps_growth); ratios computed against the live price so they refresh daily.
+- Surfaced in narrative per-name tags + system prompt (premium ok for wide moats;
+  flag stretched PEG) and in the dashboard Fundamentals tab.
+- Data-quality fixes: Polygon returns ~1000×-wrong share counts for some quarters
+  (AMZN/ELF) → use median diluted shares; guards drop implausible PE (<2) / P-OCF
+  (<1) so bad data (e.g. BKNG's wrong price) can't surface garbage.
+
+**#4 Exit/trim framework (commit 60d06b0):**
+- `positions.py`: assess_position(zone, state) → TRIM (extended/above channel top),
+  REVIEW (breakdown + Widell down), HOLD. Long-term framing, not hard stops.
+- Narrative: YOUR POSITIONS review block + new **PORTFOLIO CHECK** section (5th).
+- Morning alert: 💼 POSITION CHECK section flagging held names to trim/review.
+
+**#5 Macro calendar (commit 9fce8b8):**
+- `macro_calendar.yaml` (hand-maintained CPI + FOMC dates, seeded with the 2026
+  schedule) + `macro_calendar.py`. Narrative gets an UPCOMING MACRO block + prompt
+  guidance to treat fresh flips near CPI/Fed as noise — the Session 32 lesson, fixed.
+
+**Known issue flagged (not fixed):** BKNG's price in the data is wrong (~$164 vs the
+real ~$5,000) — a pre-existing upstream price-data artifact affecting all BKNG
+signals, surfaced by valuation. Worth a separate look.
+
+**Still open for a future session:**
+- Review narrative quality after a full week of live runs (tune the prompt)
+- Interactive Q&A on the app (item B) — **behind authentication** (memory
+  `public-dashboard-no-api-controls`)
+- Investigate the BKNG bad-price data issue
+
+---
+
+## Session 35 — (upcoming)
+
+First task: review narrative quality after a week of live runs. Then item B
+(interactive Q&A, behind auth) and the BKNG price-data investigation.
 
 ### Spencer's direction — insights + interaction in the app
 
