@@ -8,6 +8,7 @@ import narrative_alert  # shared briefing logic (generate/save/load) — no fork
 import valuation        # PE / PEG / P-OCF from price + stored TTM inputs
 import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
 import position_sizing  # conviction-led target weights (advisory)
+import portfolio_health # one-glance roll-up: coverage / concentration / sizing / regime
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -157,6 +158,15 @@ with tab_brief:
     st.title("🧭 Daily Briefing")
     st.caption("Plain-English read on today's signals — the same briefing sent to Telegram "
                "after the close.")
+
+    # Portfolio health cockpit — one-glance roll-up above the narrative.
+    _h = portfolio_health.get_health()
+    _hicon = {"good": "🟢", "warn": "🟡", "bad": "🔴", "info": "⚪"}
+    _grade_emoji = {"good": "🟢", "warn": "🟡", "bad": "🔴"}.get(_h["grade"], "⚪")
+    with st.expander(f"🩺 Portfolio Health — {_grade_emoji} {_h['overall']}", expanded=True):
+        for _c in _h["checks"]:
+            st.markdown(f"{_hicon[_c['status']]} **{_c['label']}** — {_c['detail']}")
+    st.divider()
 
     # Read-only by design: this dashboard is publicly reachable, so it must not
     # expose any control that triggers a Claude API call on our key. The briefing
