@@ -46,6 +46,7 @@ from datetime import date, datetime
 import valuation
 import positions
 import macro_calendar
+import theme_engine
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -254,6 +255,36 @@ def build_context(df, holdings, earnings, moat):
                          f"({e['date']})")
         lines.append("")
 
+    # --- Theme intelligence (secular-trend lens: bond regime, coverage, gaps,
+    #     concentration). Defensive — never let a theme error break the briefing. ---
+    try:
+        cov = theme_engine.get_portfolio_theme_coverage()
+        lines.append("THEME INTELLIGENCE (secular-trend lens):")
+        lines.append(f"  Bond regime: {cov['tlt_regime']['label']}")
+        lines.append(f"  Coverage: {cov['themes_covered']} of {cov['total_themes']} "
+                     f"themes held | {cov['held_count']} positions "
+                     f"(target {cov['target_min']}-{cov['target_max']})")
+        if cov["gaps"]:
+            lines.append("  Gaps (no exposure) — best entry now:")
+            for g in cov["gaps"]:
+                be = g["best_entry_now"]
+                if be and not be.get("no_data"):
+                    star = " ⭐(fits profile)" if be.get("fits_profile") else ""
+                    lines.append(f"    - {g['name']} ({g['conviction']}): {be['ticker']} "
+                                 f"{be['entry_status']}, conv {be.get('conviction_score')}/10, "
+                                 f"{be.get('channel_zone')}{star}")
+                else:
+                    lines.append(f"    - {g['name']} ({g['conviction']})")
+        if cov["concentrated"]:
+            lines.append("  Concentrated (3+ in one theme): " + "; ".join(
+                f"{c['name']} ({', '.join(c['held_names'])})" for c in cov["concentrated"]))
+        if cov["unthemed_holdings"]:
+            lines.append("  Off-thesis holdings (in no theme): "
+                         + ", ".join(cov["unthemed_holdings"]))
+        lines.append("")
+    except Exception as e:
+        print(f"theme intelligence unavailable: {e}")
+
     # --- Universe counts ---
     up   = int((df["wl_state"] == "up").sum())
     inc  = int((df["wl_state"] == "inconclusive").sum())
@@ -345,6 +376,11 @@ cash is sitting idle — a weak tape is still a reason to wait.
 proxy). Treat it as CONTEXT, not a gate: a wide-moat compounder often deserves a \
 premium multiple, so don't reject quality just for a high PE — but do flag when a \
 setup means paying a stretched price (e.g. high PEG), especially for thinner moats.
+- Invests CONCENTRATED and THEMATIC: ~10 best-in-class single names across secular \
+trends (AI infra/software, power & grid, reindustrialization, defense, critical \
+materials, etc.) — no index/ETF positions. His ideal name is a WIDE MOAT business \
+in a future-facing secular trend that is CASH-FLOWING NOW at a sane price (marked \
+⭐ "fits profile"). The bond market (TLT) is his key macro regime gauge.
 - Wants simplicity. He does not want to decode tables — he wants to be told what, \
 if anything, to actually do.
 
@@ -356,6 +392,16 @@ Scheduled macro IS provided in UPCOMING MACRO (CPI prints, FOMC decisions). If o
 is within ~2 days or happened today/yesterday, weight it heavily: price action and \
 fresh Widell flips around CPI/Fed are usually noise, and it's typically better to \
 wait until after the event before acting. Call this out in MARKET CONTEXT.
+
+Use THEME INTELLIGENCE actively, woven into the sections (do NOT add a new section):
+- MARKET CONTEXT: factor in the bond regime (TLT tailwind favors growth/AI; headwind \
+pressures valuations).
+- ACTIONABLE SETUPS: when there's dry powder, surface the best entry in an UNCOVERED \
+high-conviction theme (a "gap") even if its conviction is below 8 — a ⭐ name at AT \
+ENTRY in a high-conviction gap is exactly the wide-moat / secular / cash-flowing \
+profile he wants. Name the gap and the entry.
+- PORTFOLIO CHECK: also flag over-concentration (3+ in one theme) and off-thesis \
+holdings (names in no theme) when relevant.
 
 Write EXACTLY these five sections, plain English, no jargon, no tables, concise:
 

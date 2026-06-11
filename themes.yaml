@@ -1,0 +1,99 @@
+# Secular trend map — Spencer's human-curated thesis layer over the universe.
+# Not a daily pipeline input; updated occasionally by hand. Every ticker listed
+# under a theme must exist in universe.yaml. Read by theme_engine.py, surfaced in
+# the dashboard Themes tab and the narrative/morning alerts.
+#
+# Per theme: name, thesis (why it's a multi-year trend), conviction (high/medium/
+# low), constraint (primary risk), names (universe tickers that fit), best_in_class
+# (1-2 names Spencer would most want to own), optional notes.
+
+AI_Infrastructure:
+  name: "AI Infrastructure"
+  thesis: "Compute is the new oil — chips, networking, and data centers are the scarce resource of the AI buildout"
+  conviction: high
+  constraint: "Valuation — these names get expensive fast; monitor channel position carefully"
+  names: [NVDA, AVGO, ALAB, CRDO, TSM, AMD, AMAT, ASML, LRCX, ARM]
+  best_in_class: [NVDA, AVGO]
+
+AI_Software:
+  name: "AI Software & Agents"
+  thesis: "AI is eating software — platforms and verticalized agents will capture enterprise value at scale"
+  conviction: high
+  constraint: "Competitive moats less clear than hardware; winner take most but winners not yet determined"
+  names: [PLTR, APP, MSFT, GOOG, NOW, CRM, ORCL, SNOW, CRWD, PANW]
+  best_in_class: [PLTR, APP]
+
+Power_Grid:
+  name: "Power Grid & Energy Renaissance"
+  thesis: "AI data centers need 10x more power — the grid must be rebuilt from scratch; nuclear is the only 24/7 clean answer"
+  conviction: high
+  constraint: "Regulatory timelines and construction cycles are slow; execution risk is high"
+  names: [GEV, CEG, SMR, PWR, VRT, NXE, CCJ, URA]
+  best_in_class: [GEV, CEG]
+
+US_Reindustrialization:
+  name: "US Reindustrialization"
+  thesis: "Reshoring, infrastructure spending, and the physical buildout of AI, grid, and defense create a multi-decade capex cycle — CAT going up is the tell"
+  conviction: high
+  constraint: "Interest rate sensitivity and government spending cycles; exposed to policy reversal risk"
+  names: [CAT, CMI, PWR, GEV, VRT, RTX]
+  best_in_class: [CAT, CMI]
+  notes: "Several names overlap with Power Grid and Defense — intentional. Best industrials benefit from multiple secular trends simultaneously."
+
+Defense_Autonomous:
+  name: "Defense & Autonomous Systems"
+  thesis: "Drone warfare, autonomous systems, and cyber are replacing legacy defense — software-defined warfare is the new paradigm"
+  conviction: medium
+  constraint: "Budget cycles, geopolitical dependency, and regulatory risk on autonomous weapons"
+  names: [AXON, RKLB, RTX, PANW, ASTS, SERV, ONDS]
+  best_in_class: [AXON, RKLB]
+
+Critical_Materials:
+  name: "Critical Materials & Rare Earths"
+  thesis: "US reindustrialization and China decoupling require domestic supply chains for rare earths, copper, and critical minerals — the US is writing checks to build this capacity"
+  conviction: medium
+  constraint: "Chinese dumping, commodity price cycles, and long capex timelines suppress stocks even when the thesis is correct — patience and sizing discipline required; catalyst is US policy enforcement"
+  names: [FCX, MP, GLW, NXE, CCJ]
+  best_in_class: [FCX, MP]
+  notes: "Long-duration thesis. Silver and gold are stores of value not growth plays — treat differently than industrial metals."
+
+Materials_Industrial:
+  name: "Materials & Industrial Picks and Shovels"
+  thesis: "Every secular trend — AI, grid, defense, reshoring — requires physical infrastructure; copper, equipment, and engineering services are the picks and shovels"
+  conviction: medium
+  constraint: "Commodity price cycles and China demand dependency create volatility"
+  names: [FCX, CAT, CMI, PWR, GLW, PAVE]
+  best_in_class: [FCX, CAT]
+
+Digital_Finance:
+  name: "Digital Finance & Crypto Infrastructure"
+  thesis: "Digital assets are becoming institutional — the infrastructure layer will capture long-term value as adoption accelerates"
+  conviction: medium
+  constraint: "Regulatory risk and crypto volatility create binary outcomes; sizing discipline critical"
+  names: [HOOD, MSTR, SOFI]
+  best_in_class: [HOOD, MSTR]
+
+Space_Economy:
+  name: "Space Economy"
+  thesis: "Launch costs collapsed — satellites, communications, and space services are becoming commercial infrastructure"
+  conviction: medium
+  constraint: "Execution risk is extreme; most names are pre-profit and binary on mission success"
+  names: [RKLB, ASTS, SERV]
+  best_in_class: [RKLB]
+
+Healthcare_Aging:
+  name: "Healthcare & Aging Population"
+  thesis: "Demographics are destiny — robotic surgery and precision medicine serve an aging global population with pricing power and switching costs"
+  conviction: medium
+  constraint: "Regulatory approval timelines and reimbursement risk; slower growth than tech but more defensive"
+  names: [ISRG]
+  best_in_class: [ISRG]
+
+Bond_Market:
+  name: "Bond Market Regime"
+  thesis: "The bond market is the smartest market — 10-year yield direction is the single most important macro signal for growth stock valuations"
+  conviction: high
+  constraint: "Not a position — a regime signal only"
+  names: [TLT]
+  best_in_class: [TLT]
+  notes: "Monitor only. TLT Widell UP = yields falling = growth tailwind. TLT Widell DOWN = yields rising = growth headwind. Never size as a portfolio position."

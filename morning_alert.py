@@ -28,6 +28,7 @@ import duckdb
 from datetime import date
 
 import positions
+import theme_engine
 
 CONV_MIN          = 8     # high-conviction threshold
 ENTRY_RANGE_PCT   = 3.0   # within X% of pullback target = entry range
@@ -220,7 +221,36 @@ def main():
             lines.append(f"  {icon} *{tkr}* ${price:.2f} ({w}) {status} — {reason}")
         lines.append("")
 
-    if not (high_conv or breakout or notable or position_flags):
+    # --- Theme opportunities: each theme's best-entry name within entry range of
+    #     its pullback target at the open. Defensive; omitted if none qualify. ---
+    theme_opps = []
+    try:
+        res_by_ticker = dict(zip(df["ticker"], df["resistance"]))
+        seen = set()
+        for t in theme_engine.get_theme_status()["themes"]:
+            be = t.get("best_entry_now")
+            if not be or be.get("no_data"):
+                continue
+            tk = be["ticker"]
+            if tk in seen or tk not in snap:
+                continue
+            price, _ = snap[tk]
+            dist = pct(price, res_by_ticker.get(tk))
+            if dist is not None and abs(dist) <= ENTRY_RANGE_PCT:
+                theme_opps.append((tk, t["name"], be.get("conviction_score"),
+                                   be.get("entry_status"), price, dist))
+                seen.add(tk)
+    except Exception as e:
+        print(f"theme opportunities unavailable: {e}")
+
+    if theme_opps:
+        lines.append("*🌐 TODAY'S THEME OPPORTUNITIES:*")
+        for tk, theme, conv, status, price, dist in theme_opps:
+            lines.append(f"  *{tk}* ${price:.2f} {dist:+.1f}% from target — {theme} "
+                         f"(conv {conv}/10, {status}){hold_tag(tk, holdings)}")
+        lines.append("")
+
+    if not (high_conv or breakout or notable or position_flags or theme_opps):
         lines.append("Nothing actionable this morning.")
 
     msg = "\n".join(lines).rstrip()

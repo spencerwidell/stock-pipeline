@@ -55,6 +55,7 @@ LITE: {sector: [XLB], broad: SPY}
 LRCX: {sector: [SMH], broad: QQQ}
 MELI: {sector: [XLY], broad: QQQ}
 META: {sector: [XLC], broad: QQQ}
+MP: {sector: [XLB], broad: SPY}
 MSFT: {sector: [IGV], broad: QQQ}
 MSTR: {sector: [XLF], broad: SPY}
 MU: {sector: [SMH], broad: QQQ}
@@ -82,6 +83,7 @@ SMR: {sector: [URA], broad: SPY}
 SNOW: {sector: [IGV], broad: QQQ}
 SOFI: {sector: [XLF], broad: SPY}
 SPY: {sector: [SPY], broad: SPY}
+TLT: {sector: [TLT], broad: SPY}
 TSLA: {sector: [XLY], broad: QQQ}
 TSM: {sector: [SMH], broad: QQQ}
 UEC: {sector: [URA], broad: SPY}

@@ -6,6 +6,7 @@ from datetime import date
 from sector_map import SECTOR_ETFS, get_constituents
 import narrative_alert  # shared briefing logic (generate/save/load) — no forked code
 import valuation        # PE / PEG / P-OCF from price + stored TTM inputs
+import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -92,8 +93,8 @@ def load_holdings():
         return {}
 
 
-tab_brief, tab1, tab2, tab3, tab4 = st.tabs(
-    ["🧭 Briefing", "📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
+tab_brief, tab_themes, tab1, tab2, tab3, tab4 = st.tabs(
+    ["🧭 Briefing", "🌐 Themes", "📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
 
 with tab_brief:
     st.title("🧭 Daily Briefing")
@@ -113,6 +114,81 @@ with tab_brief:
     else:
         st.info("No briefing yet. It's generated automatically after the close "
                 "pipeline each weekday — check back after 4:30 PM ET.")
+
+with tab_themes:
+    st.title("🌐 Secular Themes")
+    st.caption("Your secular-trend map overlaid on live signals — coverage, gaps, "
+               "best entries. ⭐ = wide moat + reasonable valuation (your profile).")
+
+    status = theme_engine.get_theme_status()
+    cov    = theme_engine.get_portfolio_theme_coverage()
+    regime = status["tlt_regime"]
+
+    # --- Section 1: TLT regime banner ---
+    banner = f"{regime['icon']} {regime['label']}"
+    (st.success if regime["signal"] == "tailwind"
+     else st.error if regime["signal"] == "headwind"
+     else st.warning)(banner)
+
+    # --- Section 2: portfolio theme coverage ---
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Themes covered", f"{cov['themes_covered']} / {cov['total_themes']}")
+    c2.metric("Positions", cov["held_count"],
+              help=f"target {cov['target_min']}–{cov['target_max']}")
+    c3.metric("Concentrated themes", len(cov["concentrated"]))
+    if cov["gaps"]:
+        st.markdown("**Gaps (no exposure):** " + ", ".join(g["name"] for g in cov["gaps"]))
+    if cov["concentrated"]:
+        st.markdown("**Concentrated (3+):** " + "; ".join(
+            f"{c['name']} ({', '.join(c['held_names'])})" for c in cov["concentrated"]))
+    if cov["unthemed_holdings"]:
+        st.markdown("**Off-thesis holdings (in no theme):** "
+                    + ", ".join(cov["unthemed_holdings"]))
+    st.divider()
+
+    # --- Section 3: theme cards (regime shown as the banner above) ---
+    _conv_badge = {"high": "🟢 HIGH", "medium": "🟡 MEDIUM", "low": "⚪ LOW"}
+
+    def _name_line(n):
+        if n.get("no_data"):
+            held = f" · 💼 {n['held']}" if n.get("held") else ""
+            return f"- **{n['ticker']}** — no signal data{held}"
+        badges = []
+        if n.get("held"):         badges.append(f"💼 HELD {n['held']}")
+        if n.get("fits_profile"): badges.append("⭐")
+        moat = f"moat {n['moat_rating']}/5" if n.get("moat_rating") else "moat n/a"
+        vlab = n.get("val_label") or "val n/a"
+        tail = ("  ·  " + " ".join(badges)) if badges else ""
+        return (f"- **{n['ticker']}** — {n['entry_status']} · conv "
+                f"{n.get('conviction_score')}/10 · {n.get('channel_zone')} · "
+                f"{moat} · {vlab}{tail}")
+
+    for t in status["themes"]:
+        if t["is_regime"]:
+            continue
+        with st.container(border=True):
+            st.markdown(f"### {t['name']}  ·  {_conv_badge.get(t['conviction'], t['conviction'])}")
+            st.caption(t["thesis"])
+            if t["theme_gap"]:
+                st.markdown("⚠️ **GAP — no exposure in this theme**")
+
+            st.markdown("**Best in class:**")
+            for n in t["best_in_class"]:
+                st.markdown(_name_line(n))
+
+            be = t["best_entry_now"]
+            if be and not be.get("no_data"):
+                star = " ⭐" if be.get("fits_profile") else ""
+                st.markdown(f"🎯 **Best entry now:** {be['ticker']} — {be['entry_status']}, "
+                            f"conv {be.get('conviction_score')}/10, {be.get('channel_zone')}{star}")
+            if t["held_names"]:
+                st.markdown(f"💼 **Held:** {', '.join(t['held_names'])}")
+
+            with st.expander(f"All {len(t['names'])} names"):
+                for n in t["names"]:
+                    st.markdown(_name_line(n))
+
+            st.caption(f"⚠️ {t['constraint']}")
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
