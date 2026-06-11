@@ -494,8 +494,36 @@ with tab3:
         st.markdown(_risk if _risk else "_docs/MODEL_RISK.md not found_")
     st.divider()
 
+    st.header("The Six Tabs")
+    st.markdown("""
+| Tab | What it's for |
+|---|---|
+| 🧭 **Briefing** | The plain-English daily read (same as the Telegram briefing): market context, actionable setups, watch list, portfolio check, bottom line. Read-only — generated server-side after the close. |
+| 🌐 **Themes** | Your secular-trend map: TLT bond-regime banner, theme coverage vs gaps, over-concentration, off-thesis holdings, and the best entry per theme. |
+| 📊 **Signals** | The full signal stack: High Conviction callout, flips, up-state entry analysis, and the filterable full universe. |
+| 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
+| 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
+| 🔄 **Rotation** | Top-down sector/ETF ranking + constituent laggard scan. |
+""")
+
+    st.divider()
+    st.header("Quality & Context Signals")
+    st.markdown("""
+These layers add quality, valuation, theme, and macro context. **Moat, valuation,
+and themes inform the read but do NOT change the conviction score.**
+
+- **Moat rating (1-5)** — durability of the competitive advantage (Claude, quarterly). 4-5 = wide moat; pullbacks in wide-moat names are more forgiving.
+- **Valuation (PE / PEG / P-OCF)** — *context, not part of conviction.* P-OCF is a free-cash-flow proxy (Polygon doesn't expose capex). A wide-moat compounder can deserve a premium; watch a stretched PEG on thinner moats.
+- **🗓️ Earnings flag** — a name reports within 7 days; a reason to wait on an entry.
+- **💼 HELD** — a current holding (from holdings.yaml); CASH is dry powder to deploy.
+- **TLT bond regime** — macro gauge: TLT up = yields falling = growth tailwind; down = headwind.
+- **⭐ Fits profile** — wide moat + reasonable valuation in a future-facing theme: the ideal name.
+- **Position check (TRIM / REVIEW / HOLD)** — held names that are extended (trim) or breaking down (review). No hard stops — long-term framing.
+""")
+
+    st.divider()
     st.header("What is the Widell Line?")
-    st.markdown("The **Widell Line** is an original empirical swing-structure state machine built from first principles and validated across 6 years of daily data on 88 tickers. It tracks resistance (swing highs) and support (swing lows) using a confirmed-optimal N=3 bar window.")
+    st.markdown("The **Widell Line** is an original empirical swing-structure state machine built from first principles and validated across 6 years of daily data. It tracks resistance (swing highs) and support (swing lows) using a confirmed-optimal N=3 bar window, scored daily across a 99-ticker universe.")
 
     st.divider()
     st.header("The Three States")
@@ -593,6 +621,10 @@ Unlike composite (momentum/signal direction), conviction rewards buying quality 
 | gap_from_flip | % move since flip (green<2%, yellow 2-5%, red>5%) |
 | key_level | Key price level: pullback target (up), breakout level (inconclusive), resistance (down) |
 | vsa_label | VSA bar classification |
+| held | Your current weight in this name (from holdings.yaml), blank if not held |
+| fundamental_score | Business quality 0-5 |
+| moat_rating | Competitive-moat durability 1-5 (Fundamentals tab) |
+| PE / PEG / P-OCF | Valuation — context only, not part of conviction (Fundamentals tab) |
     """)
 
     st.divider()
