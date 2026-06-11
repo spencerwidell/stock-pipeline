@@ -43,6 +43,8 @@ import pandas as pd
 import requests
 from datetime import date, datetime
 
+import valuation
+
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
 CONV_MIN       = 8     # high-conviction threshold
@@ -110,14 +112,16 @@ def load_signals():
         SELECT * EXCLUDE (rn) FROM latest WHERE rn = 1
     """).df()
 
+    val_cols = ["ttm_eps", "ttm_ocf", "shares", "ttm_eps_growth"]  # valuation inputs
+    want = ["ticker", "fundamental_score", "rev_growth_yoy", "gross_margin"] + val_cols
     if os.path.exists(FUND_PATH):
-        fund = pd.read_parquet(FUND_PATH)[["ticker", "fundamental_score",
-                                           "rev_growth_yoy", "gross_margin"]]
-        df = df.merge(fund, on="ticker", how="left")
-    else:
-        df["fundamental_score"] = pd.NA
-        df["rev_growth_yoy"]    = pd.NA
-        df["gross_margin"]      = pd.NA
+        fund_all = pd.read_parquet(FUND_PATH)
+        keep = [c for c in want if c in fund_all.columns]
+        df = df.merge(fund_all[keep], on="ticker", how="left")
+    # Ensure every expected column exists even if fundamentals/valuation are absent
+    for c in want[1:]:
+        if c not in df.columns:
+            df[c] = pd.NA
     return df
 
 
@@ -216,6 +220,7 @@ def _fmt_row(r, holdings, earnings, moat):
         f"{_hold_tag(r['ticker'], holdings)}"
         f"{_earn_tag(r['ticker'], earnings)}"
         f"{_moat_tag(r['ticker'], moat)}"
+        f"{valuation.valuation_tag(r['close'], r)}"
     )
 
 
@@ -313,6 +318,10 @@ same setup in a no-moat (1-2/5) name, which needs tighter timing.
 - Keeps cash as dry powder (shown as DRY POWDER). Having cash to deploy makes a \
 genuinely good pullback more actionable, but he will NOT force a trade just because \
 cash is sitting idle — a weak tape is still a reason to wait.
+- Some names show valuation (PE / PEG / P/OCF, where P/OCF is a free-cash-flow \
+proxy). Treat it as CONTEXT, not a gate: a wide-moat compounder often deserves a \
+premium multiple, so don't reject quality just for a high PE — but do flag when a \
+setup means paying a stretched price (e.g. high PEG), especially for thinner moats.
 - Wants simplicity. He does not want to decode tables — he wants to be told what, \
 if anything, to actually do.
 

@@ -4,25 +4,17 @@ import os
 import time
 from dotenv import load_dotenv
 
+from universe import tickers as universe_tickers
+from sector_map import SECTOR_ETFS
+
 load_dotenv()
 KEY = os.environ["POLYGON_API_KEY"]
 
-TICKERS = [
-    "AMZN", "NVDA", "MSFT", "TSLA", "ELF", "CELH", "PLTR", "AVGO",
-    "SOFI", "TSM", "NOW", "IBM", "CRM", "ORCL", "SPY", "QQQ", "IWM",
-    "JPM", "PG", "XOM", "GLD", "SMH", "IGV", "SKYY", "XLF", "KRE",
-    "XLE", "ICLN", "XLV", "XLP", "EEM", "AXON", "PANW", "ZETA", "SNOW",
-    "MU", "BE", "ASML", "HOOD", "GOOG", "MSTR", "NFLX", "BKNG", "AMD",
-    "AAPL", "FCX", "FANG", "COST", "CAT", "CMI", "CVX", "MELI", "ZS",
-    "CRWD", "ALAB", "BIDU", "ANET", "CDNS", "APP", "ISRG", "VRT", "NXE",
-    "SMR", "CRDO", "CEG", "DVN", "RTX", "NBIS", "LITE", "GEV", "ARM",
-    "GLW", "PWR", "LRCX", "AMAT", "ONDS", "RKLB", "ASTS", "RGTI", "QBTS",
-    "IONQ", "SERV", "UEC", "CCJ", "URG", "LEU", "CRWV", "META"
-]
-
-# ETFs don't have financials — skip them
-ETF_SKIP = {"SPY","QQQ","IWM","SMH","IGV","SKYY","XLF","KRE","XLE",
-            "ICLN","XLV","XLP","EEM","GLD"}
+# Tickers come from universe.yaml (single source of truth). ETFs have no company
+# financials, so skip them (same convention as moat_score.py).
+NON_COMPANIES = set(SECTOR_ETFS) | {"SPY", "QQQ", "IWM", "GLD"}
+TICKERS = [t for t in universe_tickers() if t not in NON_COMPANIES]
+ETF_SKIP = NON_COMPANIES
 
 def get_financials(ticker, limit=8):
     url = (f"https://api.polygon.io/vX/reference/financials"
@@ -51,9 +43,18 @@ def extract_metrics(results):
             "net_income":    inc.get("net_income_loss", {}).get("value"),
             "eps_basic":     inc.get("basic_earnings_per_share", {}).get("value"),
             "operating_cf":  cf.get("net_cash_flow_from_operating_activities", {}).get("value"),
+            "shares":        inc.get("diluted_average_shares", {}).get("value"),
         }
         rows.append(row)
     return pd.DataFrame(rows)
+
+
+def ttm_sum(series, n=4):
+    """Sum the most recent n values; None if fewer than n or any is missing."""
+    vals = series.head(n).tolist()
+    if len(vals) < n or any(v is None or pd.isna(v) for v in vals):
+        return None
+    return sum(vals)
 
 records = []
 skipped = []
@@ -101,6 +102,18 @@ for ticker in TICKERS:
         if latest["operating_income"]:
             op_margin = round(latest["operating_income"] / latest["revenue"] * 100, 1)
 
+    # --- TTM valuation inputs (PE / PEG / P-OCF are computed at display time
+    #     against the current price; here we store the per-company financial
+    #     inputs that change only quarterly). ---
+    ttm_eps = ttm_sum(df["eps_basic"], 4)        # per-share TTM earnings
+    ttm_ocf = ttm_sum(df["operating_cf"], 4)     # TTM operating cash flow ($)
+    shares  = latest["shares"]
+    # TTM-over-TTM EPS growth (more stable than single-quarter YoY) when 8q exist
+    ttm_eps_growth = None
+    prior_ttm_eps = ttm_sum(df["eps_basic"].iloc[4:], 4) if len(df) >= 8 else None
+    if ttm_eps is not None and prior_ttm_eps not in (None, 0) and prior_ttm_eps > 0:
+        ttm_eps_growth = round((ttm_eps - prior_ttm_eps) / prior_ttm_eps * 100, 1)
+
     records.append({
         "ticker":       ticker,
         "as_of":        latest["end_date"],
@@ -111,6 +124,11 @@ for ticker in TICKERS:
         "eps_basic":    latest["eps_basic"],
         "eps_growth_yoy": eps_yoy,
         "operating_cf_B": round(latest["operating_cf"] / 1e9, 2) if latest["operating_cf"] else None,
+        # valuation inputs
+        "ttm_eps":        round(ttm_eps, 4) if ttm_eps is not None else None,
+        "ttm_ocf":        ttm_ocf,
+        "shares":         shares,
+        "ttm_eps_growth": ttm_eps_growth,
     })
     print(f"  {ticker}: rev=${records[-1]['revenue_B']}B  rev_yoy={rev_yoy}%  gm={gross_margin}%")
     time.sleep(0.12)  # rate limit

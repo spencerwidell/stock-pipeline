@@ -5,6 +5,7 @@ from datetime import date
 
 from sector_map import SECTOR_ETFS, get_constituents
 import narrative_alert  # shared briefing logic (generate/save/load) — no forked code
+import valuation        # PE / PEG / P-OCF from price + stored TTM inputs
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -304,6 +305,18 @@ with tab2:
             ]
             fund = fund.merge(moat, on="ticker", how="left")
 
+        # Valuation (PE / PEG / P-OCF) — computed from current price + stored TTM
+        # inputs. Context only, not part of conviction. Present only if the inputs
+        # exist in fundamentals.parquet (fetch_fundamentals.py populates them).
+        has_val = all(c in fund.columns for c in ("ttm_eps", "ttm_ocf", "shares"))
+        if has_val:
+            prices = load_signals()[["ticker", "close"]]
+            fund = fund.merge(prices, on="ticker", how="left")
+            vals = fund.apply(lambda r: valuation.compute_valuation(r.get("close"), r), axis=1)
+            fund["PE"]    = [v["pe"]    for v in vals]
+            fund["PEG"]   = [v["peg"]   for v in vals]
+            fund["P/OCF"] = [v["p_ocf"] for v in vals]
+
         # Summary metrics
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("Score 5 (Elite)",    (fund["fundamental_score"]==5).sum())
@@ -334,6 +347,8 @@ with tab2:
         display_cols = ["ticker","fundamental_score"]
         if has_moat:
             display_cols += ["moat_rating","moat_type"]
+        if has_val:
+            display_cols += ["PE","PEG","P/OCF"]
         display_cols += ["rev_growth_yoy","gross_margin","op_margin",
                          "eps_growth_yoy","operating_cf_B","as_of"]
         styler = filtered[display_cols].style.map(color_fscore, subset=["fundamental_score"])
