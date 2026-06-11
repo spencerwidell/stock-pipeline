@@ -87,6 +87,8 @@ validated stack into plain-English decisions for a concentrated conviction inves
 - **Exit/trim framework** — TRIM / REVIEW / HOLD status per held name
 - **Universe management CLI** — `universe.yaml` single source of truth + earnings flags
 - **Three daily Telegram alerts + six-tab dashboard**, deployed on AWS
+- **Dashboard password gate** — whole app behind a password (holdings private);
+  closes Model Risk #7's dashboard-exposure concern (Session 35)
 
 ## 🚧 In progress
 
@@ -99,10 +101,12 @@ validated stack into plain-English decisions for a concentrated conviction inves
 
 - **Interactive Q&A (auth-gated)** — "thoughts on GEV today? any news?" in the app,
   behind authentication (no API-spending control on the public dashboard until then)
+- **Multi-user auth / guest mode** — read-only access without holdings visibility,
+  for when interactive Q&A ships (the current single password is sufficient until then)
 - **Conviction backtest** — validate that high-conviction setups behaved as intended
   over history (close the loop between research discipline and the live score)
-- **Security hardening** — spend-capped API key, IP allowlist / auth on the dashboard
-  (it currently exposes holdings publicly — see `docs/MODEL_RISK.md` #7)
+- **Security hardening (remaining)** — spend-capped API key and an optional IP
+  allowlist. Dashboard auth is DONE (password gate, Session 35).
 - **Correlation awareness** — flag when "diversification" across themes is really the
   same underlying bet (e.g. everything long-duration growth)
 
