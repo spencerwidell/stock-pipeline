@@ -18,8 +18,8 @@ Context fed to Claude:
       * data/earnings.parquet  -> 🗓️ earnings within 7 days (fetch_earnings.py)
       * data/moat.parquet      -> moat rating context (moat_score.py)
 
-Claude returns four sections: MARKET CONTEXT, ACTIONABLE SETUPS, WATCH LIST,
-BOTTOM LINE. The message is sent via the same Telegram bot as the other alerts.
+Claude returns five sections: MARKET CONTEXT, ACTIONABLE SETUPS, WATCH LIST,
+PORTFOLIO CHECK, BOTTOM LINE. Sent via the same Telegram bot as the other alerts.
 
 Design notes:
   - Model is claude-sonnet-4-6 (current Sonnet; the roadmap's claude-sonnet-4
@@ -44,6 +44,7 @@ import requests
 from datetime import date, datetime
 
 import valuation
+import positions
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -288,17 +289,29 @@ def build_context(df, holdings, earnings, moat):
         lines.append("  none today")
     lines.append("")
 
-    # --- Holdings snapshot (so Claude knows the full portfolio, not just the
-    #     names that happen to be flagged today). CASH is dry powder, surfaced
-    #     separately so Claude can size "buy vs wait" against available cash. ---
+    # --- Held positions — trim/exit review (covers every name you own, not just
+    #     ones flagged elsewhere today). CASH is dry powder, surfaced separately
+    #     so Claude can size "buy vs wait" against available cash. ---
     cash = holdings.get("CASH")
     stock_holdings = {k: v for k, v in holdings.items() if k != "CASH"}
     if stock_holdings:
-        held = ", ".join(f"{k} {v}" for k, v in stock_holdings.items())
-        lines.append(f"CURRENT HOLDINGS: {held}")
+        lines.append("YOUR POSITIONS (held) — trim/exit review:")
+        for t in sorted(stock_holdings):
+            sub = df[df["ticker"] == t]
+            if not len(sub):
+                lines.append(f"  {t} ({stock_holdings[t]}): no signal data")
+                continue
+            r = sub.iloc[0]
+            status, reason = positions.assess_position(r["channel_zone"], r["wl_state"])
+            note = f" — {reason}" if reason else ""
+            lines.append(
+                f"  {t} ({stock_holdings[t]}): ${r['close']:.2f} | {r['wl_state']} "
+                f"| zone {r['channel_zone']} | {status}{note}"
+                f"{valuation.valuation_tag(r['close'], r)}"
+            )
+        lines.append("")
     if cash:
         lines.append(f"DRY POWDER: {cash} cash available to deploy")
-    if stock_holdings or cash:
         lines.append("")
 
     return "\n".join(lines)
@@ -329,7 +342,7 @@ You are given today's signals. The system can't see macro news (CPI prints, geop
 Fed) — if the breadth looks off (many flips but market down, SPY/QQQ extended and \
 weak), say so and treat today's flips with appropriate skepticism.
 
-Write EXACTLY these four sections, plain English, no jargon, no tables, concise:
+Write EXACTLY these five sections, plain English, no jargon, no tables, concise:
 
 MARKET CONTEXT
 2-3 sentences on what SPY/QQQ are telling us. Is this a good environment to be \
@@ -344,6 +357,12 @@ earnings within 7 days as a reason to wait.
 WATCH LIST
 One short bullet per name approaching a signal but not ready — what to watch for \
 tomorrow. "None today." is fine.
+
+PORTFOLIO CHECK
+Look at YOUR POSITIONS. Call out only the names flagged TRIM (rich, above the \
+channel top - consider trimming into strength) or REVIEW (breaking down - reassess \
+the thesis); one short bullet each with what you'd do. If every holding is HOLD, \
+write "All holdings healthy - nothing to trim or review." Don't list healthy names.
 
 BOTTOM LINE
 One sentence: what should Spencer actually do today (often "nothing — wait").

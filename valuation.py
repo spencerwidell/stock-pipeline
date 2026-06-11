@@ -41,7 +41,11 @@ def compute_valuation(price, row):
 
     eps = _num(get("ttm_eps"))
     if eps and eps > 0:
-        out["pe"] = round(p / eps, 1)
+        pe = round(p / eps, 1)
+        # Guard against bad underlying data (e.g. a wrong price): a sub-2 or
+        # absurdly high PE here is almost always garbage, not a real bargain.
+        if 2 <= pe <= 5000:
+            out["pe"] = pe
 
     growth = _num(get("ttm_eps_growth"))
     if out["pe"] is not None and growth and growth > 0:
@@ -50,7 +54,12 @@ def compute_valuation(price, row):
     ocf = _num(get("ttm_ocf"))
     shares = _num(get("shares"))
     if ocf and ocf > 0 and shares and shares > 0:
-        out["p_ocf"] = round(p * shares / ocf, 1)
+        p_ocf = round(p * shares / ocf, 1)
+        # A real P/OCF below ~1 is essentially impossible (market cap < annual
+        # operating cash flow); sub-1 values come from bad share counts or a bad
+        # price. Keep only plausible ones.
+        if 1.0 <= p_ocf <= 5000:
+            out["p_ocf"] = p_ocf
 
     return out
 

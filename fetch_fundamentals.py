@@ -107,7 +107,12 @@ for ticker in TICKERS:
     #     inputs that change only quarterly). ---
     ttm_eps = ttm_sum(df["eps_basic"], 4)        # per-share TTM earnings
     ttm_ocf = ttm_sum(df["operating_cf"], 4)     # TTM operating cash flow ($)
-    shares  = latest["shares"]
+    # Polygon's diluted_average_shares is occasionally garbage for a single
+    # quarter (e.g. AMZN/ELF report ~1000x too few). Take the median over recent
+    # quarters so one bad print can't blow up P/OCF.
+    sh_vals = [s for s in df["shares"].head(4).tolist()
+               if s is not None and not pd.isna(s) and s > 0]
+    shares = float(pd.Series(sh_vals).median()) if sh_vals else None
     # TTM-over-TTM EPS growth (more stable than single-quarter YoY) when 8q exist
     ttm_eps_growth = None
     prior_ttm_eps = ttm_sum(df["eps_basic"].iloc[4:], 4) if len(df) >= 8 else None

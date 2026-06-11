@@ -27,6 +27,8 @@ import pandas as pd
 import duckdb
 from datetime import date
 
+import positions
+
 CONV_MIN          = 8     # high-conviction threshold
 ENTRY_RANGE_PCT   = 3.0   # within X% of pullback target = entry range
 BREAKOUT_NEAR_PCT = 5.0   # within X% of breakout level = on breakout watch
@@ -65,11 +67,12 @@ def load_latest():
     return duckdb.query("""
         WITH latest AS (
             SELECT ticker, date, close, wl_state, conviction_score, resistance,
+                   channel_zone,
                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) as rn
             FROM 'data/stock_vsa.parquet'
         )
         SELECT ticker, date, close AS prev_close, wl_state,
-               conviction_score, resistance
+               conviction_score, resistance, channel_zone
         FROM latest WHERE rn = 1
     """).df()
 
@@ -149,7 +152,7 @@ def main():
     earnings = load_earnings()
     holdings = load_holdings()
 
-    high_conv, breakout, notable = [], [], []
+    high_conv, breakout, notable, position_flags = [], [], [], []
 
     for _, r in df.iterrows():
         tkr = r["ticker"]
@@ -178,6 +181,12 @@ def main():
         if move is not None and abs(move) > NOTABLE_MOVE_PCT:
             notable.append((tkr, price, move, state))
 
+        # Section 4 — held position trim/review (exit/trim framework)
+        if tkr in holdings:
+            status, reason = positions.assess_position(r.get("channel_zone"), state)
+            if status in ("TRIM", "REVIEW"):
+                position_flags.append((tkr, price, status, reason, holdings[tkr]))
+
     # ----- build message -----
     lines = [f"🌅 *Morning Alert — {today}*\n"]
 
@@ -204,7 +213,14 @@ def main():
                          f"({state}){hold_tag(tkr, holdings)}{earn_tag(tkr, earnings)}")
         lines.append("")
 
-    if not (high_conv or breakout or notable):
+    if position_flags:
+        lines.append("*💼 POSITION CHECK:*")
+        for tkr, price, status, reason, w in position_flags:
+            icon = "✂️" if status == "TRIM" else "⚠️"
+            lines.append(f"  {icon} *{tkr}* ${price:.2f} ({w}) {status} — {reason}")
+        lines.append("")
+
+    if not (high_conv or breakout or notable or position_flags):
         lines.append("Nothing actionable this morning.")
 
     msg = "\n".join(lines).rstrip()
