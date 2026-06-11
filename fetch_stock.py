@@ -24,37 +24,12 @@ API_KEY = os.environ["POLYGON_API_KEY"]
 # ---------------------------------------------------------------------------
 # 2. Configuration: which tickers and what date range
 # ---------------------------------------------------------------------------
-TICKERS = [
-    # Original tech/growth (FB fetched separately for META history)
-    "AMZN", "NVDA", "MSFT", "TSLA",
-    "ELF", "CELH", "PLTR", "AVGO", "SOFI",
-    "TSM", "NOW", "IBM", "CRM", "ORCL",
-    # Broad market
-    "SPY", "QQQ", "IWM",
-    # Value/defensive
-    "JPM", "PG", "XOM", "GLD",
-    # Sub-tech ETFs
-    "SMH", "IGV", "SKYY",
-    # Financials
-    "XLF", "KRE",
-    # Energy
-    "XLE", "ICLN",
-    # Defensive
-    "XLV", "XLP",
-    # International
-    "EEM",
-    # Watchlist
-    "AXON", "PANW", "ZETA", "SNOW", "MU", "BE", "ASML",
-    "HOOD", "GOOG", "MSTR", "NFLX", "BKNG", "AMD", "AAPL",
-    "FCX", "FANG", "COST", "CAT", "CMI", "CVX", "MELI",
-    "ZS", "CRWD", "ALAB", "BIDU", "ANET", "CDNS", "APP",
-    "ISRG", "VRT", "NXE", "SMR", "CRDO", "CEG", "DVN",
-    "RTX", "NBIS", "LITE", "GEV", "ARM", "GLW", "PWR",
-    "LRCX", "AMAT", "ONDS", "RKLB", "ASTS", "RGTI", "QBTS",
-    "IONQ", "SERV", "UEC", "CCJ", "URG", "LEU", "CRWV",
-    # New sector/thematic ETFs (session 30)
-    "XLK", "XLI", "XLB", "XLY", "XLC", "ITA", "PAVE", "GRID", "URA",
-]
+# Ticker list comes from universe.yaml (the single source of truth, edited via
+# manage_universe.py). META is excluded here and fetched via the special FB+META
+# history splice below — that's a fetch quirk, not a universe-membership thing.
+from universe import tickers as _universe_tickers
+
+TICKERS = [t for t in _universe_tickers() if t != "META"]
 
 END_DATE   = datetime.now(timezone.utc).date()
 START_DATE = END_DATE - timedelta(days=365 * 6)
