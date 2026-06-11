@@ -18,10 +18,11 @@ makes the call. That backstop is assumed throughout.
 | 4 | LLM hallucination (narrative / moat) | Medium | Medium | Structured context, plain-text, human review |
 | 5 | Valuation proxy error (P-OCF, PEG) | Low | Medium | Labeled proxy + sanity guards |
 | 6 | Stale hand-maintained inputs (macro, themes, holdings) | Medium | Medium | Source links; surfaced freshness |
-| 7 | Public dashboard exposes holdings (no auth) | Medium | High | Open — recommend auth/IP allowlist |
+| 7 | Public dashboard exposes holdings (no auth) | Medium | High | **Mitigated** — password gate (Session 35) |
 | 8 | Deployment/data drift (data/ gitignored) | Medium | Medium | Documented runbook; regenerate on deploy |
 | 9 | Model/API deprecation & cost | Low | Medium | Pinned current models; fail-soft |
 | 10 | Behavioral: over-trust / over-concentration | Medium | Medium | Theme concentration flags; honest tone |
+| 11 | Position sizing followed mechanically | Medium | Medium | Advisory-only framing; conviction-led, capped |
 
 ---
 
@@ -91,14 +92,16 @@ in Nd / Nd ago" so an empty window is obvious.
 **Monitoring.** Refresh macro dates each quarter from the Fed/BLS schedules; update
 holdings after meaningful trades.
 
-## 7. Public dashboard exposes holdings
-**Concern.** `http://18.188.180.99:8501` is **publicly reachable with no auth** and
-displays actual holdings and weights — an information-disclosure risk.
-**Mitigation today.** No Claude-API-spending controls are exposed (see memory
-`public-dashboard-no-api-controls`), so cost/abuse is contained.
-**Open / recommended.** Put the dashboard behind authentication or an IP allowlist
-(or a reverse proxy with basic auth) before treating it as truly production. Until
-then, treat holdings as semi-public.
+## 7. Public dashboard exposes holdings — MITIGATED (Session 35)
+**Concern.** `http://18.188.180.99:8501` was publicly reachable with no auth and
+displayed actual holdings and weights — an information-disclosure risk.
+**Mitigation (done).** The whole app is now behind a **password gate**
+(DASHBOARD_PASSWORD in .env, constant-time compare, fail-closed, session
+persistence) — no data renders until authenticated. No Claude-API-spending controls
+are exposed (memory `public-dashboard-no-api-controls`). Verified on AWS + mobile.
+**Residual.** Single shared password (no per-user accounts); transport is plain
+HTTP (no TLS) so the password crosses the wire unencrypted. Acceptable for a
+personal tool; TLS + multi-user/guest mode are queued for the interactive-Q&A era.
 
 ## 8. Deployment & data drift
 **Concern.** `data/` is gitignored, so `git pull` never updates parquets on AWS;
@@ -125,6 +128,18 @@ the narrative is told to question whether "more AI" is diversification or the sa
 bet; tone is honest about valuation/timing. Position sizing (Session 36) will make
 sizing deliberate rather than ad hoc.
 **Monitoring.** The Themes tab coverage/concentration summary; periodic review.
+
+## 11. Position sizing followed mechanically
+**Concern.** A concrete "model target weight" with ADD/TRIM/HOLD labels invites
+treating it as a rebalance to execute, when it's a **heuristic suggestion** built on
+the same un-calibrated conviction score (#3) plus judgment-weighted bonuses.
+**Mitigation.** Framed **advisory-only** everywhere (dashboard caption + narrative +
+DECISIONS): it never trades, cash is held constant (no forced deployment), gap
+starters are surfaced separately (won't auto-suggest trimming a great holding to
+fund an unproven idea), and weights are capped (15% max) and floored (4% starter).
+Conviction-led so it tracks the validated signal, not an opaque optimizer.
+**Monitoring.** Sanity-check that ADD/TRIM calls match intuition; revisit the score
+weights if they consistently disagree with judgment.
 
 ---
 

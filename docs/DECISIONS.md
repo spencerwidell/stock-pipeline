@@ -274,6 +274,25 @@ The dashboard is publicly reachable with no auth, so it must never expose a cont
 that spends the Claude API key (regenerate, Q&A). It only displays artifacts
 generated server-side by the trusted cron. Interactive features wait for auth.
 
+**Dashboard password gate — app-level auth, not IP allowlist (Session 35)**
+Chose a single app-level password (DASHBOARD_PASSWORD in .env, constant-time
+compare, fail-closed) over an AWS security-group IP allowlist because the dashboard
+is accessed from a phone on changing mobile IPs — a password works from any device.
+Gates the WHOLE app before any data renders, so holdings are never exposed.
+Fail-closed: if the secret is unset the app stays locked. Recovery is always
+available (the owner controls .env via SSH). Multi-user/guest read-only mode is
+deferred until interactive Q&A ships.
+
+**Position sizing is advisory and conviction-led, never mechanical (Session 35)**
+Target weights are a *suggestion to inform decisions*, never an auto-rebalance — the
+system never trades. Score is conviction-led (conviction + theme conviction + moat +
+valuation + ⭐ fits-profile). Held names are rebalanced by normalizing across the
+*currently-invested %* (cash held constant — respected as deliberate dry powder),
+not by deploying cash. Gap starters (best-in-class in uncovered high/medium-conviction
+themes) are surfaced *separately* with a modest suggested size, explicitly funded
+from cash or trims — never auto-mixed into the held pie (so it won't suggest trimming
+a great holding to fund an unproven idea). Caps: 15% max position, 4% min starter.
+
 ---
 
 *Add new decisions here as the project evolves.*

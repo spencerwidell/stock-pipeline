@@ -295,6 +295,7 @@ treats flips in weak tape or around macro events as likely noise.
 ## 📖 Documentation
 
 - Mission & non-goals — [docs/KEY_OBJECTIVES.md](docs/KEY_OBJECTIVES.md)
+- Secular trends & investment thesis (white paper) — [docs/INVESTMENT_THESIS.md](docs/INVESTMENT_THESIS.md)
 - Model-risk register & monitoring — [docs/MODEL_RISK.md](docs/MODEL_RISK.md)
 - Research arc + active product roadmap — [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md)
 - Architectural decisions — [docs/DECISIONS.md](docs/DECISIONS.md)

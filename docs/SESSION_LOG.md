@@ -543,12 +543,35 @@ only US Reindustrialization remains a high-conviction gap; off-thesis = ELF + ME
 
 **Memory added:** `concentrated-conviction-investor`, `ideal-company-profile`.
 
+**Documentation reframe — research platform → production decision-support system
+(commit 6ceb1fd):** rewrote README (product-first; research moved to "How It Was
+Built"), DECISIONS (vision-shift entry), renamed RESEARCH_ROADMAP → PRODUCT_ROADMAP
+(Part 1 Research Arc / Part 2 active roadmap), reframed KEY_OBJECTIVES as the
+canonical mission, added phase-orientation to this log, refreshed PROMPT.md. New
+docs KEY_OBJECTIVES.md + MODEL_RISK.md, rendered in the dashboard Guide tab. Guide
+tab walkthrough refreshed to cover all six tabs + the new signals (commit 4930645).
+
+**Security: dashboard password gate (commit c63546e):** the public dashboard now
+sits behind a password (DASHBOARD_PASSWORD in .env, constant-time compare,
+fail-closed, session persistence). Verified on AWS: login screen with no holdings
+leaked, wrong password → clear error, correct password → full app. Confirmed
+working on mobile. Closes Model Risk #7 (public holdings exposure). Single password
+sufficient for now; multi-user/guest mode queued for the Q&A era.
+
+**#2 Position sizing engine (commits 916fcae, 6846492):** `position_sizing.py` —
+conviction-led target weights. Rebalances held names (normalized across invested %,
+cash held constant) → ADD/TRIM/HOLD vs current; plus gap starters (best-in-class in
+high/medium-conviction uncovered themes). Score = conviction + theme + moat +
+valuation + ⭐ fits-profile; caps at 15%, min starter 4%. New ⚖️ Sizing dashboard
+tab + POSITION SIZING block in the narrative. Advisory only — never trades. First
+read: add PLTR/META/AVGO, trim ELF (−8.9%)/SOFI/AMZN; gap starters CAT/CMI/ISRG/MP/FCX.
+
 **Still open for a future session:**
+- Portfolio health check (next build — coverage + concentration + off-thesis + regime + sizing drift)
 - Review narrative quality after a full week of live runs (tune the prompt)
-- Interactive Q&A on the app (item B) — **behind authentication**
+- Interactive Q&A on the app — **behind authentication** (now unblocked by the password gate)
+- Conviction backtest; correlation awareness; spend-capped API key
 - BKNG bad-price data investigation (~$164 vs real ~$5,000)
-- Off-thesis reclassification DONE (commit edb5173); ELF + META remain intentionally off-thesis
-- Position sizing engine (Session 36 main build)
 
 ---
 

@@ -594,6 +594,9 @@ with tab3:
     _obj = read_doc("docs/KEY_OBJECTIVES.md")
     with st.expander("🎯 Key Objectives — what this system is for"):
         st.markdown(_obj if _obj else "_docs/KEY_OBJECTIVES.md not found_")
+    _thesis = read_doc("docs/INVESTMENT_THESIS.md")
+    with st.expander("📜 Investment Thesis — secular trends white paper"):
+        st.markdown(_thesis if _thesis else "_docs/INVESTMENT_THESIS.md not found_")
     _risk = read_doc("docs/MODEL_RISK.md")
     with st.expander("🛡️ Model Risk Monitoring — known concerns & controls"):
         st.markdown(_risk if _risk else "_docs/MODEL_RISK.md not found_")
