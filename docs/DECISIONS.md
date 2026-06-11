@@ -204,4 +204,63 @@ failure.
 
 ---
 
+## Intelligence Layer — LLM, Fundamentals, Themes (Sessions 32–35)
+
+**LLM narrative briefing is interpretation, not new signal (Session 32)**
+`narrative_alert.py` (a 3rd daily Telegram message) sends all signals to Claude
+(`claude-sonnet-4-6`) to produce plain-English MARKET CONTEXT / ACTIONABLE SETUPS /
+WATCH LIST / PORTFOLIO CHECK / BOTTOM LINE. The system already *produces* signals;
+the gap was *interpretation* ("15 flips, conv 8 — so what?"). The LLM only reasons
+over provided structured context; it never invents data. Fail-soft: any API error
+logs and skips so the pipeline never breaks.
+
+**Sonnet for the daily narrative, Opus for quarterly moat (Sessions 32, 34)**
+The daily briefing uses Sonnet (cost — runs every close). Moat scoring uses
+`claude-opus-4-8` (quality judgment, runs only quarterly so the better model is
+affordable). The roadmap's `claude-sonnet-4-20250514` was days from retirement —
+always pin a current model ID.
+
+**Earnings via yfinance, not Polygon (Session 32)**
+Polygon's *forward* earnings dates require the Benzinga add-on (not on this plan);
+yfinance is the free path to future earnings. `fetch_earnings.py` self-throttles
+(weekly) so it's safe to call daily.
+
+**holdings.yaml is a weight snapshot; CASH is dry powder (Session 32)**
+No transaction ledger — just current weights, hand-updated. CASH is surfaced to the
+narrative as deployable dry powder for buy-vs-wait sizing.
+
+**Valuation is context, not part of conviction (Session 34)**
+PE/PEG/P-OCF (`valuation.py`) inform the narrative and dashboard but do NOT feed the
+conviction score — a deliberate choice to keep conviction a clean buy-zone-quality
+metric. P-OCF stands in for P/FCF because Polygon doesn't expose capex; it's labeled
+a proxy. Sanity guards drop implausible ratios (bad price/shares).
+
+**universe.yaml is the single source of truth (Session 34)**
+`fetch_stock.py` and `sector_map.py` read `universe.yaml`; `manage_universe.py`
+(`--add/--remove/--list`) edits it. No more hardcoded ticker lists. "Owned" is
+derived from holdings.yaml — no separate core/watchlist tiers to drift.
+
+**Exit/trim is a status, not a hard stop (Session 34)**
+`positions.py` classifies held names TRIM (above channel top) / REVIEW (breakdown +
+Widell down) / HOLD — long-term framing, no hard stops. Surfaced as the narrative
+PORTFOLIO CHECK section and a morning POSITION CHECK.
+
+**Macro is hand-maintained calendar context, not a fetched feed (Session 35)**
+`macro_calendar.yaml` (CPI/FOMC) is hand-curated; the narrative treats fresh flips
+near a CPI/Fed event as likely noise — the Session 32 lesson operationalized.
+
+**Themes are a human-curated thesis layer, surfaced not scored (Session 35)**
+`themes.yaml` maps names to ~11 secular trends; `theme_engine.py` overlays live
+signals to show coverage, gaps, concentration, off-thesis holdings, best-entry-now,
+and the TLT bond regime. It informs (dashboard Themes tab + narrative context) but
+does not alter the conviction score. The ⭐ "fits profile" flag encodes Spencer's
+ideal: wide moat × secular trend × cash-flowing now.
+
+**Read-only public dashboard — no API-spending controls (Session 33)**
+The dashboard is publicly reachable with no auth, so it must never expose a control
+that spends the Claude API key (regenerate, Q&A). It only displays artifacts
+generated server-side by the trusted cron. Interactive features wait for auth.
+
+---
+
 *Add new decisions here as the project evolves.*

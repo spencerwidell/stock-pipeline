@@ -93,6 +93,18 @@ def load_holdings():
         return {}
 
 
+def read_doc(path):
+    """Read a markdown doc for display in the app; None if missing/unreadable."""
+    import os
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            return f.read()
+    except Exception:
+        return None
+
+
 tab_brief, tab_themes, tab1, tab2, tab3, tab4 = st.tabs(
     ["🧭 Briefing", "🌐 Themes", "📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
 
@@ -472,6 +484,15 @@ ETFs and some international tickers (ASML, TSM, ARM) have no fundamental data.
 with tab3:
     st.title("📖 Dashboard Guide")
     st.caption("How to read and use the Widell Line Signal Dashboard")
+
+    # Official spec — what the system is for and how its risks are managed.
+    _obj = read_doc("docs/KEY_OBJECTIVES.md")
+    with st.expander("🎯 Key Objectives — what this system is for"):
+        st.markdown(_obj if _obj else "_docs/KEY_OBJECTIVES.md not found_")
+    _risk = read_doc("docs/MODEL_RISK.md")
+    with st.expander("🛡️ Model Risk Monitoring — known concerns & controls"):
+        st.markdown(_risk if _risk else "_docs/MODEL_RISK.md not found_")
+    st.divider()
 
     st.header("What is the Widell Line?")
     st.markdown("The **Widell Line** is an original empirical swing-structure state machine built from first principles and validated across 6 years of daily data on 88 tickers. It tracks resistance (swing highs) and support (swing lows) using a confirmed-optimal N=3 bar window.")
