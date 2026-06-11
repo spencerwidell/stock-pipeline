@@ -490,66 +490,74 @@ signals, surfaced by valuation. Worth a separate look.
 
 ---
 
-## Session 35 — (upcoming)
+## Session 35 — June 10, 2026
+
+**Built:** secular theme engine + TLT bond-regime signal, wired into the dashboard
+and both alerts (commit deaa657 — built, tested, pushed, deployed/verified on AWS).
+
+**Universe additions (Task 1):**
+- `TLT` (20yr Treasury ETF) — a macro REGIME signal, not a position. TLT Widell up =
+  yields falling = growth tailwind; down = headwind. Self-maps; auto-joined SECTOR_ETFS.
+- `MP` (MP Materials — only US rare-earth producer at scale) → XLB / SPY.
+- Pipeline re-run to 99 tickers; MP got fundamentals + moat; TLT skipped as ETF.
+
+**themes.yaml (Task 2):** 10 human-curated secular themes + Bond_Market regime —
+AI Infra, AI Software, Power Grid, US Reindustrialization, Defense, Critical
+Materials, Materials/Industrial, Digital Finance, Space, Healthcare. Per theme:
+thesis, conviction, constraint, names, best_in_class.
+
+**theme_engine.py (Task 3):** `get_theme_status()` + `get_portfolio_theme_coverage()`.
+Per theme: name-level status (state, conviction, zone, gap, fundamentals, moat,
+valuation, entry status), best-in-class, held names, gap flag, best-entry-now. Plus
+TLT regime, concentration, off-thesis holdings, and a **⭐ fits_profile** flag (wide
+moat + reasonable valuation = Spencer's "wide moat × secular trend × cash-flowing
+now" ideal). Self-contained loader (no narrative_alert import) to avoid a cycle.
+
+**Dashboard 🌐 Themes tab (Task 4, 2nd tab):** TLT regime banner, coverage summary
+(themes covered, positions vs 10-15 target, gaps, concentrated, off-thesis), and a
+theme card per theme (conviction badge, thesis, best-in-class entry status,
+HELD/GAP/⭐ badges, best-entry-now, constraint).
+
+**Narrative (Task 5) + morning (Task 6):** narrative gets a THEME INTELLIGENCE
+context block + prompt guidance (bond regime → MARKET CONTEXT; gaps → ACTIONABLE;
+concentration/off-thesis → PORTFOLIO CHECK). Morning alert gets a TODAY'S THEME
+OPPORTUNITIES section (best entry within 3% of pullback target; omitted when none).
+All theme wiring is defensive — a theme error never breaks a briefing/alert.
+
+**First live read it surfaced:** 3/10 themes covered, 7 gaps (incl. high-conviction
+Power Grid + US Reindustrialization with zero exposure), AI Infrastructure
+concentrated (NVDA/AVGO/TSM), and 4 off-thesis holdings (AMZN/ELF/META/TSLA).
+
+**Memory added:** `concentrated-conviction-investor`, `ideal-company-profile`.
+
+**Still open for a future session:**
+- Review narrative quality after a full week of live runs (tune the prompt)
+- Interactive Q&A on the app (item B) — **behind authentication**
+- BKNG bad-price data investigation (~$164 vs real ~$5,000)
+- Consider mapping AMZN/META/TSLA/ELF into themes (or confirm they're off-thesis)
+
+---
+
+## Session 36 — (upcoming)
 
 First task: review narrative quality after a week of live runs. Then item B
-(interactive Q&A, behind auth) and the BKNG price-data investigation.
-
-### Spencer's direction — insights + interaction in the app
-
-Up to now the design principle was "everything surfaces in existing dashboard tabs
-and Telegram alerts — no new interfaces." Session 33 deliberately evolves that: the
-human-readable insight and an interactive layer should live IN the Streamlit app,
-not only on Telegram.
-
-**A. Narrative briefing on the dashboard** *(Low–Medium effort)* — ✅ DONE (Session 33)
-- Plain-English briefing (Market Context / Actionable Setups / Watch List / Bottom
-  Line) shown in a dedicated "🧭 Briefing" tab (first tab)
-- Cache strategy: store the briefing text when narrative_alert.py runs at the close
-  and display that (no per-view API spend). Read-only — the planned on-demand
-  "Regenerate" button was cut because the dashboard is public/no-auth; it returns
-  with the interactive layer once auth exists
+(interactive Q&A, behind auth), the BKNG price-data fix, and deciding whether the
+off-thesis holdings belong in a theme.
 
 **B. Interactive Q&A on the app** *(Medium effort)*
-- Free-text box: ask the model questions like "thoughts on GEV today given
-  conditions?" or "any news on X?"
-- Pass that ticker's full signal row (state, channel, conviction, moat, earnings,
-  fundamentals, holdings) as context, same as the narrative builder
-- "News" angle needs a source — Claude API web search/fetch tools, or a news API.
-  Scope this: decide whether news is in-scope for v1 or signals-only first
-- Cost/abuse guard since it's interactive (per-session rate limit, cached context)
-
-### Roadmap remaining (reordered)
-
-**1. Universe management CLI** *(Medium effort)*
-- `manage_universe.py --add/--remove`, single source of truth (universe.yaml),
-  updates sector_map, fetches history, runs pipeline, confirms live
-- Two tiers: core_holdings vs watchlist; morning alerts prioritize core
-
-**2. Valuation layer** *(Medium effort)*
-- PE / PEG / price-to-FCF from existing Polygon financials (already fetched)
-- Add `valuation_score`; feeds into narrative ("quality is high but you're paying up")
-
-**3. Exit/trim framework** *(Medium effort)*
-- holdings.yaml + channel position together → systematic trim/exit signals
-- Trim: upper-channel breach; exit warning: breakdown zone + Widell down
-- Surface a stop level per held position in the morning alert
-
-**4. Macro calendar awareness** *(Medium effort)*
-- CPI / Fed / major macro dates as signal-filter context for the narrative
-- Directly addresses Session 32's core lesson: the system can't see macro, so a
-  flip-heavy day on a CPI print should be framed as likely noise
-
-**5. Review narrative alert quality** *(ongoing)*
-- After a full week of live runs, tune the prompt — see "First task" above
+- Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
+  full signal row + theme as context, same builders the alerts use
+- News needs a source (Claude web search/fetch, or a news API) — scope signals-only first
+- **Must be behind auth** (memory `public-dashboard-no-api-controls`) — the public
+  dashboard never exposes a control that spends our API key
 
 ### Design principles for all new features
-- Holdings file is a weight snapshot, not a trade tracker
-- Universe management is one command, not multi-file editing
-- Moat and valuation run quarterly — not daily pipeline overhead
-- NEW (Session 33): the app is now an insight + interaction surface, not just a
-  table viewer — human-readable narrative and Q&A belong in the app, reusing the
-  same context builders the alerts use (don't fork the logic)
+- Holdings file is a weight snapshot, not a trade tracker; universe + themes are
+  single-source YAMLs (manage_universe.py / hand-edited)
+- Moat and valuation run quarterly; themes are hand-curated, not a daily input
+- The app is an insight + interaction surface — narrative/themes/Q&A reuse the same
+  context builders the alerts use (don't fork the logic)
+- No Claude-API-spending controls on the public (no-auth) dashboard until auth exists
 
 ---
 
