@@ -528,13 +528,20 @@ All theme wiring is defensive — a theme error never breaks a briefing/alert.
 Power Grid + US Reindustrialization with zero exposure), AI Infrastructure
 concentrated (NVDA/AVGO/TSM), and 4 off-thesis holdings (AMZN/ELF/META/TSLA).
 
+**Follow-up (same session, commit edb5173):** reclassified the off-thesis names —
+added a Physical_AI_Robotics theme (TSLA, AMZN, ISRG, SERV), put AMZN in
+AI_Infrastructure + AI_Software, TSLA in Power_Grid. Off-thesis logic now carries an
+optional per-ticker note (META annotated; ELF stays plain). Coverage 3/10 → 5/11;
+only US Reindustrialization remains a high-conviction gap; off-thesis = ELF + META.
+
 **Memory added:** `concentrated-conviction-investor`, `ideal-company-profile`.
 
 **Still open for a future session:**
 - Review narrative quality after a full week of live runs (tune the prompt)
 - Interactive Q&A on the app (item B) — **behind authentication**
 - BKNG bad-price data investigation (~$164 vs real ~$5,000)
-- Consider mapping AMZN/META/TSLA/ELF into themes (or confirm they're off-thesis)
+- Off-thesis reclassification DONE (commit edb5173); ELF + META remain intentionally off-thesis
+- Position sizing engine (Session 36 main build)
 
 ---
 
