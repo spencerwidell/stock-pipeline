@@ -1,0 +1,22 @@
+# Macro calendar — CPI prints and FOMC decisions the price/signal pipeline can't
+# see. The narrative flags signals (especially fresh Widell flips) as likely noise
+# when a major event is within a few days or just happened — directly the Session 32
+# lesson (a flip-heavy day on a CPI/Fed print is usually noise, not signal).
+#
+# Maintain by hand (these are the only two that reliably move the whole tape):
+#   FOMC decision dates (use the 2nd / decision day):
+#       https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
+#   CPI release dates:
+#       https://www.bls.gov/schedule/news_release/cpi.htm
+#
+# Seeded June 2026 with the published 2026 schedule. Add new CPI months as they're
+# scheduled; FOMC decision dates run through Dec 2026 below.
+
+events:
+  - {date: 2026-06-10, event: "CPI (May)"}
+  - {date: 2026-06-17, event: "FOMC decision"}
+  - {date: 2026-07-14, event: "CPI (June)"}
+  - {date: 2026-07-29, event: "FOMC decision"}
+  - {date: 2026-09-16, event: "FOMC decision"}
+  - {date: 2026-10-28, event: "FOMC decision"}
+  - {date: 2026-12-09, event: "FOMC decision"}

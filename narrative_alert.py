@@ -45,6 +45,7 @@ from datetime import date, datetime
 
 import valuation
 import positions
+import macro_calendar
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -244,6 +245,15 @@ def build_context(df, holdings, earnings, moat):
         )
     lines.append("")
 
+    # --- Upcoming macro the price data can't see (CPI / FOMC) ---
+    macro = macro_calendar.nearby_events(ahead_days=10, back_days=2)
+    if macro:
+        lines.append("UPCOMING MACRO (events the signals can't see):")
+        for e in macro:
+            lines.append(f"  {e['event']} — {macro_calendar.when_str(e['days'])} "
+                         f"({e['date']})")
+        lines.append("")
+
     # --- Universe counts ---
     up   = int((df["wl_state"] == "up").sum())
     inc  = int((df["wl_state"] == "inconclusive").sum())
@@ -338,9 +348,14 @@ setup means paying a stretched price (e.g. high PEG), especially for thinner moa
 - Wants simplicity. He does not want to decode tables — he wants to be told what, \
 if anything, to actually do.
 
-You are given today's signals. The system can't see macro news (CPI prints, geopolitics, \
-Fed) — if the breadth looks off (many flips but market down, SPY/QQQ extended and \
-weak), say so and treat today's flips with appropriate skepticism.
+You are given today's signals. The system can't see macro news (geopolitics, \
+surprises) — if the breadth looks off (many flips but market down, SPY/QQQ extended \
+and weak), say so and treat today's flips with appropriate skepticism.
+
+Scheduled macro IS provided in UPCOMING MACRO (CPI prints, FOMC decisions). If one \
+is within ~2 days or happened today/yesterday, weight it heavily: price action and \
+fresh Widell flips around CPI/Fed are usually noise, and it's typically better to \
+wait until after the event before acting. Call this out in MARKET CONTEXT.
 
 Write EXACTLY these five sections, plain English, no jargon, no tables, concise:
 
