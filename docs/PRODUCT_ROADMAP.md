@@ -92,11 +92,15 @@ validated stack into plain-English decisions for a concentrated conviction inves
 - **Position sizing engine** — conviction-led target weights: rebalance held names
   (ADD/TRIM/HOLD vs current, cash held constant) + gap starters; ⚖️ Sizing tab +
   narrative. Advisory only (Session 35)
+- **Portfolio health check** — one-glance roll-up (position count, high-conviction
+  gaps, coverage, concentration, off-thesis, sizing drift, bond regime, dry powder)
+  + overall grade; 🩺 cockpit panel atop the Briefing tab (Session 35)
+- **Investment-thesis white paper** — `docs/INVESTMENT_THESIS.md`, rendered in the
+  Guide tab (Session 35)
 
 ## 🚧 In progress
 
-- **Portfolio health check** — a single roll-up of coverage, concentration, off-thesis,
-  and regime fit
+- *(open — pick the next build below)*
 
 ## 🔜 Upcoming
 

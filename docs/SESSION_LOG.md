@@ -566,11 +566,20 @@ valuation + ⭐ fits-profile; caps at 15%, min starter 4%. New ⚖️ Sizing das
 tab + POSITION SIZING block in the narrative. Advisory only — never trades. First
 read: add PLTR/META/AVGO, trim ELF (−8.9%)/SOFI/AMZN; gap starters CAT/CMI/ISRG/MP/FCX.
 
+**Portfolio health check (commit 68bf704):** `portfolio_health.py` — one-glance
+roll-up (position count, high-conviction gaps, theme coverage, concentration,
+off-thesis, sizing drift, bond regime, dry powder) + overall grade; 🩺 cockpit panel
+atop the Briefing tab. First read: "Needs attention" (1 red: US Reindustrialization
+gap; 4 amber).
+
+**Investment-thesis white paper (commit 00ca658):** `docs/INVESTMENT_THESIS.md` —
+philosophy, macro thesis, the 11 secular themes, discipline, how the system
+operationalizes the thesis, and what would change our mind. Rendered in the Guide tab.
+
 **Still open for a future session:**
-- Portfolio health check (next build — coverage + concentration + off-thesis + regime + sizing drift)
 - Review narrative quality after a full week of live runs (tune the prompt)
 - Interactive Q&A on the app — **behind authentication** (now unblocked by the password gate)
-- Conviction backtest; correlation awareness; spend-capped API key
+- Conviction backtest; correlation awareness; spend-capped API key; HTTPS/TLS for the dashboard
 - BKNG bad-price data investigation (~$164 vs real ~$5,000)
 
 ---
