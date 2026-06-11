@@ -405,8 +405,24 @@ updated to expect vsa == ohlcv[volume>1000].
 
 ## Session 33 — (upcoming)
 
-**First task:** Review narrative alert quality after the first full week of live
-runs — read the daily briefings, note where the read is off (tone, missed context,
+**First task (decided):** Build the dashboard narrative briefing — item A below.
+Bring the plain-English daily briefing into the Streamlit app, not just Telegram.
+
+Planned approach:
+- When `narrative_alert.py` runs at the close, persist the generated briefing +
+  timestamp (e.g. `data/narrative_latest.txt`/`.json`) so the app can show it with
+  zero per-view API cost. Refactor `narrative_alert.py` so the context-build and
+  the Claude call are importable functions (the app and the alert share them — do
+  not fork the logic).
+- Add a "🧭 Briefing" view to the dashboard (its own tab, or a section atop the
+  Signals tab) that renders the stored briefing with its as-of timestamp.
+- Add a "Regenerate" button that calls the API on demand for an intraday refresh
+  (guard against repeat clicks / cost).
+- AWS note: the stored briefing lives under data/ (gitignored) — it's produced by
+  the close cron on the server, so it'll exist there after the next close run.
+
+**Then:** Review narrative alert quality after the first full week of live runs —
+read the daily briefings, note where the read is off (tone, missed context,
 over/under-caution), and tune the system prompt if needed.
 
 ### Spencer's new direction — bring the insights into the app
@@ -416,14 +432,13 @@ and Telegram alerts — no new interfaces." Session 33 deliberately evolves that
 human-readable insight and an interactive layer should live IN the Streamlit app,
 not only on Telegram.
 
-**A. Narrative briefing on the dashboard** *(Low–Medium effort)*
+**A. Narrative briefing on the dashboard** *(Low–Medium effort)* — NEXT BUILD
 - Show the same plain-English briefing (Market Context / Actionable Setups / Watch
   List / Bottom Line) inside the app, not just Telegram — e.g. a section atop the
   Signals tab or a dedicated "🧭 Briefing" tab
-- Decide cache strategy: render the last close's briefing from a stored copy
-  (cheap, no per-view API spend) vs. a "Regenerate" button that calls the API on
-  demand. Likely store the briefing text (e.g. data/narrative_latest.txt or a
-  parquet) when narrative_alert.py runs, and display that
+- Cache strategy chosen: store the briefing text when narrative_alert.py runs and
+  display that (cheap, no per-view API spend); a "Regenerate" button calls the API
+  on demand for an intraday refresh
 
 **B. Interactive Q&A on the app** *(Medium effort)*
 - Free-text box: ask the model questions like "thoughts on GEV today given
