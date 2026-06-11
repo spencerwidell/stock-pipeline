@@ -89,11 +89,12 @@ validated stack into plain-English decisions for a concentrated conviction inves
 - **Three daily Telegram alerts + six-tab dashboard**, deployed on AWS
 - **Dashboard password gate** — whole app behind a password (holdings private);
   closes Model Risk #7's dashboard-exposure concern (Session 35)
+- **Position sizing engine** — conviction-led target weights: rebalance held names
+  (ADD/TRIM/HOLD vs current, cash held constant) + gap starters; ⚖️ Sizing tab +
+  narrative. Advisory only (Session 35)
 
 ## 🚧 In progress
 
-- **Position sizing engine** — turn conviction + theme + valuation + dry powder into
-  deliberate target weights (vs ad-hoc sizing)
 - **Portfolio health check** — a single roll-up of coverage, concentration, off-thesis,
   and regime fit
 
