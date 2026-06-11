@@ -10,6 +10,49 @@ import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
+
+# ---------------------------------------------------------------------------
+# Access control — the dashboard is publicly reachable and shows real holdings,
+# so gate the WHOLE app behind a password before any data renders. The secret
+# lives in .env (DASHBOARD_PASSWORD); systemd doesn't load .env, so we read it.
+# Fail-closed: if no password is configured, the app stays locked.
+# ---------------------------------------------------------------------------
+def _load_env_file(path=".env"):
+    import os
+    if os.path.exists(path):
+        for line in open(path):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k, v)
+
+
+def require_auth():
+    import os
+    import hmac
+    _load_env_file()
+    expected = os.environ.get("DASHBOARD_PASSWORD")
+    if not expected:
+        st.title("🔒 Stock Pipeline")
+        st.error("Dashboard not configured: set DASHBOARD_PASSWORD in .env, then "
+                 "restart Streamlit.")
+        st.stop()
+    if st.session_state.get("auth_ok"):
+        return
+    st.title("🔒 Stock Pipeline")
+    st.caption("This dashboard is private — enter the password to continue.")
+    entered = st.text_input("Password", type="password")
+    if entered:
+        if hmac.compare_digest(entered, expected):
+            st.session_state["auth_ok"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    st.stop()
+
+
+require_auth()
+
 # Section headers the briefing always emits — used to render it nicely in the app.
 _BRIEF_HEADERS = ("MARKET CONTEXT", "ACTIONABLE SETUPS", "WATCH LIST", "BOTTOM LINE")
 
