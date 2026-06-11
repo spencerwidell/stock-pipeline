@@ -4,8 +4,24 @@ import duckdb
 from datetime import date
 
 from sector_map import SECTOR_ETFS, get_constituents
+import narrative_alert  # shared briefing logic (generate/save/load) — no forked code
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
+
+# Section headers the briefing always emits — used to render it nicely in the app.
+_BRIEF_HEADERS = ("MARKET CONTEXT", "ACTIONABLE SETUPS", "WATCH LIST", "BOTTOM LINE")
+
+def briefing_to_markdown(text):
+    """Turn the plain-text Telegram briefing into app markdown: the four CAPS
+    section headers become bold h5s, '- ' bullets stay as a list."""
+    out = []
+    for line in text.splitlines():
+        s = line.strip()
+        if s in _BRIEF_HEADERS:
+            out += ["", f"##### {s}"]
+        else:
+            out.append(line)
+    return "\n".join(out)
 
 @st.cache_data(ttl=300)
 def load_signals():
@@ -75,7 +91,27 @@ def load_holdings():
         return {}
 
 
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
+tab_brief, tab1, tab2, tab3, tab4 = st.tabs(
+    ["🧭 Briefing", "📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
+
+with tab_brief:
+    st.title("🧭 Daily Briefing")
+    st.caption("Plain-English read on today's signals — the same briefing sent to Telegram "
+               "after the close.")
+
+    # Read-only by design: this dashboard is publicly reachable, so it must not
+    # expose any control that triggers a Claude API call on our key. The briefing
+    # is generated server-side by the trusted close cron (narrative_alert.py) and
+    # only displayed here. An on-demand "regenerate" / interactive Q&A will come
+    # later, behind authentication.
+    brief = narrative_alert.load_briefing()
+    if brief:
+        st.markdown(f"**As of {brief.get('date','?')}** "
+                    f"· generated {brief.get('generated_at','?').replace('T',' ')}")
+        st.markdown(briefing_to_markdown(brief.get("narrative", "")))
+    else:
+        st.info("No briefing yet. It's generated automatically after the close "
+                "pipeline each weekday — check back after 4:30 PM ET.")
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")

@@ -41,7 +41,7 @@ import sys
 import duckdb
 import pandas as pd
 import requests
-from datetime import date
+from datetime import date, datetime
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -54,6 +54,7 @@ FUND_PATH     = "data/fundamentals.parquet"
 HOLDINGS_PATH = "holdings.yaml"
 EARNINGS_PATH = "data/earnings.parquet"
 MOAT_PATH     = "data/moat.parquet"
+BRIEFING_PATH = "data/narrative_latest.json"   # last briefing, for the dashboard
 
 DASHBOARD_URL = "http://18.188.180.99:8501"
 
@@ -359,37 +360,75 @@ def call_claude(context):
     return "".join(b.text for b in resp.content if b.type == "text").strip()
 
 
+# ---------------------------------------------------------------------------
+# Reusable entry points — shared by this CLI and the dashboard so the briefing
+# logic lives in exactly one place.
+# ---------------------------------------------------------------------------
+def generate_narrative():
+    """Load the latest signals, build context, and return (narrative, context).
+
+    Raises on failure (missing data, no API key, API error) — the caller decides
+    how to handle it. Calls load_env() so it works both from the CLI and when
+    imported by the dashboard.
+    """
+    load_env()
+    df       = load_signals()
+    holdings = load_holdings()
+    earnings = load_earnings()
+    moat     = load_moat()
+    context  = build_context(df, holdings, earnings, moat)
+    narrative = call_claude(context)
+    return narrative, context
+
+
+def save_briefing(narrative):
+    """Persist the briefing + timestamps so the dashboard can show it without
+    spending an API call on every page view."""
+    import json
+    payload = {
+        "date":         date.today().strftime("%Y-%m-%d"),
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "narrative":    narrative,
+    }
+    os.makedirs(os.path.dirname(BRIEFING_PATH), exist_ok=True)
+    with open(BRIEFING_PATH, "w") as f:
+        json.dump(payload, f, indent=2)
+
+
+def load_briefing():
+    """Return the last saved briefing dict ({date, generated_at, narrative}),
+    or None if none has been generated yet / the file is unreadable."""
+    import json
+    if not os.path.exists(BRIEFING_PATH):
+        return None
+    try:
+        with open(BRIEFING_PATH) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
 def main():
     dry_run = "--dry-run" in sys.argv
     load_env()
 
     try:
-        df = load_signals()
+        narrative, context = generate_narrative()
     except Exception as e:
-        print(f"Could not load signals — skipping narrative alert: {e}")
+        print(f"Narrative generation failed — skipping narrative alert: {e}")
         return
-
-    holdings = load_holdings()
-    earnings = load_earnings()
-    moat     = load_moat()
-    context  = build_context(df, holdings, earnings, moat)
 
     if dry_run:
         print("=== CONTEXT ===")
         print(context)
         print("=== /CONTEXT ===\n")
 
-    try:
-        narrative = call_claude(context)
-    except Exception as e:
-        print(f"Claude API call failed — skipping narrative alert: {e}")
-        return
-
     today = date.today().strftime("%Y-%m-%d")
     msg = f"🧭 Daily Briefing — {today}\n\n{narrative}\n\n{DASHBOARD_URL}"
 
     print(msg)
     if not dry_run:
+        save_briefing(narrative)   # persist for the dashboard before pushing
         send_telegram(msg)
         print("\nNarrative alert sent.")
 
