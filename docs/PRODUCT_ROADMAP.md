@@ -97,6 +97,9 @@ validated stack into plain-English decisions for a concentrated conviction inves
   + overall grade; 🩺 cockpit panel atop the Briefing tab (Session 35)
 - **Investment-thesis white paper** — `docs/INVESTMENT_THESIS.md`, rendered in the
   Guide tab (Session 35)
+- **Conviction backtest** — `backtest_conviction.py` + `docs/CONVICTION_BACKTEST.md`:
+  conviction ≥8 validated (+2.5% 20d alpha, positive every year incl. 2022 bear);
+  honest limits noted (top-tier filter, fundamental lookahead) (Session 35)
 
 ## 🚧 In progress
 
@@ -108,10 +111,8 @@ validated stack into plain-English decisions for a concentrated conviction inves
   behind authentication (no API-spending control on the public dashboard until then)
 - **Multi-user auth / guest mode** — read-only access without holdings visibility,
   for when interactive Q&A ships (the current single password is sufficient until then)
-- **Conviction backtest** — validate that high-conviction setups behaved as intended
-  over history (close the loop between research discipline and the live score)
-- **Security hardening (remaining)** — spend-capped API key and an optional IP
-  allowlist. Dashboard auth is DONE (password gate, Session 35).
+- **Security hardening (remaining)** — spend-capped API key, HTTPS/TLS, and an
+  optional IP allowlist. Dashboard auth is DONE (password gate, Session 35).
 - **Correlation awareness** — flag when "diversification" across themes is really the
   same underlying bet (e.g. everything long-duration growth)
 

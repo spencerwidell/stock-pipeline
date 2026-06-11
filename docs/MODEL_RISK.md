@@ -60,6 +60,12 @@ around macro as noise. Conviction is a *buy-zone-quality* metric, not an expecte
 return.
 **Monitoring.** Session 36+ "narrative quality review" after a week of live runs;
 periodically sanity-check that high-conviction calls behaved sensibly.
+**Validation (Session 35).** `backtest_conviction.py` + `docs/CONVICTION_BACKTEST.md`:
+conviction ≥8 shows a real, persistent edge (+2.5% 20d SPY-relative alpha, +13% at
+60d, higher win rate, **positive in every year including the 2022 bear**). Honest
+limits: the edge is a top-tier filter not a linear dial (Spearman +0.026), and the
+absolute level is inflated by the fundamental-component lookahead. Re-run periodically
+and after the next down regime.
 
 ## 4. LLM risk (narrative briefing, moat scores)
 **Concern.** Claude can hallucinate or over/under-state. The narrative could

@@ -576,10 +576,20 @@ gap; 4 amber).
 philosophy, macro thesis, the 11 secular themes, discipline, how the system
 operationalizes the thesis, and what would change our mind. Rendered in the Guide tab.
 
+**Conviction backtest (commit pending):** `backtest_conviction.py` +
+`docs/CONVICTION_BACKTEST.md` — honest pressure test of the conviction score.
+Conviction ≥8 single names: **+5.33% 20d SPY-relative alpha vs +2.77% rest (+2.55%
+edge), +12.96% at 60d, win rate 58.6%, positive in EVERY year incl. the 2022 bear
+(+8.46%)**. Honest limits: edge is a top-tier filter not a linear dial (Spearman
++0.026; 4-5 bucket trails 0-3 — likely beaten-down beta), and the absolute level is
+inflated by the fundamental-component lookahead. Validates "conv ≥8 = highest
+priority"; surfaced in the Guide tab. Re-run periodically.
+
 **Still open for a future session:**
 - Review narrative quality after a full week of live runs (tune the prompt)
 - Interactive Q&A on the app — **behind authentication** (now unblocked by the password gate)
-- Conviction backtest; correlation awareness; spend-capped API key; HTTPS/TLS for the dashboard
+- Re-weight mid-scale conviction / remove fundamental lookahead (from backtest findings)
+- Correlation awareness; spend-capped API key; HTTPS/TLS for the dashboard
 - BKNG bad-price data investigation (~$164 vs real ~$5,000)
 
 ---

@@ -610,6 +610,9 @@ with tab3:
     _risk = read_doc("docs/MODEL_RISK.md")
     with st.expander("🛡️ Model Risk Monitoring — known concerns & controls"):
         st.markdown(_risk if _risk else "_docs/MODEL_RISK.md not found_")
+    _bt = read_doc("docs/CONVICTION_BACKTEST.md")
+    with st.expander("🔬 Conviction Backtest — honest validation of the score"):
+        st.markdown(_bt if _bt else "_docs/CONVICTION_BACKTEST.md not found_")
     st.divider()
 
     st.header("The Six Tabs")
