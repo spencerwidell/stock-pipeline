@@ -7,6 +7,7 @@ from sector_map import SECTOR_ETFS, get_constituents
 import narrative_alert  # shared briefing logic (generate/save/load) — no forked code
 import valuation        # PE / PEG / P-OCF from price + stored TTM inputs
 import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
+import position_sizing  # conviction-led target weights (advisory)
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -148,8 +149,9 @@ def read_doc(path):
         return None
 
 
-tab_brief, tab_themes, tab1, tab2, tab3, tab4 = st.tabs(
-    ["🧭 Briefing", "🌐 Themes", "📊 Signals", "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
+tab_brief, tab_themes, tab_sizing, tab1, tab2, tab3, tab4 = st.tabs(
+    ["🧭 Briefing", "🌐 Themes", "⚖️ Sizing", "📊 Signals", "📋 Fundamentals",
+     "📖 Guide", "🔄 Rotation"])
 
 with tab_brief:
     st.title("🧭 Daily Briefing")
@@ -245,6 +247,66 @@ with tab_themes:
                     st.markdown(_name_line(n))
 
             st.caption(f"⚠️ {t['constraint']}")
+
+with tab_sizing:
+    st.title("⚖️ Position Sizing")
+    st.caption("Conviction-led target weights — advisory only, never auto-trades. "
+               "Cash is held constant (your dry powder); starters are funded from cash or trims.")
+
+    siz = position_sizing.compute_sizing()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Invested", f"{siz['invested']:.0f}%")
+    c2.metric("Cash (dry powder)", f"{siz['cash']:.0f}%")
+    c3.metric("Positions", siz["n_held"],
+              help=f"target {siz['target_min']}–{siz['target_max']}")
+    st.divider()
+
+    st.subheader("Rebalance — your holdings")
+    st.caption("Model target vs your current weight → ADD / TRIM / HOLD. "
+               "⭐ = wide moat + reasonable valuation. Conviction is the primary driver.")
+    rb = pd.DataFrame(siz["rebalance"])
+    if len(rb):
+        rb["⭐"] = rb["fits_profile"].map(lambda b: "⭐" if b else "")
+        rb = rb[["ticker", "current", "target", "delta", "action",
+                 "conviction", "moat_rating", "val_label", "⭐"]].rename(
+            columns={"current": "current %", "target": "target %", "delta": "Δ %",
+                     "moat_rating": "moat", "val_label": "val"})
+
+        def _c_action(v):
+            return ("color:#00cc44;font-weight:bold" if v == "ADD"
+                    else "color:#ff4444;font-weight:bold" if v == "TRIM"
+                    else "color:#888")
+
+        def _c_delta(v):
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                return ""
+            return ("color:#00cc44" if v >= 1.5
+                    else "color:#ff4444" if v <= -1.5 else "color:#888")
+
+        st.dataframe(
+            rb.style.map(_c_action, subset=["action"]).map(_c_delta, subset=["Δ %"]),
+            use_container_width=True, hide_index=True)
+    else:
+        st.info("No holdings found in holdings.yaml.")
+
+    st.divider()
+    st.subheader("Starters — high-conviction gaps you don't own")
+    if siz["starters"]:
+        st.caption("Best-in-class names in themes with zero exposure. Suggested "
+                   "starter size — fund from cash or by trimming overweights above.")
+        for c in siz["starters"]:
+            star = " ⭐" if c["fits_profile"] else ""
+            st.markdown(
+                f"- **{c['ticker']}** — starter **{c['starter']:.1f}%**{star} · "
+                f"{c['theme']} ({c['theme_conviction']}) · conv {c['conviction']}/10 · "
+                f"{c['entry_status']} · {c['val_label'] or 'val n/a'}")
+    else:
+        st.success("No high-conviction theme gaps — you have exposure across the board.")
+
+    st.caption("Sizing is a suggestion to inform decisions, not a mechanical "
+               "rebalance. Not financial advice.")
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")

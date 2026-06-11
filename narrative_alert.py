@@ -47,6 +47,7 @@ import valuation
 import positions
 import macro_calendar
 import theme_engine
+import position_sizing
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -286,6 +287,29 @@ def build_context(df, holdings, earnings, moat):
     except Exception as e:
         print(f"theme intelligence unavailable: {e}")
 
+    # --- Position sizing (advisory, conviction-led) — biggest over/underweights ---
+    try:
+        siz = position_sizing.compute_sizing()
+        adds  = sorted([r for r in siz["rebalance"] if r["action"] == "ADD"],
+                       key=lambda r: r["delta"], reverse=True)[:3]
+        trims = sorted([r for r in siz["rebalance"] if r["action"] == "TRIM"],
+                       key=lambda r: r["delta"])[:3]
+        if adds or trims or siz["starters"]:
+            lines.append("POSITION SIZING (advisory — conviction-led targets vs your weights):")
+            if adds:
+                lines.append("  Underweight vs conviction (add): "
+                             + ", ".join(f"{r['ticker']} {r['delta']:+.1f}%" for r in adds))
+            if trims:
+                lines.append("  Overweight / low-conviction (trim): "
+                             + ", ".join(f"{r['ticker']} {r['delta']:+.1f}%" for r in trims))
+            if siz["starters"]:
+                s = siz["starters"][0]
+                lines.append(f"  Top gap starter: {s['ticker']} ~{s['starter']:.1f}% "
+                             f"({s['theme']}, conv {s['conviction']}, {s['entry_status']})")
+            lines.append("")
+    except Exception as e:
+        print(f"position sizing unavailable: {e}")
+
     # --- Universe counts ---
     up   = int((df["wl_state"] == "up").sum())
     inc  = int((df["wl_state"] == "inconclusive").sum())
@@ -402,7 +426,9 @@ high-conviction theme (a "gap") even if its conviction is below 8 — a ⭐ name
 ENTRY in a high-conviction gap is exactly the wide-moat / secular / cash-flowing \
 profile he wants. Name the gap and the entry.
 - PORTFOLIO CHECK: also flag over-concentration (3+ in one theme) and off-thesis \
-holdings (names in no theme) when relevant.
+holdings (names in no theme) when relevant. Use POSITION SIZING here too — call out \
+where he is most underweight vs conviction (a name worth adding to) or overweight in \
+a low-conviction name (worth trimming). Sizing is advisory, not a mechanical rebalance.
 
 Write EXACTLY these five sections, plain English, no jargon, no tables, concise:
 
