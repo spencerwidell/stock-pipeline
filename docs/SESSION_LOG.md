@@ -342,67 +342,129 @@ updated to expect vsa == ohlcv[volume>1000].
 
 ---
 
-## Session 32 — (upcoming)
+## Session 32 — June 10, 2026
 
-**First task:** Review first live morning alert — confirm prices and levels look
-right on a live market day.
+**Built:** narrative_alert.py, fetch_earnings.py, holdings.yaml, moat_score.py
+(commit 9099915 — built, tested, pushed, and deployed/verified on AWS the same day)
 
-### Roadmap — features to build in priority order
+**narrative_alert.py — LLM plain-English daily briefing:**
+- Runs after telegram_alert.py in run_daily.sh close pipeline
+- Uses Claude API `claude-sonnet-4-6` — note: the roadmap's
+  `claude-sonnet-4-20250514` is deprecated (retires June 15, 2026), so we used the
+  current Sonnet instead
+- Reads all signals: SPY/QQQ state, conviction ≥8 names, today's flips, high
+  composite not yet up, 🗓️ earnings flags, holdings + dry-powder context, moat ratings
+- Four sections: Market Context, Actionable Setups, Watch List, Bottom Line
+- Plain English, no jargon, written for a long-term investor; sent as plain text
+  (no Markdown) so LLM prose can't break Telegram's parser
+- Graceful failure — logs error and skips if the API call fails; never breaks the
+  pipeline (`|| true` in run_daily.sh too)
+- Confirmed delivered to Telegram on first live test
 
-**1. Earnings dates flag** *(Low effort)*
-- Polygon earnings calendar endpoint
-- Flag in morning alert and dashboard when any tracked ticker reports within 7 days
-- Format: 🗓️ warning on existing signals — not a separate system
-- Prevents acting on signals about to be invalidated by an earnings event
+**fetch_earnings.py — earnings calendar:**
+- Source is **yfinance**, NOT Polygon — Polygon's forward earnings dates require
+  the Benzinga add-on (not on this plan); yfinance is the free path to future dates
+- 97 tickers, 74 with dates (ETFs correctly have none), stores data/earnings.parquet
+- Built-in staleness guard (REFRESH_DAYS=6) — safe to call daily from run_daily.sh;
+  only actually refetches when stale
+- 🗓️ flag (≤7 days) surfaces in narrative_alert.py, morning_alert.py, daily_signals.py
 
-**2. Holdings YAML + position context** *(Low effort)*
-- Simple `holdings.yaml`: ticker → portfolio weight %
-- No transaction tracking — broker handles that
-- Changes signal language from abstract to personal:
-  - "You hold 5%, pulled back to entry zone — consider add"
-  - "You hold 8%, extended above channel — consider trim"
-- Surfaces in dashboard and both Telegram alerts
-- Update manually after meaningful trades — not daily maintenance
+**holdings.yaml — position context:**
+- Simple weight snapshot: ticker → % weight, plus a CASH entry for money-market
+  dry powder (no transaction tracking — broker handles that)
+- Real positions loaded: NVDA 11, MSFT 11, AMZN 11, ELF 10, SOFI 8, PLTR 7, TSLA 7,
+  META 7, AVGO 7, TSM 5, + CASH 16%
+- Personalizes narrative ("you hold MSFT 11% — wide moat") and surfaces 💼 HELD in
+  the dashboard Signals tab and morning alert; CASH is read as deployable dry powder
 
-**3. Universe management CLI** *(Medium effort)*
-- Single `universe.yaml` as one source of truth
-- Two tiers: `core_holdings` and `watchlist`
-- `python manage_universe.py --add TICKER --sector ETF --broad ETF`
-- `python manage_universe.py --remove TICKER`
-- Command handles everything: updates universe.yaml, sector_map.py, fetches
-  history, runs full pipeline, confirms live in dashboard
-- Morning alerts prioritize core_holdings over watchlist names
-- Removing cleans up parquet without touching anything else
+**moat_score.py — competitive moat scoring:**
+- Claude API `claude-opus-4-8` (quality judgment, quarterly cadence justifies the
+  better model; the daily narrative uses Sonnet), structured output per ticker
+- Returns: moat rating 1-5, moat type, one-sentence summary, key risk
+- 74 stocks scored (ETFs skipped via sector_map), stored in data/moat.parquet
+  (dist: 12×5/5, 24×4/5, 15×3/5, 16×2/5, 7×1/5)
+- Self-skips tickers scored within ~80 days — safe to re-run; run quarterly
+- Surfaces in dashboard Fundamentals tab (rating + type + per-name detail panel),
+  feeds moat context into narrative_alert.py
+- Bug found & fixed mid-session: a dict/Series type-mix crashed the final parquet
+  write after all 70 API calls succeeded — normalized to dicts and re-ran clean
 
-**4. Moat score** *(Medium effort)*
-- `moat_score.py` — calls Claude API with a structured prompt per ticker
-- Returns: moat score 1-5 + one-sentence summary (network effects, switching
-  costs, cost advantages, intangibles)
-- Runs quarterly — moats don't change monthly
-- Stores in `data/moat.parquet`
-- Surfaces in dashboard alongside F score
-- Example: ISRG: Moat 5/5 — Robotic surgery monopoly, surgeon training lock-in,
-  10yr switching cost
+**AWS deploy — fully verified (commit 9099915):**
+- anthropic + yfinance installed in the AWS `stock` env (also pinned in requirements.txt)
+- ANTHROPIC_API_KEY confirmed in AWS .env
+- Full pipeline ran (135,631 rows in stock_vsa.parquet), earnings.parquet (97) and
+  moat.parquet (74) generated on the server (data/ is gitignored)
+- streamlit restarted; dashboard HTTP 200 externally at http://18.188.180.99:8501
 
-**5. Valuation layer** *(Medium effort)*
-- PE, PEG, price-to-FCF from existing Polygon financials data (already fetched)
-- Bridges technical positioning and fundamental value
-- F score measures quality — valuation measures price paid for that quality
-- Add `valuation_score` to conviction scoring
+**Automated daily workflow — now complete:**
+- 10:30 AM ET: morning alert (live prices, 💼 held tags, 🗓️ earnings flags)
+- 4:30 PM ET: close pipeline → signal alert → **narrative briefing** (new)
+- Quarterly: `python moat_score.py` (manual, self-skipping)
 
-**6. Exit/trim framework** *(Medium effort)*
-- Uses holdings.yaml + channel position together
-- Systematic answer to: when do I trim, when do I exit?
-- Trim target: upper channel breach
-- Exit warning: breakdown zone + Widell down state
-- Stop level per held position surfaced in morning alert
+---
+
+## Session 33 — (upcoming)
+
+**First task:** Review narrative alert quality after the first full week of live
+runs — read the daily briefings, note where the read is off (tone, missed context,
+over/under-caution), and tune the system prompt if needed.
+
+### Spencer's new direction — bring the insights into the app
+
+Up to now the design principle was "everything surfaces in existing dashboard tabs
+and Telegram alerts — no new interfaces." Session 33 deliberately evolves that: the
+human-readable insight and an interactive layer should live IN the Streamlit app,
+not only on Telegram.
+
+**A. Narrative briefing on the dashboard** *(Low–Medium effort)*
+- Show the same plain-English briefing (Market Context / Actionable Setups / Watch
+  List / Bottom Line) inside the app, not just Telegram — e.g. a section atop the
+  Signals tab or a dedicated "🧭 Briefing" tab
+- Decide cache strategy: render the last close's briefing from a stored copy
+  (cheap, no per-view API spend) vs. a "Regenerate" button that calls the API on
+  demand. Likely store the briefing text (e.g. data/narrative_latest.txt or a
+  parquet) when narrative_alert.py runs, and display that
+
+**B. Interactive Q&A on the app** *(Medium effort)*
+- Free-text box: ask the model questions like "thoughts on GEV today given
+  conditions?" or "any news on X?"
+- Pass that ticker's full signal row (state, channel, conviction, moat, earnings,
+  fundamentals, holdings) as context, same as the narrative builder
+- "News" angle needs a source — Claude API web search/fetch tools, or a news API.
+  Scope this: decide whether news is in-scope for v1 or signals-only first
+- Cost/abuse guard since it's interactive (per-session rate limit, cached context)
+
+### Roadmap remaining (reordered)
+
+**1. Universe management CLI** *(Medium effort)*
+- `manage_universe.py --add/--remove`, single source of truth (universe.yaml),
+  updates sector_map, fetches history, runs pipeline, confirms live
+- Two tiers: core_holdings vs watchlist; morning alerts prioritize core
+
+**2. Valuation layer** *(Medium effort)*
+- PE / PEG / price-to-FCF from existing Polygon financials (already fetched)
+- Add `valuation_score`; feeds into narrative ("quality is high but you're paying up")
+
+**3. Exit/trim framework** *(Medium effort)*
+- holdings.yaml + channel position together → systematic trim/exit signals
+- Trim: upper-channel breach; exit warning: breakdown zone + Widell down
+- Surface a stop level per held position in the morning alert
+
+**4. Macro calendar awareness** *(Medium effort)*
+- CPI / Fed / major macro dates as signal-filter context for the narrative
+- Directly addresses Session 32's core lesson: the system can't see macro, so a
+  flip-heavy day on a CPI print should be framed as likely noise
+
+**5. Review narrative alert quality** *(ongoing)*
+- After a full week of live runs, tune the prompt — see "First task" above
 
 ### Design principles for all new features
 - Holdings file is a weight snapshot, not a trade tracker
 - Universe management is one command, not multi-file editing
 - Moat and valuation run quarterly — not daily pipeline overhead
-- Everything surfaces in existing dashboard tabs and Telegram alerts — no new
-  interfaces
+- NEW (Session 33): the app is now an insight + interaction surface, not just a
+  table viewer — human-readable narrative and Q&A belong in the app, reusing the
+  same context builders the alerts use (don't fork the logic)
 
 ---
 
