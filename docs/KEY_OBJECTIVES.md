@@ -1,55 +1,74 @@
-# Key Objectives
+# Key Objectives — Canonical Mission
 
-The north star for the stock-pipeline system. Every feature is judged against
-these objectives; if a change doesn't serve one of them, it doesn't ship.
+> *Empirical rigor earned the foundations. The system now exists to turn those
+> foundations into clear, honest, plain-English decisions for a specific investing
+> philosophy: wide moats, secular trends toward the future, cash-flowing now, held
+> in a concentrated portfolio of 10 best-in-class names.*
 
-## Who this is for
+This is the north star. Every feature is judged against it; if a change doesn't
+ladder up to this statement, it doesn't ship.
 
-One user — Spencer — a **concentrated, high-conviction, long-term investor**:
+## Research was the means; the product is the end
 
-- Holds ~10 (max 10–15) **best-in-class single names** — no index/ETF positions.
-- Wants the single best company in each **secular trend**, not the basket.
-- Uses signals for **entry timing and position validation**, not trading.
-- Ideal company: **wide moat × future-facing secular trend × cash-flowing now.**
-- Intellectually honest about valuation and timing risk; will wait.
+The empirical research phase (Sessions 1–21) is **complete**. It validated the
+Widell Line, the signal stack, and the discipline of stress-testing every claim —
+and it found the honest ceiling of what raw signals can predict. That work was not
+the goal; it was how the foundations were *earned*. The goal is the **product**: a
+decision-support system that interprets the validated stack into plain-English
+calls for one investor. (Origin story in `docs/PRODUCT_ROADMAP.md`, Part 1.)
 
-## Primary objective
+## The investing philosophy is a design constraint
 
-**Turn raw market signals into clear, plain-English decisions a busy long-term
-investor can act on** — "what, if anything, should I do today?" — without sitting
-in front of charts. The system interprets; the human decides.
+The system is built around one investor and one philosophy. These are constraints,
+not preferences — they shape every default:
 
-## Supporting objectives
+- **Concentrated** — ~10 positions (max 10–15). Enough to move the needle, few
+  enough to know deeply.
+- **Conviction-driven** — act on the highest-quality setups (conviction ≥ 8), not
+  on every flicker.
+- **Wide moat** — own durable competitive advantages (moat 4–5), not commodities.
+- **Secular trends toward the future** — every name should fit a multi-year trend.
+- **Cash-flowing now** — a real business at a sane price, not just a story.
+- **Long-term horizon** — signals are for *entry timing and position validation*,
+  never for trading in and out.
+- **Best-in-class single names** — the single best company in a trend, **no index
+  exposure**.
+- **Macro-aware** — the bond market (TLT) and the CPI/FOMC calendar set whether it's
+  an environment to act or wait.
 
-1. **Don't buy at the top.** Surface regression-channel position so entries happen
-   on pullbacks (lower/middle), not at extended highs.
-2. **Time entries with confirmation, not prediction.** Widell Line flips are timing
-   confirmation; conviction score (0–10) ranks setup quality; ≥8 = highest priority.
-3. **Own quality.** Fundamental score (0–5), moat rating (1–5), and valuation
-   (PE/PEG/P-OCF, as context not a gate) keep the focus on durable businesses.
-4. **Think in secular themes.** Map every name to a multi-year trend; expose theme
-   coverage, gaps, concentration, and best-in-class entries so the portfolio is a
-   deliberate set of bets, not an accumulation.
-5. **Respect macro.** The bond market (TLT) regime and the CPI/FOMC calendar frame
-   whether it's an environment to act or wait — the system can't see news, so it
-   says so.
-6. **Manage what's owned.** Trim/exit framework flags held names that are extended
-   (trim) or breaking down (review). No hard stops — long-term framing.
-7. **Stay simple and trustworthy.** Three daily Telegram alerts + one dashboard.
-   Fail-soft everywhere: a data or API hiccup never breaks the pipeline.
+The ideal name is the intersection: **wide moat × future-facing secular trend ×
+cash-flowing now** (surfaced as the ⭐ "fits profile" flag).
 
-## Explicit non-goals
+## What the system DOES
 
-- **Not a trading system.** No intraday signals, no hard stops, no churn.
-- **Not a robo-advisor / auto-trader.** It never places orders. Human-in-the-loop.
-- **Not index exposure.** ETFs in the universe are signal proxies, not buys.
-- **Not a backtest-chasing ML product.** ML was explored (Session 18–20) and
-  capped; the edge is the interpreted signal stack, not a black-box predictor.
+- **Interprets signals into plain-English decisions** — "what, if anything, should
+  I do today?" — so a busy investor doesn't have to decode tables.
+- **Flags gaps in theme coverage** — which secular trends you don't own yet.
+- **Surfaces the best entry** in each theme (conviction + channel position).
+- **Warns on macro headwinds and earnings risk** — bond regime, CPI/FOMC proximity,
+  earnings within 7 days.
+- **Manages what's owned** — flags names to trim (extended) or review (breaking down).
+- **Stays honest** — names valuation and timing risk out loud; treats flips in weak
+  tape or around macro events as likely noise.
+
+## What the system does NOT do
+
+- **Does not trade automatically** — it never places an order; human-in-the-loop is
+  the ultimate control.
+- **Does not give financial advice** — it is a personal decision-support tool.
+- **Does not replace fundamental research** — it frames and prioritizes; the investor
+  still does the deep work on a business.
+- **Does not guarantee outcomes** — signals are empirical observations on historical
+  data; past performance does not predict future results.
+- **Does not chase a black-box edge** — ML was explored and capped; the value is the
+  interpreted, explainable stack, not an opaque predictor.
+- **Does not hold index/ETF positions** — ETFs in the universe are signal proxies and
+  regime gauges, not buys.
 
 ## What "good" looks like
 
-- Spencer reads one briefing and knows what to do (usually "wait").
+- The investor reads one briefing and knows what to do (often "wait").
 - Entries happen in lower/middle channel on confirmation, not chasing.
-- The portfolio stays ~10–15 names, deliberately spread across high-conviction
-  themes, with gaps and over-concentration made visible.
+- The portfolio stays ~10–15 best-in-class names, deliberately spread across
+  high-conviction secular themes, with gaps and over-concentration made visible.
 - The system runs unattended and degrades gracefully when a source fails.

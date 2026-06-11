@@ -1,5 +1,12 @@
 # Session Log — Stock Pipeline Project
 
+**Phase orientation (read first):**
+- **Sessions 1–21:** Research and validation phase — earning the foundations.
+- **Sessions 22+:** Production system development — turning signals into a live product.
+- **Sessions 35+:** Decision-support system evolution — interpreting the stack into
+  plain-English decisions for a concentrated conviction investor (see
+  `docs/KEY_OBJECTIVES.md`).
+
 For sessions 1-24 see docs/SESSION_ARCHIVE.md
 
 ---

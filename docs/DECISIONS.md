@@ -1,7 +1,20 @@
 # Project Decisions
 
 A record of choices made and why — so future sessions don't
-relitigate settled questions.
+relitigate settled questions. Most recent first.
+
+---
+
+## Vision & Direction
+
+**Session 35 — Project vision shift: research platform → production decision-support system**
+The empirical research phase is complete. The Widell Line, conviction scoring, and
+the signal stack are validated foundations. The mission is now to **interpret this
+stack into plain-English decisions for a concentrated conviction investor** — wide
+moats, secular trends toward the future, cash-flowing now, held in a concentrated
+portfolio of ~10 best-in-class names. All future development serves this mission;
+research was the means, the product is the end. See `docs/KEY_OBJECTIVES.md` for the
+canonical statement and `docs/PRODUCT_ROADMAP.md` for the active roadmap.
 
 ---
 
@@ -91,7 +104,7 @@ Starting with Volume Spread Analysis (bar-by-bar classification)
 before progressing to full Wyckoff phase detection because:
 - VSA features are deterministic, SQL-computable, and interpretable
 - Can't detect accumulation phases without first detecting bars
-- Documented in RESEARCH_ROADMAP.md
+- Documented in PRODUCT_ROADMAP.md (Part 1 — Research Arc)
 
 **VSA chapter closed (Sessions 7-17)**
 Empirical testing across daily next-day, daily 5-10 day, consecutive
