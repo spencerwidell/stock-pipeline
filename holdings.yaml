@@ -32,13 +32,14 @@ positions:
   PLTR: 7
   TSLA: 7
   META: 7
-  AVGO: 15
+  AVGO: 11
   TSM:  5
   RTX: 3
   GOOG: 3
   GLW: 3
   DHR: 3
-  CASH: 8
+  ETN: 3
+  CASH: 9
 
 overrides:
   TSLA: core      # long-term Physical-AI bull — hold through volatility, no stop

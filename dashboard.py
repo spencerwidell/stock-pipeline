@@ -158,6 +158,14 @@ def _log_and_apply(ticker, action, trade_pct, new_weight, recommendation, note="
     logging a trade is all it takes to keep the snapshot current. Returns a
     one-line confirmation for st.success.
     """
+    # Normalize the sign from the action so a TRIM/SELL always reads negative and a
+    # BUY/ADD positive, however the amount was typed ("4", "+4", "-4" all work).
+    _tp = str(trade_pct).replace("%", "").replace("+", "").strip()
+    try:
+        _v = abs(float(_tp))
+        trade_pct = f"{-_v if action in ('TRIM', 'SELL') else _v:+g}"
+    except (ValueError, TypeError):
+        pass
     diary.log_action(ticker, action, trade_pct=trade_pct, new_weight=new_weight,
                      recommendation=recommendation, note=note)
     msg = f"Logged {ticker} {action}"
@@ -395,10 +403,13 @@ with tab_themes:
 
 with tab_sizing:
     st.title("⚖️ Position Sizing")
-    st.caption("Conviction-led target weights — advisory only, never auto-trades. "
-               "Cash is held constant (your dry powder); starters are funded from cash or trims.")
+    st.caption("A read-only view of how your book is allocated — current weight vs your "
+               "per-name max — plus conviction/moat/valuation context. **No actions here:** "
+               "every recommended add/trim/starter lives on the 🧭 Briefing, so there's one "
+               "place to act.")
 
     siz = position_sizing.compute_sizing()
+    _MAXW = position_sizing.MAX_WEIGHT
     c1, c2, c3 = st.columns(3)
     c1.metric("Invested", f"{siz['invested']:.0f}%")
     c2.metric("Cash (dry powder)", f"{siz['cash']:.0f}%")
@@ -406,52 +417,34 @@ with tab_sizing:
               help=f"target {siz['target_min']}–{siz['target_max']}")
     st.divider()
 
-    st.subheader("Rebalance — your holdings")
-    st.caption("Model target vs your current weight → ADD / TRIM / HOLD. "
-               "⭐ = wide moat + reasonable valuation. Conviction is the primary driver.")
+    st.subheader("Your positions — weight vs max")
+    st.caption(f"Each name's current weight against your {_MAXW:.0f}% single-name cap, with "
+               "the room left to it. ⭐ = wide moat + reasonable valuation. Sorted by weight.")
     rb = pd.DataFrame(siz["rebalance"])
     if len(rb):
         rb["⭐"] = rb["fits_profile"].map(lambda b: "⭐" if b else "")
-        rb = rb[["ticker", "current", "target", "delta", "action",
+        rb["max %"]  = _MAXW
+        rb["room %"] = (_MAXW - rb["current"]).round(1)
+        rb = rb.sort_values("current", ascending=False)
+        rb = rb[["ticker", "current", "max %", "room %",
                  "conviction", "moat_rating", "val_label", "⭐"]].rename(
-            columns={"current": "current %", "target": "target %", "delta": "Δ %",
-                     "moat_rating": "moat", "val_label": "val"})
+            columns={"current": "current %", "moat_rating": "moat", "val_label": "val"})
 
-        def _c_action(v):
-            return ("color:#00cc44;font-weight:bold" if v == "ADD"
-                    else "color:#ff4444;font-weight:bold" if v == "TRIM"
-                    else "color:#888")
-
-        def _c_delta(v):
+        def _c_room(v):
             try:
                 v = float(v)
             except (TypeError, ValueError):
                 return ""
-            return ("color:#00cc44" if v >= 1.5
-                    else "color:#ff4444" if v <= -1.5 else "color:#888")
+            return "color:#888" if v <= 0 else "color:#00cc44"
 
         st.dataframe(
-            rb.style.map(_c_action, subset=["action"]).map(_c_delta, subset=["Δ %"]),
+            rb.style.map(_c_room, subset=["room %"]),
             use_container_width=True, hide_index=True)
     else:
         st.info("No holdings found in holdings.yaml.")
 
-    st.divider()
-    st.subheader("Starters — high-conviction gaps you don't own")
-    if siz["starters"]:
-        st.caption("Best-in-class names in themes with zero exposure. Suggested "
-                   "starter size — fund from cash or by trimming overweights above.")
-        for c in siz["starters"]:
-            star = " ⭐" if c["fits_profile"] else ""
-            st.markdown(
-                f"- **{c['ticker']}** — starter **{c['starter']:.1f}%**{star} · "
-                f"{c['theme']} ({c['theme_conviction']}) · conv {c['conviction']}/10 · "
-                f"{c['entry_status']} · {c['val_label'] or 'val n/a'}")
-    else:
-        st.success("No high-conviction theme gaps — you have exposure across the board.")
-
-    st.caption("Sizing is a suggestion to inform decisions, not a mechanical "
-               "rebalance. Not financial advice.")
+    st.caption("Informational only — to act on any of this, use the 🧭 Briefing "
+               "(ranked actions + validations). Not financial advice.")
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
@@ -764,7 +757,8 @@ with tab3:
 |---|---|
 | 🧭 **Briefing** | The plain-English daily read (same as the Telegram briefing): a 🧠 Portfolio Intelligence cockpit (core/speculative, where the next dollar goes, stop watch) plus market context, actionable setups, watch list, portfolio check, portfolio action, bottom line. Generated server-side after the close. |
 | 💬 **Ask** | Ask about any holding, candidate, or your portfolio in plain English — answers reuse the same signal stack (Widell, conviction, tier, moat, valuation, theme, deployment). Signals only: no news feed, so it says when it can't see a catalyst. Each question calls Claude (behind the password). |
-| 🌐 **Themes** | Your secular-trend map: TLT bond-regime banner, theme coverage vs gaps, over-concentration, off-thesis holdings, and the best entry per theme. |
+| 🌐 **Themes** | Your secular-trend map: TLT bond-regime banner, theme coverage vs gaps, over-concentration, off-thesis holdings, and the best entry per theme. The best opportunities to act on within each theme — informational, not directives. |
+| ⚖️ **Sizing** | Read-only view of how the book is allocated: each name's current weight vs your single-name max, with room left, plus conviction/moat/valuation. **No actions here** — every add/trim/starter recommendation lives on the Briefing. |
 | 📊 **Signals** | The full signal stack: High Conviction callout, flips, up-state entry analysis, and the filterable full universe. |
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
