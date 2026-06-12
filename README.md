@@ -12,7 +12,7 @@ long-term investor.**
 
 ## What it does today
 
-Every weekday the system scores a 99-ticker universe and answers one question in
+Every weekday the system scores a 98-ticker universe and answers one question in
 plain English: **"What, if anything, should I do today?"**
 
 - **Daily narrative briefing** — an LLM (Claude) reads the entire signal stack and
@@ -123,7 +123,7 @@ the conviction score — conviction stays a clean buy-zone-quality metric.
 
 stock-pipeline/
 ├── Data pipeline
-│   ├── fetch_stock.py        Polygon.io API to Parquet (99 tickers, 6 years)
+│   ├── fetch_stock.py        Polygon.io API to Parquet (98 tickers, 6 years)
 │   ├── fetch_fundamentals.py Quarterly financials (full balance sheet) → derived ratios + sector-aware F score (0-5) + forward-PE inputs
 │   ├── fetch_earnings.py     Forward earnings dates (yfinance) → 🗓️ flag
 │   ├── vsa_features.py       OHLCV to VSA features + regime + RSI/MACD + channel
@@ -198,7 +198,7 @@ stock-pipeline/
 | Tool | Purpose |
 |---|---|
 | Python 3.11 | Core language |
-| Polygon.io API | Market data (6 years, 99 tickers) + live snapshot prices |
+| Polygon.io API | Market data (6 years, 98 tickers) + live snapshot prices |
 | yfinance | Forward earnings dates |
 | Anthropic Claude API | LLM narrative briefing (Sonnet) + moat scoring (Opus) |
 | Apache Parquet | Columnar storage |
@@ -243,7 +243,7 @@ streamlit run dashboard.py       # interactive dashboard (port 8501)
 
 ## 📊 Universe
 
-99 tickers across full GICS sector coverage plus thematic baskets — built to support
+98 tickers across full GICS sector coverage plus thematic baskets — built to support
 top-down sector rotation and secular-theme analysis, not just single-name signals.
 Includes **TLT** (20yr Treasury — a bond-market regime signal, not a position) and
 **MP** (rare earths). Managed via `manage_universe.py` → `universe.yaml`.

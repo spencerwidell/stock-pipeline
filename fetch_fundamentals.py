@@ -96,15 +96,37 @@ for ticker in TICKERS:
     # Most recent quarter
     latest = df.iloc[0]
 
-    # YoY comparisons — find same quarter last year
-    rev_yoy = None
-    eps_yoy = None
-    if len(df) >= 5:
-        prior = df.iloc[4]
-        if prior["revenue"] and prior["revenue"] != 0:
-            rev_yoy = round((latest["revenue"] - prior["revenue"]) / abs(prior["revenue"]) * 100, 1)
-        if prior["eps_basic"] and prior["eps_basic"] != 0 and latest["eps_basic"]:
-            eps_yoy = round((latest["eps_basic"] - prior["eps_basic"]) / abs(prior["eps_basic"]) * 100, 1)
+    # --- Fiscal-period-matched YoY (Q1 vs Q1, etc.), NOT positional. Positional
+    #     matching breaks across a stock split (post-split EPS vs pre-split EPS) and
+    #     across a missing quarter (Polygon gaps). We match by (period, year-1) and
+    #     measure growth on NET INCOME, which is split-invariant (total $, not
+    #     per-share). This fixes e.g. NVDA's post-10:1-split window. ---
+    by_period = {}
+    for _, q in df.iterrows():
+        try:
+            by_period[(q["fiscal_period"], int(q["fiscal_year"]))] = q
+        except (TypeError, ValueError):
+            pass
+
+    def _yoy(q, col):
+        try:
+            prior = by_period.get((q["fiscal_period"], int(q["fiscal_year"]) - 1))
+        except (TypeError, ValueError):
+            return None
+        if prior is None:
+            return None
+        cur, base = q.get(col), prior.get(col)
+        if (cur is not None and not pd.isna(cur)
+                and base is not None and not pd.isna(base) and base > 0):
+            return (cur - base) / base * 100
+        return None
+
+    _rev = _yoy(latest, "revenue")
+    rev_yoy = round(_rev, 1) if _rev is not None else None
+    # net-income YoY for the 4 most recent quarters (split-invariant growth readings)
+    ni_yoy = [g for g in (_yoy(q, "net_income") for _, q in df.head(4).iterrows())
+              if g is not None]
+    eps_yoy = round(ni_yoy[0], 1) if ni_yoy else None   # most-recent matched YoY (display)
 
     # Margins
     gross_margin = None
@@ -126,31 +148,21 @@ for ticker in TICKERS:
     sh_vals = [s for s in df["shares"].head(4).tolist()
                if s is not None and not pd.isna(s) and s > 0]
     shares = float(pd.Series(sh_vals).median()) if sh_vals else None
-    # TTM-over-TTM EPS growth (more stable than single-quarter YoY) when 8q exist
-    ttm_eps_growth = None
-    prior_ttm_eps = ttm_sum(df["eps_basic"].iloc[4:], 4) if len(df) >= 8 else None
-    if ttm_eps is not None and prior_ttm_eps not in (None, 0) and prior_ttm_eps > 0:
-        ttm_eps_growth = round((ttm_eps - prior_ttm_eps) / prior_ttm_eps * 100, 1)
-    # The rubric grades on the stable TTM figure; fall back to single-quarter YoY.
-    eps_growth = ttm_eps_growth if ttm_eps_growth is not None else eps_yoy
+    # Growth (split-safe): median of the matched net-income YoY readings. Drives the
+    # rubric's eps_growth gate and the trailing PEG, so neither is fooled by a split.
+    ttm_eps_growth = round(median(ni_yoy), 1) if ni_yoy else None
+    eps_growth = ttm_eps_growth
 
-    # --- Forward EPS projection from our OWN historical run-rate (no analyst feed).
-    #     Four YoY readings (each recent quarter vs the same quarter a year prior)
-    #     give a bear/base/bull growth band; base = median (robust to one outlier). ---
-    eps_q = df["eps_basic"].tolist()
-    yoy = []
-    if len(eps_q) >= 8:
-        for i in range(4):
-            base, cur = eps_q[i + 4], eps_q[i]
-            if (base is not None and not pd.isna(base) and base > 0
-                    and cur is not None and not pd.isna(cur)):
-                yoy.append((cur - base) / base * 100)
-    if len(yoy) >= 3:
-        eps_g_bear, eps_g_base, eps_g_bull = (round(min(yoy), 1),
-                                              round(median(yoy), 1), round(max(yoy), 1))
-    elif ttm_eps_growth is not None:                 # fallback: one reading ± a spread
-        eps_g_base = ttm_eps_growth
-        eps_g_bear, eps_g_bull = round(ttm_eps_growth - 15, 1), round(ttm_eps_growth + 15, 1)
+    # --- Forward projection from our OWN run-rate (no analyst feed). The matched
+    #     net-income YoY readings give a bear/base/bull band (base = median, robust
+    #     to one outlier). Net income is split-invariant, so a split year can't
+    #     corrupt the band — and missing quarters just drop a reading, not misalign. ---
+    if len(ni_yoy) >= 2:
+        eps_g_bear, eps_g_base, eps_g_bull = (round(min(ni_yoy), 1),
+                                              round(median(ni_yoy), 1), round(max(ni_yoy), 1))
+    elif len(ni_yoy) == 1:                            # one reading → base ± a spread
+        eps_g_base = round(ni_yoy[0], 1)
+        eps_g_bear, eps_g_bull = round(eps_g_base - 15, 1), round(eps_g_base + 15, 1)
     else:
         eps_g_bear = eps_g_base = eps_g_bull = None
 

@@ -17,7 +17,6 @@ AVGO: {sector: [SMH], broad: QQQ}
 AXON: {sector: [ITA], broad: SPY}
 BE: {sector: [ICLN], broad: SPY}
 BIDU: {sector: [EEM], broad: SPY}
-BKNG: {sector: [XLY], broad: QQQ}
 CAT: {sector: [XLI], broad: SPY}
 CCJ: {sector: [URA], broad: SPY}
 CDNS: {sector: [IGV], broad: QQQ}

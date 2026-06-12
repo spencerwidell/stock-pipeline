@@ -120,6 +120,10 @@ validated stack into plain-English decisions for a concentrated conviction inves
   ask about any holding/candidate/the portfolio in plain English, answered from the
   same signal stack the alerts use (reuses theme_engine / auto_classify / valuation /
   cash_deployment). Signals only (no news feed). API spend behind the password gate.
+- **Data-quality fixes (Session 39)** — removed BKNG (corrupt ~30× price feed, no
+  clean correction); made forward growth split-safe via fiscal-period-matched net
+  income (split-invariant), fixing NVDA's forward PE and hardening trailing PEG /
+  rev-growth for every name across splits + missing quarters.
 
 ## 🚧 In progress
 

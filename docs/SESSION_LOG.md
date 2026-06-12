@@ -11,6 +11,37 @@ For sessions 1-24 see docs/SESSION_ARCHIVE.md
 
 ---
 
+## 📍 Current state & open items (as of Session 39, June 12 2026)
+
+**What the system is now:** you maintain ONE file (`holdings.yaml`); the system derives
+tier (CORE/SPECULATIVE), theme coverage, cash-deployment priorities, 7% stops, and grades
+every business on the metrics that fit it — with a forward-PE band it projects itself.
+Deployed on AWS (password-gated), three Telegram alerts + an eight-tab dashboard.
+
+**Shipped recently (all deployed):**
+- **S36 — Portfolio intelligence:** `holdings_io` / `auto_classify` (CORE vs SPECULATIVE)
+  / `cash_deployment` ("where the next dollar goes" + speculative stops + thesis integrity);
+  🧠 Briefing cockpit, narrative PORTFOLIO ACTION, tier-aware morning checks.
+- **S37 — Sector-aware fundamentals:** `business_model.py` archetype rubrics (banks on
+  ROE/efficiency, energy on cash flow, …) + our own forward-PE band. Fixed AMZN/JPM/XOM
+  on evidence → AMZN core without an override.
+- **S38 — Interactive Q&A:** `qa_engine.py` + 💬 Ask tab, reuses the alert builders,
+  signals-only, behind the password.
+- **S39 — Data-quality:** removed BKNG (corrupt ~30× price feed); made forward growth
+  split-safe via fiscal-period-matched net income (fixes NVDA forward PE).
+
+**Next steps (priority order):**
+1. **Conviction re-weight** — remove the fundamental-lookahead / fix the mid-scale buckets
+   (from the Session 35 conviction backtest findings).
+2. **Narrative-quality review** — after a week of live runs in the new format, tune the
+   system prompt where the read is off.
+3. **Q&A enhancements (optional)** — a news source (web search / news API) and multi-user
+   guest mode with a per-session rate/cost guard.
+4. **Watch:** first close run already created `data/positions_seen.json`; confirm the
+   nightly close keeps it + the narrative healthy.
+
+---
+
 ## Project state (as of Session 13)
 
 **Environment:** WSL Ubuntu 22.04, conda env `stock` (Python 3.11)
@@ -733,6 +764,36 @@ dashboard AppTest clean.
 **Still open:** BKNG bad-price data, NVDA forward-PE (split-adjusted EPS), narrative-
 quality review after a week, conviction mid-scale re-weight / remove fundamental lookahead,
 optional Q&A news source (web search / news API) + multi-user guest mode.
+
+---
+
+## Session 39 — June 12, 2026
+
+**Built:** Two related data-quality fixes — both stock-split / missing-quarter artifacts
+in the Polygon feed.
+
+**BKNG removed from the universe:** its price feed is persistently ~30× too low (stored
+~$160, range $61–$232 over 1,506 bars; real BKNG ≈ $5,000) — a corrupt upstream price
+series, so EVERY signal for it (Widell, conviction, channel) was garbage, not just
+valuation. Non-thesis consumer name in no theme. `manage_universe.py --remove BKNG`
+purged it from universe.yaml + all parquets (98 tickers now). Cleaner than reverse-
+engineering a correction factor we can't trust.
+
+**Forward growth made split-safe (fixes NVDA):** the forward-PE projection compared
+quarters by POSITION (q_i vs q_{i+4}), which breaks across a stock split (post-split EPS
+vs pre-split EPS) and across a missing quarter (Polygon gap). NVDA (10:1 split June 2024,
+plus a missing Q4-FY2025) therefore fell out to N/A. Rewrote `fetch_fundamentals.py` to
+match quarters by FISCAL PERIOD (Q1 vs Q1, year vs year-1) and measure growth on NET
+INCOME, which is split-invariant (total $, not per-share). Now NVDA reads fwd PE 13.0
+(9.8–19.2) from growth band 59–211%; MSFT a tight 19–21; META a wide band honestly
+reflecting one weak quarter. The same fix hardened `ttm_eps_growth` (→ trailing PEG) and
+`rev_growth_yoy` against splits for every name. Re-pulled fundamentals, re-ran conviction.
+
+**Verified:** 20/20 tests, dashboard AppTest clean, NVDA forward-PE confirmed in the
+narrative tag.
+
+**Still open:** narrative-quality review after a week, conviction mid-scale re-weight /
+remove fundamental lookahead, optional Q&A news source + multi-user guest mode.
 
 ---
 
