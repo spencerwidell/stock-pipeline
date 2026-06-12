@@ -12,6 +12,8 @@ import auto_classify    # CORE vs SPECULATIVE, derived fresh from evidence
 import cash_deployment  # "where does my next dollar go" + speculative stops
 import diary            # investor action log (append-only, AWS-authoritative)
 import manage_universe  # add/remove tickers in the scoring universe
+import themes_io        # add/remove a name in the secular-theme map (themes.yaml)
+import onboard          # immediate full backfill (price/signals/fundamentals/moat) for new names
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -723,7 +725,7 @@ with tab3:
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
 | 🔄 **Rotation** | Top-down sector/ETF ranking + constituent laggard scan. |
-| ⚙️ **Manage** | Add/remove companies in the scoring universe (new names backfill at the next close) and keep an investor diary — log the actions you actually took (date, ticker, action, weight, recommendation). Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
+| ⚙️ **Manage** | Add/remove companies in the scoring universe — adding maps the name to your secular theme(s) and immediately backfills everything (price, signals, fundamentals, moat; ~2-3 min) — and keep an investor diary — log the actions you actually took (date, ticker, action, weight, recommendation). Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
 """)
 
     st.divider()
@@ -982,8 +984,16 @@ with tab_manage:
     st.subheader("Scoring universe")
     _uni = manage_universe.universe.load_universe()
     _names = sorted(_uni.keys())
-    st.caption(f"{len(_names)} tickers tracked. A new name backfills 6 years of data + "
-               "signals at the next nightly close; a removal takes effect immediately.")
+    st.caption(f"{len(_names)} tickers tracked. Adding a name maps it to your secular "
+               "theme(s) and immediately backfills everything — 6 years of price, "
+               "signals, fundamentals & moat (~2-3 min in the background). A removal "
+               "takes effect immediately.")
+
+    # Theme options for the selector — id → "Name (conviction)" label, regime excluded.
+    _theme_opts = themes_io.theme_options()
+    _theme_label = {tid: f"{name}  ·  {conv} conviction"
+                    for tid, name, conv in _theme_opts}
+    _theme_ids = [tid for tid, _, _ in _theme_opts]
 
     _ca, _cr = st.columns(2)
     with _ca:
@@ -993,6 +1003,11 @@ with tab_manage:
             _sec = st.multiselect("Sector ETF(s)", SECTOR_ETFS,
                                   help="Buckets it for sector rotation (e.g. XLI).")
             _broad = st.radio("Benchmark", ["SPY", "QQQ"], horizontal=True)
+            _themes = st.multiselect(
+                "Secular theme(s)", _theme_ids,
+                format_func=lambda tid: _theme_label.get(tid, tid),
+                help="Maps the name into your thesis layer (Themes tab + narrative). "
+                     "Leave empty for an off-thesis name.")
             if st.form_submit_button("Add to universe"):
                 _tt = (_t or "").strip().upper()
                 if not _tt:
@@ -1001,7 +1016,24 @@ with tab_manage:
                     st.info(f"{_tt} is already in the universe.")
                 else:
                     manage_universe.cmd_add(_tt, ",".join(_sec), _broad)
-                    st.success(f"Added {_tt}. It'll backfill at the next nightly close.")
+                    _ch = themes_io.add_ticker_to_themes(_tt, _themes)
+                    _tmsg = (f"  Mapped to {len(_ch)} theme(s)." if _ch
+                             else "  No theme assigned (off-thesis).")
+                    # Fire the full backfill NOW (detached) — price, signals,
+                    # fundamentals, moat, conviction — so there are no gaps. The
+                    # lock in onboard.py coalesces rapid successive adds.
+                    import subprocess, sys as _sys
+                    _busy = onboard.is_running()
+                    subprocess.Popen([_sys.executable, "onboard.py"],
+                                     stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     start_new_session=True)
+                    st.cache_data.clear()
+                    _bmsg = ("  A backfill is already running — it'll pick up "
+                             f"{_tt} too." if _busy else
+                             "  🔄 Full backfill started (price, signals, "
+                             "fundamentals, moat) — ~2-3 min; refresh shortly.")
+                    st.success(f"Added {_tt}.{_tmsg}{_bmsg}")
     with _cr:
         st.markdown("**➖ Remove a company**")
         with st.form("remove_ticker", clear_on_submit=True):
@@ -1011,8 +1043,11 @@ with tab_manage:
                     st.warning("Pick a ticker to remove.")
                 else:
                     manage_universe.cmd_remove(_rt)
+                    _tch = themes_io.remove_ticker_from_themes(_rt)
                     _held = _rt in load_holdings()
+                    st.cache_data.clear()
                     st.success(f"Removed {_rt} and purged its data."
+                               + (f"  Unmapped from {len(_tch)} theme(s)." if _tch else "")
                                + (f"  ⚠️ Still in holdings.yaml — edit it if you sold."
                                   if _held else ""))
     st.divider()

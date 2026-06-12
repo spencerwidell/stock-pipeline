@@ -28,7 +28,7 @@ Power_Grid:
   thesis: "AI data centers need 10x more power — the grid must be rebuilt from scratch; nuclear is the only 24/7 clean answer"
   conviction: high
   constraint: "Regulatory timelines and construction cycles are slow; execution risk is high"
-  names: [GEV, CEG, SMR, PWR, VRT, NXE, CCJ, URA, TSLA]
+  names: [GEV, CEG, SMR, PWR, VRT, NXE, CCJ, URA, TSLA, ETN]
   best_in_class: [GEV, CEG]
 
 US_Reindustrialization:
@@ -36,7 +36,7 @@ US_Reindustrialization:
   thesis: "Reshoring, infrastructure spending, and the physical buildout of AI, grid, and defense create a multi-decade capex cycle — CAT going up is the tell"
   conviction: high
   constraint: "Interest rate sensitivity and government spending cycles; exposed to policy reversal risk"
-  names: [CAT, CMI, PWR, GEV, VRT, RTX]
+  names: [CAT, CMI, PWR, GEV, VRT, RTX, ETN, PH, ROK]
   best_in_class: [CAT, CMI]
   notes: "Several names overlap with Power Grid and Defense — intentional. Best industrials benefit from multiple secular trends simultaneously."
 
@@ -62,7 +62,7 @@ Materials_Industrial:
   thesis: "Every secular trend — AI, grid, defense, reshoring — requires physical infrastructure; copper, equipment, and engineering services are the picks and shovels"
   conviction: medium
   constraint: "Commodity price cycles and China demand dependency create volatility"
-  names: [FCX, CAT, CMI, PWR, GLW, PAVE]
+  names: [FCX, CAT, CMI, PWR, GLW, PAVE, ETN, PH, ROK]
   best_in_class: [FCX, CAT]
 
 Digital_Finance:
@@ -86,7 +86,7 @@ Healthcare_Aging:
   thesis: "Demographics are destiny — robotic surgery and precision medicine serve an aging global population with pricing power and switching costs"
   conviction: medium
   constraint: "Regulatory approval timelines and reimbursement risk; slower growth than tech but more defensive"
-  names: [ISRG]
+  names: [ISRG, DHR, TMO]
   best_in_class: [ISRG]
 
 Physical_AI_Robotics:
@@ -94,7 +94,7 @@ Physical_AI_Robotics:
   thesis: "AI is moving from software into the physical world — autonomous vehicles, warehouse robotics, surgical systems, and humanoid robots represent the next frontier of AI value capture"
   conviction: medium
   constraint: "Valuation risk extreme on TSLA; timeline to profitability on robotics uncertain; regulatory risk on autonomy"
-  names: [TSLA, AMZN, ISRG, SERV]
+  names: [TSLA, AMZN, ISRG, SERV, ROK]
   best_in_class: [TSLA, AMZN]
   notes: "TSLA covers FSD + Optimus + Megapack (overlaps Power Grid theme). AMZN covers AWS hyperscaling + warehouse automation + logistics AI. Both are multi-theme names — owning either gives exposure to 3-4 secular trends simultaneously. ISRG is surgical robotics with a wide moat."
 

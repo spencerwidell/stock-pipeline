@@ -29,9 +29,11 @@ CRM: {sector: [IGV], broad: QQQ}
 CRWD: {sector: [IGV], broad: QQQ}
 CRWV: {sector: [IGV], broad: QQQ}
 CVX: {sector: [XLE], broad: SPY}
+DHR: {sector: [XLV], broad: SPY}
 DVN: {sector: [XLE], broad: SPY}
 EEM: {sector: [EEM], broad: SPY}
 ELF: {sector: [XLY], broad: SPY}
+ETN: {sector: [XLI], broad: SPY}
 FANG: {sector: [XLE], broad: SPY}
 FCX: {sector: [XLB], broad: SPY}
 GEV: {sector: [XLI, GRID], broad: SPY}
@@ -68,12 +70,14 @@ ORCL: {sector: [IGV], broad: QQQ}
 PANW: {sector: [IGV], broad: QQQ}
 PAVE: {sector: [PAVE], broad: SPY}
 PG: {sector: [XLP], broad: SPY}
+PH: {sector: [XLI], broad: SPY}
 PLTR: {sector: [IGV], broad: QQQ}
 PWR: {sector: [XLI, PAVE], broad: SPY}
 QBTS: {sector: [ITA], broad: SPY}
 QQQ: {sector: [QQQ], broad: QQQ}
 RGTI: {sector: [ITA], broad: SPY}
 RKLB: {sector: [ITA], broad: SPY}
+ROK: {sector: [XLI], broad: SPY}
 RTX: {sector: [ITA], broad: SPY}
 SERV: {sector: [ITA], broad: SPY}
 SKYY: {sector: [SKYY], broad: QQQ}
@@ -83,6 +87,7 @@ SNOW: {sector: [IGV], broad: QQQ}
 SOFI: {sector: [XLF], broad: SPY}
 SPY: {sector: [SPY], broad: SPY}
 TLT: {sector: [TLT], broad: SPY}
+TMO: {sector: [XLV], broad: SPY}
 TSLA: {sector: [XLY], broad: QQQ}
 TSM: {sector: [SMH], broad: QQQ}
 UEC: {sector: [URA], broad: SPY}

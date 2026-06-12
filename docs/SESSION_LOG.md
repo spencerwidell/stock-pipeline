@@ -914,6 +914,64 @@ mode; optional GitHub auto-backup (token); remove fundamental lookahead fully.
 
 ---
 
+## Session 43 — June 12, 2026
+
+**Context:** Spencer added 5 names (DHR, ETN, PH, ROK, TMO) via the dashboard Manage
+tab and wanted them refreshed NOW, not at the nightly close — which surfaced two
+gaps: the EC2 box's memory fragility, and how much of "adding a name" was still
+manual. Turned into a turn-key onboarding feature.
+
+**🩹 Infra fix — EC2 was one memory spike from OOM.** The box has only **911 MB RAM
+and no swap**; a manual `run_daily.sh` while Streamlit (~500 MB) was up got
+`composite_score.py` **OOM-killed**. Added a **persistent 2 GB swapfile** (`/swapfile`,
+in `/etc/fstab`) — fixes the manual run AND protects the nightly cron. The re-run
+then completed clean; all 5 names backfilled (price/VSA/signals/conviction).
+
+**⚙️ Turn-key universe onboarding (the session's main build):**
+- **Theme selector in Manage → Add** — new `themes_io.py` (comment-preserving
+  line edits to `themes.yaml`, NOT a yaml re-dump, so the hand-written thesis/
+  constraint prose stays byte-identical; Bond_Market regime excluded). The Add form
+  has a "Secular theme(s)" multiselect that writes the name into the chosen themes'
+  `names:` lists; Remove unmaps it. No more hand-editing themes.yaml on the server.
+- **Immediate full backfill — no gaps** — new `onboard.py`: adding a name now fires
+  a **detached background job** that runs the exact nightly code paths
+  (`run_daily.sh` → `fetch_fundamentals.py` → `conviction_score.py` →
+  `moat_score.py`), so a new name is fully scored (price, signals, conviction,
+  F-score, **moat**) in ~2-3 min instead of waiting for the nightly close +
+  quarterly run. An **flock lock + rerun-flag** coalesces rapid successive adds into
+  at most one extra pass (no overlapping full-universe rebuilds racing on the parquet
+  writes). `moat_score.py`'s staleness guard means it only ever scores the NEW name
+  (verified E2E on AWS: "79 in scope; 0 need scoring" — no mass re-score, no cost
+  surprise). Telegram is never triggered (SEND_TELEGRAM unset), so onboarding is
+  silent.
+- This session's 5 names were also fully integrated by hand-running the same
+  scripts: fundamentals (F 2-5), moat (all 4/5, wide-moat switching-costs), and
+  theme assignments (Spencer-approved full mapping — DHR/TMO→Healthcare_Aging;
+  ETN→Power_Grid+US_Reindustrialization+Materials_Industrial;
+  PH→US_Reindustrialization+Materials_Industrial;
+  ROK→US_Reindustrialization+Physical_AI_Robotics+Materials_Industrial).
+
+**Verified:** 20/20 tests; dashboard AppTest clean both locally and on AWS (9 tabs,
+"Secular theme(s)" selector present, no exceptions); themes_io add/remove round-trip
+byte-identical + idempotent; onboard lock/coalesce logic unit-tested; onboard E2E ran
+clean end-to-end on AWS. Local universe.yaml/themes.yaml reconciled to match AWS.
+
+**Known wrinkle (follow-up):** healthcare/life-sciences-tools names under XLV
+(DHR, TMO) get `archetype=software` in `business_model.py` and are mis-scored by the
+software rubric (TMO landed F=2). Ties directly to the open `sector-aware-fundamentals`
+item — these need a life-sciences/healthcare archetype + rubric. Industrials (XLI:
+ROK/ETN/PH) scored correctly.
+
+**Still open / next:** (1) **sector-aware fundamentals** — add a healthcare/
+life-sciences-tools archetype so XLV names aren't graded as software (concrete,
+surfaced today); (2) **GitHub auto-backup** of universe.yaml / themes.yaml / diary —
+now THREE files drift on AWS via the dashboard (themes.yaml joined the list this
+session); needs the one-time PAT/deploy key from Spencer; (3) narrative-quality
+review after a week; (4) optional Q&A news source + guest mode; (5) remove the
+fundamental lookahead fully (needs point-in-time fundamentals).
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
