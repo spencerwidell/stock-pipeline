@@ -637,7 +637,8 @@ the stable TTM figure (was a noisy single quarter) — lifted AMZN 1→2, but co
 AMZN's low score is the software-tuned RUBRIC, not bad data (real blended margins
 48.5%/11.7%, rev 13.6%). AMZN left SPECULATIVE pending the Session 37 fix.
 
-**Verified:** 20/20 tests, both CLIs, dashboard AppTest clean. Not yet deployed to AWS.
+**Verified:** 20/20 tests, both CLIs, dashboard AppTest clean. **Deployed to AWS**
+(commit 8506d09) with Session 37 — see below.
 
 **Next (Session 37) — sector-aware fundamental scoring:** one software-tuned rubric
 mis-scores banks (JPM F=1 — no gross margin; ROE/efficiency), energy (cyclical), and
@@ -691,8 +692,13 @@ classification reads 8 core / 2 speculative (only ELF + SOFI speculative, the ge
 speculative names). Re-ran `conviction_score.py` to propagate F into conviction.
 
 **Verified:** 20/20 tests, dashboard AppTest clean, full-book archetype/score review.
-Not yet deployed to AWS (deploy regenerates fundamentals.parquet server-side; needs the
-new business_model.py — committed).
+
+**Deployed to AWS (commit 8506d09):** git pull (fast-forward, no conflicts) →
+regenerated `fundamentals.parquet` server-side with sector-aware scoring →
+`conviction_score.py` re-run to propagate → streamlit restarted. Production smoke test:
+8 core / 2 speculative, **AMZN CORE on the server**, cash-deployment engine live;
+dashboard HTTP 200 externally. `positions_seen.json` will be created on the first close
+run (record_positions); until then speculative stops anchor at the current price.
 
 **Still open:** interactive Q&A (auth), BKNG bad-price data, narrative-quality tuning,
 forward-PE for names with <8 clean EPS quarters (NVDA post-split — graceful N/A for now).
