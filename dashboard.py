@@ -11,6 +11,7 @@ import position_sizing  # conviction-led target weights (advisory)
 import auto_classify    # CORE vs SPECULATIVE, derived fresh from evidence
 import cash_deployment  # "where does my next dollar go" + speculative stops
 import diary            # investor action log (append-only, AWS-authoritative)
+import holdings_io       # read/write holdings.yaml (logging a trade updates the snapshot)
 import manage_universe  # add/remove tickers in the scoring universe
 import themes_io        # add/remove a name in the secular-theme map (themes.yaml)
 import onboard          # immediate full backfill (price/signals/fundamentals/moat) for new names
@@ -149,6 +150,30 @@ def read_doc(path):
         return None
 
 
+def _log_and_apply(ticker, action, trade_pct, new_weight, recommendation, note=""):
+    """Log a trade to the diary AND keep holdings.yaml in sync.
+
+    new_weight (the resulting position size) is written back to holdings.yaml via
+    holdings_io.apply_trade, which offsets CASH so the book still sums to 100 — so
+    logging a trade is all it takes to keep the snapshot current. Returns a
+    one-line confirmation for st.success.
+    """
+    diary.log_action(ticker, action, trade_pct=trade_pct, new_weight=new_weight,
+                     recommendation=recommendation, note=note)
+    msg = f"Logged {ticker} {action}"
+    nw = str(new_weight).replace("%", "").strip()
+    if nw:
+        try:
+            res = holdings_io.apply_trade(ticker, float(nw))
+            load_holdings.clear()          # the snapshot changed — drop the cache
+            if res:
+                msg += (f" → {res['new']:g}% · holdings updated "
+                        f"(CASH {res['cash_old']:g}→{res['cash_new']:g}%)")
+        except (ValueError, TypeError):
+            pass
+    return msg
+
+
 tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4, tab_manage = st.tabs(
     ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Sizing", "📊 Signals",
      "📋 Fundamentals", "📖 Guide", "🔄 Rotation", "⚙️ Manage"])
@@ -187,19 +212,38 @@ with tab_brief:
             for _i, a in enumerate(_d["actions"]):
                 dol = f" · ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
                 ic = _ICON.get(a.get("type"), "•")
+                _nw = a.get("new_weight")
+                _to = f" → {_nw:g}%" if _nw is not None else ""
                 _txt, _btn = st.columns([6, 1])
                 _txt.markdown(f"{ic} **{a['action']} {a['ticker']}** "
-                              f"+{a['suggested_pct']}%{dol} — {a['detail']}")
+                              f"+{a['suggested_pct']}%{_to}{dol} — {a['detail']}")
                 if _btn.button("✅ Log", key=f"log_brief_{_i}_{a['ticker']}",
-                               help="Log to your investor diary that you acted on this"):
+                               help="Log it to your diary and update holdings.yaml to the new weight"):
                     _da = a.get("type")
                     _dact = "TRIM" if _da in ("TRIM", "REVIEW") else ("ADD" if _da == "ADD" else "BUY")
-                    diary.log_action(a["ticker"], _dact, f"{a['suggested_pct']}%",
-                                     f"{a['action']}: {a['detail']}")
-                    st.success(f"Logged {a['ticker']} to your diary (see ⚙️ Manage).")
+                    _sign = -1 if _dact in ("TRIM", "SELL") else 1
+                    st.success(_log_and_apply(
+                        a["ticker"], _dact, f"{_sign * a['suggested_pct']:+g}", _nw,
+                        f"{a['action']}: {a['detail']}") + " (see ⚙️ Manage).")
         else:
             st.info("💵 " + (_d["hold_cash"]["message"] if _d.get("hold_cash")
                             else "No actions at entry right now — hold and be patient."))
+
+        # 🧪 Validations — fresh, on-thesis quality you added to the universe and may
+        # want to start/validate (wide moat, fair value, below the conv-8 momentum line).
+        # Loggable so a name like DHR isn't stranded just because the engine ranks it soft.
+        if _d.get("validations"):
+            st.markdown("##### 🧪 Validations — fresh on-thesis adds to start")
+            for _vi, v in enumerate(_d["validations"][:6]):
+                dol = f" · ~${v['suggested_dollars']:,}" if v.get("suggested_dollars") else ""
+                _txt, _btn = st.columns([6, 1])
+                _txt.markdown(f"🧪 **{v['action']} {v['ticker']}** "
+                              f"+{v['suggested_pct']}% → {v['new_weight']:g}%{dol} — {v['detail']}")
+                if _btn.button("✅ Log", key=f"log_val_{_vi}_{v['ticker']}",
+                               help="Log a starter and update holdings.yaml to the new weight"):
+                    st.success(_log_and_apply(
+                        v["ticker"], "BUY", f"+{v['suggested_pct']:g}", v["new_weight"],
+                        f"{v['action']}: {v['detail']}") + " (see ⚙️ Manage).")
 
         # 👀 Watchlist — WAIT-timed items + conv 6-7 approaching candidates (context).
         if _d.get("watchlist"):
@@ -725,7 +769,7 @@ with tab3:
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
 | 🔄 **Rotation** | Top-down sector/ETF ranking + constituent laggard scan. |
-| ⚙️ **Manage** | Add/remove companies in the scoring universe — adding maps the name to your secular theme(s) and immediately backfills everything (price, signals, fundamentals, moat; ~2-3 min) — and keep an investor diary — log the actions you actually took (date, ticker, action, weight, recommendation). Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
+| ⚙️ **Manage** | Add/remove companies in the scoring universe — adding maps the name to your secular theme(s) and immediately backfills everything (price, signals, fundamentals, moat; ~2-3 min) — and keep an investor diary — log the actions you actually took (date, ticker, action, trade %, new weight, recommendation). Logging writes the new weight into holdings.yaml automatically. Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
 """)
 
     st.divider()
@@ -1054,25 +1098,36 @@ with tab_manage:
 
     # ---------------- Investor diary ----------------
     st.subheader("📒 Investor diary")
-    st.caption("Log what you actually did and why — the action history. (holdings.yaml "
-               "stays your current-weight snapshot; remember to update it after a trade.)")
+    st.caption("Log what you actually did — the action history. Logging writes the "
+               "**resulting weight** into holdings.yaml automatically (CASH offsets so "
+               "the book stays at 100%), so the snapshot never goes stale. Trade % is "
+               "the amount you transacted; New weight % is the size afterward.")
     try:
         _depl = cash_deployment.deployment()
         _recs = {f"{a['action']} {a['ticker']} (+{a['suggested_pct']}%)": a
-                 for a in _depl.get("actions", [])}
+                 for a in _depl.get("actions", []) + _depl.get("validations", [])}
     except Exception:
         _recs = {}
 
     _pick = st.selectbox("Pre-fill from a recommendation (optional)",
                          ["— Manual entry —"] + list(_recs.keys()), key="diary_pick")
     _pa = _recs.get(_pick)
+    # Prefill: a TRIM/REVIEW transacts a negative amount; everything else positive.
+    _is_trim = bool(_pa) and _pa.get("type") in ("TRIM", "REVIEW")
+    _pre_trade = (f"{'-' if _is_trim else '+'}{_pa['suggested_pct']:g}") if _pa else ""
+    _pre_new   = (f"{_pa['new_weight']:g}") if _pa and _pa.get("new_weight") is not None else ""
     with st.form("diary_log", clear_on_submit=True):
-        _dc1, _dc2, _dc3 = st.columns(3)
+        _dc1, _dc2 = st.columns(2)
         _dt = _dc1.text_input("Ticker", value=(_pa["ticker"] if _pa else ""))
-        _dact = _dc2.selectbox("Action", diary.ACTIONS,
-                               index=(diary.ACTIONS.index("ADD") if _pa and "ADD" in _pa["action"] else 0))
-        _dw = _dc3.text_input("Weight", value=(f"{_pa['suggested_pct']}%" if _pa else ""),
-                              placeholder="e.g. 6%")
+        _dact = _dc2.selectbox(
+            "Action", diary.ACTIONS,
+            index=(diary.ACTIONS.index("TRIM") if _is_trim else
+                   diary.ACTIONS.index("ADD") if _pa and "ADD" in _pa["action"] else 0))
+        _dc3, _dc4 = st.columns(2)
+        _dtrade = _dc3.text_input("Trade % (signed)", value=_pre_trade,
+                                  placeholder="e.g. +6 or -5")
+        _dnew = _dc4.text_input("New weight % (resulting size)", value=_pre_new,
+                                placeholder="e.g. 12", help="Written to holdings.yaml")
         _drec = st.text_input("Recommendation",
                               value=(f"{_pa['action']}: {_pa['detail']}" if _pa else ""))
         _dnote = st.text_input("Note (optional)")
@@ -1080,8 +1135,7 @@ with tab_manage:
             if not (_dt or "").strip():
                 st.warning("Enter a ticker.")
             else:
-                diary.log_action(_dt, _dact, _dw, _drec, _dnote)
-                st.success(f"Logged {_dt.strip().upper()} {_dact} {_dw}.")
+                st.success(_log_and_apply(_dt, _dact, _dtrade, _dnew, _drec, _dnote))
 
     _dd = diary.load_diary()
     if len(_dd):

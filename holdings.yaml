@@ -27,14 +27,18 @@ positions:
   NVDA: 11
   MSFT: 11
   AMZN: 11
-  ELF:  10
-  SOFI: 8
+  ELF:  3
+  SOFI: 3
   PLTR: 7
   TSLA: 7
   META: 7
-  AVGO: 7
+  AVGO: 15
   TSM:  5
-  CASH: 16
+  RTX: 3
+  GOOG: 3
+  GLW: 3
+  DHR: 3
+  CASH: 8
 
 overrides:
   TSLA: core      # long-term Physical-AI bull — hold through volatility, no stop

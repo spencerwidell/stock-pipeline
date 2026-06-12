@@ -226,12 +226,33 @@ def deployment():
     except Exception:
         pass
 
+    # Conviction-led target weights (the Sizing tab's model) are the ONE source of
+    # truth for "how big should this be" — so the Briefing's add-to-core +X% agrees
+    # with the Sizing tab instead of bluntly filling to the 15% cap. Falls back to
+    # the cap-gap if sizing is unavailable.
+    try:
+        import position_sizing
+        _targets = {r["ticker"]: r["target"]
+                    for r in position_sizing.compute_sizing().get("rebalance", [])}
+    except Exception:
+        _targets = {}
+
     _TCONV_BONUS = {"high": 2, "medium": 1, "low": 0}
     items = []
 
-    def _add(tk, typ, action, pct, detail, ns, is_buy=True, best_in=False, theme_conv=None):
+    def _add(tk, typ, action, pct, detail, ns, is_buy=True, best_in=False, theme_conv=None,
+             held=None, new_weight=None):
         """Build one ranked, timed action item. Fresh buys WAIT near a macro print or
-        when the name is extended; trims/reviews are never macro-gated."""
+        when the name is extended; trims/reviews are never macro-gated.
+
+        held / new_weight carry the current and RESULTING position size so the
+        dashboard's Log button can write the trade back to holdings.yaml. Defaults:
+        a buy goes from 0 to pct; anything else is computed at the call site.
+        """
+        if held is None:
+            held = 0.0 if is_buy else _weight(holdings.get(tk))
+        if new_weight is None:
+            new_weight = round(held + pct, 1) if is_buy else round(held - pct, 1)
         entry = ns.get("entry_status")
         if is_buy and macro_wait:
             timing, wr = "WAIT", f"hold fresh buys near {macro_label}"
@@ -250,6 +271,7 @@ def deployment():
         items.append({
             "ticker": tk, "type": typ, "action": action,
             "suggested_pct": pct, "suggested_dollars": _dollars(pct, total),
+            "held_pct": round(held, 1), "new_weight": round(new_weight, 1),
             "detail": detail, "price": ns.get("close"),
             "conviction": ns.get("conviction_score"), "channel_zone": ns.get("channel_zone"),
             "entry_status": entry, "tier": (cls_by.get(tk) or {}).get("tier"),
@@ -265,13 +287,19 @@ def deployment():
         weak = ns.get("wl_state") in WEAK_STATES and ns.get("channel_zone") in WEAK_ZONES
         at_entry = ns.get("entry_status") in GOOD_ENTRY
         if conv is not None and conv >= CORE_WEAK_CONV and (weak or at_entry):
-            w = _weight(holdings.get(tk)); gap = round(MAX_WEIGHT - w, 1)
-            pct = gap if gap >= 0.5 else 1.5
+            w = _weight(holdings.get(tk))
+            # Size to the conviction-led target (Sizing tab), capped at MAX_WEIGHT;
+            # only surface if there's real room to add (already at/above target → skip).
+            tgt = min(_targets.get(tk, MAX_WEIGHT), MAX_WEIGHT)
+            pct = round(tgt - w, 1)
+            if pct < 0.5:
+                continue
             _add(tk, "ADD", "ADD TO CORE", pct,
                  f"core {'weakness' if weak else 'at entry'} — {ns.get('wl_state')}, "
                  f"{ns.get('channel_zone')} channel, conv {conv}/10. Held {w:.0f}%, "
-                 f"toward {min(MAX_WEIGHT, w + pct):.0f}%", ns,
-                 theme_conv=tidx.get(tk, {}).get("max_conv"))
+                 f"toward target {tgt:.0f}%", ns,
+                 theme_conv=tidx.get(tk, {}).get("max_conv"),
+                 held=w, new_weight=round(w + pct, 1))
 
     # 2) NEW SETUP — a not-held on-thesis name at conv≥8 (best-in-class breadth across
     #    secular themes IS the thesis, not dilution) + zero-exposure gap starters
@@ -339,11 +367,47 @@ def deployment():
                  theme_conv=tidx.get(tk, {}).get("max_conv"))
             seen.add(tk)
 
+    # 5) VALIDATIONS — fresh, on-thesis quality you DELIBERATELY added to the universe
+    #    but don't yet hold: in a theme, fits_profile (wide moat + fair/cheap val), and
+    #    not already a conv≥8 NEW action. These are the "I believe in this, start/validate
+    #    a position" names (e.g. healthcare compounders that score below the momentum
+    #    line) — surfaced loggable so the briefing's fresh adds aren't stranded.
+    val_seen = {i["ticker"] for i in items}
+    validations = []
+    for tk in tidx:
+        if tk in held or tk in SECTOR_ETFS or tk in val_seen:
+            continue
+        ns = theme_engine._name_status(tk, sig, holdings)
+        if not ns or ns.get("no_data") or not ns.get("fits_profile"):
+            continue
+        conv = ns.get("conviction_score")
+        if conv is not None and conv >= NEW_SETUP_CONV:   # already a NEW action
+            continue
+        if ns.get("wl_state") == "down":                  # not a falling knife
+            continue
+        cpos = ns.get("channel_pos")
+        if cpos is not None and cpos >= NOT_EXTENDED:      # not chasing an extended name
+            continue
+        ti = tidx.get(tk, {}); theme = (ti.get("themes") or ["off-thesis"])[0]
+        validations.append({
+            "ticker": tk, "type": "VALIDATE", "action": f"VALIDATE ({theme})",
+            "suggested_pct": STARTER_PCT, "suggested_dollars": _dollars(STARTER_PCT, total),
+            "held_pct": 0.0, "new_weight": STARTER_PCT,
+            "conviction": conv, "channel_zone": ns.get("channel_zone"),
+            "entry_status": ns.get("entry_status"), "price": ns.get("close"),
+            "priority": (conv or 0) + _TCONV_BONUS.get(ti.get("max_conv"), 0) + 1,
+            "detail": f"fresh add — wide moat {ns.get('moat_rating')}/5, "
+                      f"{ns.get('val_label') or 'val n/a'}, conv {conv}/10, "
+                      f"{ns.get('entry_status')} ({theme})",
+        })
+    validations.sort(key=lambda v: -v["priority"])
+
     actions    = sorted([i for i in items if i["timing"] == "NOW"], key=lambda i: -i["priority"])
     wait_items = sorted([i for i in items if i["timing"] == "WAIT"], key=lambda i: -i["priority"])
 
     # Watchlist = WAIT-timed actions + conv 6-7 not-held "approaching" candidates.
-    watch_seen = {i["ticker"] for i in items}
+    # (Validations are surfaced in their own loggable bucket, so keep them out here.)
+    watch_seen = {i["ticker"] for i in items} | {v["ticker"] for v in validations}
     approaching = []
     for tk in tidx:
         if tk in held or tk in SECTOR_ETFS or tk in watch_seen:
@@ -387,6 +451,7 @@ def deployment():
         "macro_wait": macro_wait,
         "macro_label": macro_label,
         "actions": actions,
+        "validations": validations,
         "watchlist": watchlist,
         "hold_cash": hold_cash,
         "stops": stops,

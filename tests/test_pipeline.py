@@ -163,3 +163,115 @@ def test_ticker_preserved(ohlcv, vsa):
     vsa_tickers   = set(vsa["ticker"].unique())
     assert ohlcv_tickers == vsa_tickers, \
         f"Ticker mismatch: {ohlcv_tickers - vsa_tickers}"
+
+
+# -----------------------------------------------------------------------
+# holdings_io.apply_trade — logging a trade keeps the snapshot in sync (Session 45)
+# -----------------------------------------------------------------------
+
+_SAMPLE_HOLDINGS = """\
+# A comment that must survive a write.
+portfolio:
+  total_value: 1000000
+positions:
+  NVDA: 11
+  MSFT: 11
+  AMZN: 11
+  ELF:  10
+  SOFI: 8
+  PLTR: 7
+  TSLA: 7
+  META: 7
+  AVGO: 7
+  TSM:  5
+  CASH: 16
+overrides:
+  TSLA: core
+"""
+
+
+@pytest.fixture
+def holdings_file(tmp_path):
+    p = tmp_path / "holdings.yaml"
+    p.write_text(_SAMPLE_HOLDINGS)
+    return str(p)
+
+
+def _sum_book(path):
+    import holdings_io
+    pos = holdings_io.load_positions(path, include_cash=True)
+    return round(sum(float(v) for v in pos.values()), 1)
+
+
+def test_apply_trade_add_offsets_cash(holdings_file):
+    import holdings_io
+    res = holdings_io.apply_trade("AVGO", 15, holdings_file)
+    assert (res["old"], res["new"]) == (7.0, 15.0)
+    assert res["cash_old"] == 16.0 and res["cash_new"] == 8.0   # +8 add → cash -8
+    assert _sum_book(holdings_file) == 100.0
+
+
+def test_apply_trade_trim_returns_cash(holdings_file):
+    import holdings_io
+    res = holdings_io.apply_trade("ELF", 3, holdings_file)
+    assert res["cash_new"] == 23.0                              # -7 trim → cash +7
+    assert _sum_book(holdings_file) == 100.0
+
+
+def test_apply_trade_inserts_new_holding(holdings_file):
+    import holdings_io
+    holdings_io.apply_trade("RTX", 3, holdings_file)
+    pos = holdings_io.load_positions(holdings_file, include_cash=True)
+    assert pos.get("RTX") == "3" and float(pos["CASH"]) == 13.0
+    assert _sum_book(holdings_file) == 100.0
+
+
+def test_apply_trade_full_exit_removes_line(holdings_file):
+    import holdings_io
+    holdings_io.apply_trade("ELF", 0, holdings_file)
+    pos = holdings_io.load_positions(holdings_file, include_cash=True)
+    assert "ELF" not in pos and float(pos["CASH"]) == 26.0
+    assert _sum_book(holdings_file) == 100.0
+
+
+def test_apply_trade_preserves_comments_and_overrides(holdings_file):
+    import holdings_io
+    holdings_io.apply_trade("AVGO", 15, holdings_file)
+    text = open(holdings_file).read()
+    assert "# A comment that must survive a write." in text
+    assert holdings_io.load_overrides(holdings_file) == {"TSLA": "core"}
+
+
+# -----------------------------------------------------------------------
+# diary — two-field schema + legacy migration (Session 45)
+# -----------------------------------------------------------------------
+
+def test_diary_logs_trade_and_new_weight(tmp_path):
+    import diary
+    p = str(tmp_path / "d.csv")
+    diary.log_action("GOOG", "BUY", trade_pct="+3", new_weight="3",
+                     recommendation="NEW SETUP", path=p)
+    df = diary.load_diary(p)
+    row = df.iloc[0]
+    assert row["trade_pct"] == "+3" and row["new_weight"] == "3"
+    assert list(df.columns) == diary.FIELDS
+
+
+def test_diary_migrates_legacy_schema(tmp_path):
+    import csv, diary
+    p = str(tmp_path / "legacy.csv")
+    with open(p, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=diary._LEGACY_FIELDS)
+        w.writeheader()
+        w.writerow({"date": "2026-06-12", "ticker": "SOFI", "action": "TRIM",
+                    "weight": "3%", "recommendation": "trim", "note": ""})
+        w.writerow({"date": "2026-06-12", "ticker": "AVGO", "action": "ADD",
+                    "weight": "8%", "recommendation": "add", "note": ""})
+    # A new write triggers migration: ADD's weight was a delta, TRIM's a target.
+    diary.log_action("GLW", "BUY", trade_pct="+3", new_weight="3", path=p)
+    df = diary.load_diary(p)
+    assert list(df.columns) == diary.FIELDS
+    sofi = df[df.ticker == "SOFI"].iloc[0]
+    avgo = df[df.ticker == "AVGO"].iloc[0]
+    assert sofi["new_weight"] == "3%" and sofi["trade_pct"] == ""
+    assert avgo["trade_pct"] == "8%" and avgo["new_weight"] == ""
