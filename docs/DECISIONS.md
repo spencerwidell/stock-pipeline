@@ -354,6 +354,23 @@ linear dial — the mid-scale is coarse context, and ≥8 is correctly sparse in
 `cash_deployment.CORE_WEAK_CONV` lowered 6 → 5 to match the new scale (a down-state core
 pullback now tops out ~5–6). See `docs/CONVICTION_BACKTEST.md`.
 
+**Universe manager + investor diary; AWS-authoritative state (Session 41)**
+Two simple, high-leverage features Spencer asked for: a no-terminal way to add/remove
+companies (⚙️ Manage tab over the existing `manage_universe.cmd_add/cmd_remove`) and a
+lightweight investor diary (`diary.py` — append-only `investor_diary.csv`, fixed schema
+date/ticker/action/weight/recommendation/note, with ✅ Log buttons on the Briefing
+actions). The diary is the ACTION HISTORY; holdings.yaml stays the current-weight
+SNAPSHOT (the standing one-file-you-maintain rule is unchanged). Both features spend no
+Claude API and sit behind the password gate, so the no-public-API-controls rule holds.
+
+**State-sync decision:** AWS cannot push to GitHub (HTTPS remote, no stored token), so
+the planned nightly cron commit+push isn't available without a one-time PAT/deploy key.
+Adopted the pragmatic model instead: the **diary is gitignored and AWS-authoritative**
+(persistent EC2 instance is the source of truth; a Download button is the backup), and
+**universe.yaml edits made on the dashboard are reconciled with git at deploy time**
+(infrequent, handled manually). Full GitHub auto-backup of these two files is an optional
+follow-up gated only on Spencer creating a repo token.
+
 ---
 
 *Add new decisions here as the project evolves.*

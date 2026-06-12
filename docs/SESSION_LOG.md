@@ -11,7 +11,7 @@ For sessions 1-24 see docs/SESSION_ARCHIVE.md
 
 ---
 
-## 📍 Current state & open items (as of Session 40, June 12 2026)
+## 📍 Current state & open items (as of Session 41, June 12 2026)
 
 **What the system is now:** you maintain ONE file (`holdings.yaml`); the system derives
 tier (CORE/SPECULATIVE), theme coverage, cash-deployment priorities, 7% stops, and grades
@@ -32,22 +32,18 @@ Deployed on AWS (password-gated), three Telegram alerts + an eight-tab dashboard
 - **S40 — Conviction re-weight:** backtest-driven — Widell state now the top driver
   (≥8 requires up-momentum), breakdowns no longer rewarded, fundamental weight 3→2.
   Better Spearman, monotonic win rate, ≥8 +13.7% in the 2022 bear.
+- **S41 — Manage tab:** dashboard universe add/remove (over `manage_universe`) + a
+  lightweight investor diary (`diary.py`, gitignored, ✅ Log buttons on Briefing).
 
 **Next steps (priority order):**
-1. **Universe add/remove UI** *(Spencer-requested)* — a no-terminal way to add/remove
-   companies in the scoring universe (CLI `manage_universe.py` exists; wants a
-   password-gated dashboard "Manage" tab). New tickers backfill at the next close.
-2. **Investor diary / action log** *(Spencer-requested)* — lightweight, fixed-schema
-   (date, ticker, action, weight%, recommendation, note); a "✅ I acted on this" checkbox
-   next to a recommendation that auto-logs it. Keep simple; complements holdings.yaml (the
-   diary is action history, holdings stays the snapshot). See memory
-   `universe-ui-and-investor-diary` — both share one decision: how AWS dashboard writes to
-   git-tracked files (universe.yaml + diary) sync back to GitHub (recommend a nightly cron
-   commit+push).
-3. **Narrative-quality review** — after a week of live runs in the new format.
-4. **Q&A enhancements (optional)** — a news source + multi-user guest mode with a rate guard.
-5. **Remove the fundamental lookahead fully** — needs point-in-time fundamentals history.
-6. **Watch:** confirm the nightly close keeps `positions_seen.json` + the narrative healthy.
+1. **Narrative-quality review** — after a week of live runs in the new format.
+2. **Q&A enhancements (optional)** — a news source + multi-user guest mode with a rate guard.
+3. **GitHub auto-backup of universe.yaml + diary (optional)** — needs a one-time
+   GitHub token/deploy key on AWS so a nightly cron can commit+push them (AWS can't push
+   today). Until then the diary is AWS-local + Download button, and universe.yaml is
+   reconciled with git at deploy time.
+4. **Remove the fundamental lookahead fully** — needs point-in-time fundamentals history.
+5. **Watch:** confirm the nightly close keeps `positions_seen.json` + the narrative healthy.
 
 ---
 
@@ -841,6 +837,41 @@ unchanged (8 core / 2 spec). Re-ran conviction; backtest doc rewritten with new 
 
 **Still open:** narrative-quality review after a week, optional Q&A news source +
 multi-user guest mode, remove fundamental lookahead fully (needs point-in-time fundamentals).
+
+---
+
+## Session 41 — June 12, 2026
+
+**Built:** Two Spencer-requested "keep-it-simple" features — a dashboard universe
+manager and a lightweight investor diary.
+
+**⚙️ Manage tab (dashboard):**
+- **Universe** — Add (ticker + sector-ETF multiselect + SPY/QQQ) and Remove (dropdown)
+  forms that call the existing `manage_universe.cmd_add/cmd_remove` (no forked logic).
+  A new name backfills 6 years of data + signals at the next nightly close; a removal
+  purges its parquet rows immediately. Round-trip verified byte-identical.
+- **Investor diary** — `diary.py`: append-only `investor_diary.csv`, fixed schema
+  (date, ticker, action, weight, recommendation, note). The Manage tab has a log form
+  that **pre-fills from today's cash-deployment recommendations** (pick one → ticker +
+  recommendation filled, you add the weight), a recent-entries table, and a Download
+  button. The Briefing tab's next-dollar actions each get a **✅ Log** button that
+  records "I acted on this" with the recommendation + today's date. The diary is the
+  ACTION HISTORY; holdings.yaml stays the current-weight SNAPSHOT.
+
+**State-sync reality (important):** AWS can't push to GitHub (HTTPS remote, no token),
+so the planned "nightly cron commit+push" isn't available without a one-time PAT/deploy
+key from Spencer. Pragmatic model adopted instead: the **diary is gitignored and
+AWS-authoritative** (lives on the persistent instance; Download button for backup), and
+**universe.yaml edits are reconciled with git at deploy time** (infrequent; handled
+manually). Full GitHub auto-backup of these files stays an optional follow-up (needs the
+token). No Claude-API spend in either feature, and both sit behind the password gate.
+
+**Verified:** 20/20 tests, dashboard AppTest clean (9 tabs), diary log/load + universe
+add/remove round-trip tested, `investor_diary.csv` confirmed gitignored.
+
+**Still open:** narrative-quality review after a week; optional Q&A news source +
+guest mode; optional GitHub auto-backup of universe/diary (one-time token); remove the
+fundamental lookahead fully (needs point-in-time fundamentals).
 
 ---
 

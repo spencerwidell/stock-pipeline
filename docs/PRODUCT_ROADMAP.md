@@ -129,14 +129,12 @@ validated stack into plain-English decisions for a concentrated conviction inves
 
 - *(open — pick the next build)*
 
-## 🔜 Upcoming
+- **Universe manager + investor diary (Session 41)** — ⚙️ Manage tab: add/remove
+  companies in the scoring universe (over `manage_universe.py`; new names backfill at
+  the next close) and a lightweight investor diary (`diary.py`, fixed schema, ✅ Log
+  buttons on Briefing). Diary is gitignored + AWS-authoritative with a Download button.
 
-- **Universe add/remove UI** — a no-terminal way to add/remove companies in the
-  scoring universe (password-gated dashboard "Manage" tab over the existing
-  `manage_universe.py`); new tickers backfill at the next close.
-- **Investor diary / action log** — lightweight, fixed-schema (date, ticker, action,
-  weight%, recommendation, note); a "✅ I acted on this" checkbox that auto-logs a
-  recommendation. Complements holdings.yaml (action history vs current snapshot).
+## 🔜 Upcoming
 - **Multi-user auth / guest mode** — read-only access without holdings visibility,
   for when interactive Q&A ships (the current single password is sufficient until then)
 - **Security hardening (remaining)** — spend-capped API key, HTTPS/TLS, and an

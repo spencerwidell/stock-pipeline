@@ -6,3 +6,5 @@ data/
 logs/
 mlflow.db
 mlruns/
+# personal investor action log — AWS-authoritative (see diary.py)
+investor_diary.csv

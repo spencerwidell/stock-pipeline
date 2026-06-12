@@ -10,6 +10,8 @@ import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
 import position_sizing  # conviction-led target weights (advisory)
 import auto_classify    # CORE vs SPECULATIVE, derived fresh from evidence
 import cash_deployment  # "where does my next dollar go" + speculative stops
+import diary            # investor action log (append-only, AWS-authoritative)
+import manage_universe  # add/remove tickers in the scoring universe
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -144,9 +146,9 @@ def read_doc(path):
         return None
 
 
-tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4 = st.tabs(
+tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4, tab_manage = st.tabs(
     ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Sizing", "📊 Signals",
-     "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
+     "📋 Fundamentals", "📖 Guide", "🔄 Rotation", "⚙️ Manage"])
 
 with tab_brief:
     st.title("🧭 Daily Briefing")
@@ -170,11 +172,17 @@ with tab_brief:
         # Row 2 — immediate actions (priority-ordered, max 3)
         if _d["actions"]:
             st.markdown("**Where your next dollar goes:**")
-            for a in _d["actions"][:3]:
+            for _i, a in enumerate(_d["actions"][:3]):
                 dol = f" · ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
                 tier = "🔵" if a["tier"] == "CORE" else "🟠"
-                st.markdown(f"- {tier} **{a['action']} {a['ticker']}** "
-                            f"+{a['suggested_pct']}%{dol} — {a['detail']}")
+                _txt, _btn = st.columns([6, 1])
+                _txt.markdown(f"{tier} **{a['action']} {a['ticker']}** "
+                              f"+{a['suggested_pct']}%{dol} — {a['detail']}")
+                if _btn.button("✅ Log", key=f"log_brief_{_i}_{a['ticker']}",
+                               help="Log to your investor diary that you acted on this"):
+                    diary.log_action(a["ticker"], "ADD" if "ADD" in a["action"] else "BUY",
+                                     f"{a['suggested_pct']}%", f"{a['action']}: {a['detail']}")
+                    st.success(f"Logged {a['ticker']} to your diary (see ⚙️ Manage).")
         elif _d["hold_cash"]:
             st.info("💵 " + _d["hold_cash"]["message"])
             for t in _d["hold_cash"]["triggers"][:3]:
@@ -698,6 +706,7 @@ with tab3:
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
 | 🔄 **Rotation** | Top-down sector/ETF ranking + constituent laggard scan. |
+| ⚙️ **Manage** | Add/remove companies in the scoring universe (new names backfill at the next close) and keep an investor diary — log the actions you actually took (date, ticker, action, weight, recommendation). Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
 """)
 
     st.divider()
@@ -946,3 +955,86 @@ with tab4:
                    "**LAGGING** = stock state weaker than its up sector · **BOTH** = both")
     else:
         st.info("No qualifying constituents today.")
+
+with tab_manage:
+    st.title("⚙️ Manage")
+    st.caption("Adjust the scoring universe and keep an investor diary of the actions "
+               "you actually took. Changes are saved on the server.")
+
+    # ---------------- Scoring universe ----------------
+    st.subheader("Scoring universe")
+    _uni = manage_universe.universe.load_universe()
+    _names = sorted(_uni.keys())
+    st.caption(f"{len(_names)} tickers tracked. A new name backfills 6 years of data + "
+               "signals at the next nightly close; a removal takes effect immediately.")
+
+    _ca, _cr = st.columns(2)
+    with _ca:
+        st.markdown("**➕ Add a company**")
+        with st.form("add_ticker", clear_on_submit=True):
+            _t = st.text_input("Ticker", placeholder="e.g. GEV")
+            _sec = st.multiselect("Sector ETF(s)", SECTOR_ETFS,
+                                  help="Buckets it for sector rotation (e.g. XLI).")
+            _broad = st.radio("Benchmark", ["SPY", "QQQ"], horizontal=True)
+            if st.form_submit_button("Add to universe"):
+                _tt = (_t or "").strip().upper()
+                if not _tt:
+                    st.warning("Enter a ticker.")
+                elif _tt in _uni:
+                    st.info(f"{_tt} is already in the universe.")
+                else:
+                    manage_universe.cmd_add(_tt, ",".join(_sec), _broad)
+                    st.success(f"Added {_tt}. It'll backfill at the next nightly close.")
+    with _cr:
+        st.markdown("**➖ Remove a company**")
+        with st.form("remove_ticker", clear_on_submit=True):
+            _rt = st.selectbox("Ticker", ["— pick one —"] + _names)
+            if st.form_submit_button("Remove from universe"):
+                if _rt.startswith("—"):
+                    st.warning("Pick a ticker to remove.")
+                else:
+                    manage_universe.cmd_remove(_rt)
+                    _held = _rt in load_holdings()
+                    st.success(f"Removed {_rt} and purged its data."
+                               + (f"  ⚠️ Still in holdings.yaml — edit it if you sold."
+                                  if _held else ""))
+    st.divider()
+
+    # ---------------- Investor diary ----------------
+    st.subheader("📒 Investor diary")
+    st.caption("Log what you actually did and why — the action history. (holdings.yaml "
+               "stays your current-weight snapshot; remember to update it after a trade.)")
+    try:
+        _depl = cash_deployment.deployment()
+        _recs = {f"{a['action']} {a['ticker']} (+{a['suggested_pct']}%)": a
+                 for a in _depl.get("actions", [])}
+    except Exception:
+        _recs = {}
+
+    _pick = st.selectbox("Pre-fill from a recommendation (optional)",
+                         ["— Manual entry —"] + list(_recs.keys()), key="diary_pick")
+    _pa = _recs.get(_pick)
+    with st.form("diary_log", clear_on_submit=True):
+        _dc1, _dc2, _dc3 = st.columns(3)
+        _dt = _dc1.text_input("Ticker", value=(_pa["ticker"] if _pa else ""))
+        _dact = _dc2.selectbox("Action", diary.ACTIONS,
+                               index=(diary.ACTIONS.index("ADD") if _pa and "ADD" in _pa["action"] else 0))
+        _dw = _dc3.text_input("Weight", value=(f"{_pa['suggested_pct']}%" if _pa else ""),
+                              placeholder="e.g. 6%")
+        _drec = st.text_input("Recommendation",
+                              value=(f"{_pa['action']}: {_pa['detail']}" if _pa else ""))
+        _dnote = st.text_input("Note (optional)")
+        if st.form_submit_button("📝 Log it"):
+            if not (_dt or "").strip():
+                st.warning("Enter a ticker.")
+            else:
+                diary.log_action(_dt, _dact, _dw, _drec, _dnote)
+                st.success(f"Logged {_dt.strip().upper()} {_dact} {_dw}.")
+
+    _dd = diary.load_diary()
+    if len(_dd):
+        st.dataframe(_dd.iloc[::-1], use_container_width=True, height=300, hide_index=True)
+        st.download_button("⬇️ Download diary CSV", _dd.to_csv(index=False),
+                           file_name="investor_diary.csv", mime="text/csv")
+    else:
+        st.info("No entries yet. Log an action above, or use the ✅ Log buttons on the Briefing tab.")
