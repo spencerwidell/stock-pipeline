@@ -1063,6 +1063,51 @@ task — expect more small UI/logic tweaks like this one.
 
 ---
 
+## Session 46 — June 12, 2026
+
+**Context:** Second observation-and-feedback tweak (same-day). Spencer used the live
+build — confirmed the streamlined log works and he's now catching **mid-day**
+Briefing recommendations (he logged a trim AVGO 15→11 and a starter ETN 3% via the
+dashboard, both of which auto-synced to holdings.yaml — the Manage→holdings loop
+verified end-to-end in production). His feedback: **consolidate ALL recommendations
+on the Briefing; the Sizing tab should not advise.**
+
+**The bug he hit:** the Sizing tab's rebalance table compared each holding to a
+conviction-NORMALIZED target (targets sum to invested%). After he deployed cash, his
+big CORE names sat above their normalized share, so every one showed "→ TRIM" —
+including cheap, high-conviction NVDA. Noise, and mixed messaging vs the Briefing.
+
+**Fix — Sizing tab is now read-only/informational:**
+- Rebalance table → "Your positions — weight vs max": ticker, current %, max %
+  (the 15% single-name cap), **room %** (cap − current), conviction, moat, val, ⭐.
+  Dropped the target / Δ / ADD-TRIM-HOLD columns. Sorted by weight.
+- **Removed the "Starters" section entirely** — starter recommendations belong on the
+  Briefing (NEW SETUP / 🧪 Validations). Captions now point to the Briefing to act.
+- The Briefing was never the source of the spurious trims (its TRIM/REVIEW step is
+  technical/extended-only via `positions.assess_position` — verified: zero core trims
+  on the reconciled book; one legit ELF technical trim). `position_sizing` still
+  computes targets for the Briefing's add-to-core sizing; only the Sizing *UI* stops
+  advising. Net: one place to act, and Themes/Sizing are pure opportunity/context
+  surfaces (Spencer explicitly likes Themes for exactly this reason).
+
+**Also:** `_log_and_apply` now auto-signs `trade_pct` from the action (TRIM/SELL
+negative, BUY/ADD positive) so a trim typed "4" logs "-4". Guide gained a Sizing row
+("no actions here") and a note that Themes lists opportunities, not directives.
+
+**Reconciled + deployed:** holdings.yaml brought to the live book (AVGO 11, +ETN 3,
+CASH 9) — git is the record (AWS dashboard-write was byte-identical to the pushed
+commit, so the sync clobbered nothing). Pushed, pulled on AWS, `systemctl restart
+streamlit`, HTTP 200.
+
+**Verified:** 27/27 tests; dashboard AppTest clean locally AND on AWS (0 exceptions);
+Briefing core-trim check = none spurious; holdings intact post-deploy.
+
+**Still open / next:** unchanged — (1) **GitHub auto-backup** of the 4 drifting files
+(the one-time PAT is the gating item, getting more valuable each tweak); (2) narrative
+review after a week; (3) Q&A news/guest mode; (4) remove fundamental lookahead.
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
