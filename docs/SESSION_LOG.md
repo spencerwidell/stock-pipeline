@@ -1005,6 +1005,64 @@ new archetype surfaces (e.g. REITs/utilities) — none in the universe today.
 
 ---
 
+## Session 45 — June 12, 2026
+
+**Context:** First of the "observation & feedback" tweaks (Spencer flagged this as an
+ongoing task — he'll surface UI issues as he sees them, not batched). He'd executed
+real trades off the dashboard (trim SOFI/ELF to 3%, add AVGO to 15%, start
+RTX/GOOG/GLW/DHR at 3%) and the log couldn't keep the allocations straight. Four
+distinct bugs surfaced; all fixed.
+
+**1. The log was ambiguous → records both halves of a trade.** The diary's single
+free-text `weight` mixed conventions: the ✅ Log button wrote `suggested_pct` (a
+DELTA — the add/trim amount), while hand entries were the new SIZE (a target). So
+"AVGO 8%" (add amount, now at 15) and "SOFI 3%" (resulting size) couldn't be told
+apart. Split into **`trade_pct`** (signed amount transacted) + **`new_weight`**
+(resulting size); both captured every log. `diary.load_diary` is back-compatible and
+migrates the legacy schema on first write (ADD's old weight → trade_pct, else →
+new_weight).
+
+**2. holdings.yaml went stale after every trade → logging now auto-syncs it.** New
+**`holdings_io.apply_trade`** writes `new_weight` back into the positions block and
+offsets CASH so the book still sums to 100 — comment/alignment-preserving LINE edits
+(same discipline as `themes_io`), never a yaml re-dump. Both the Briefing Log buttons
+and the manual diary form call it, so the snapshot Spencer hand-maintained now stays
+current on its own (his stated long-term preference). This makes holdings.yaml a 4th
+file that drifts on AWS via the dashboard — joins the GitHub-auto-backup follow-up.
+
+**3. Two sizers disagreed (AVGO +8 vs +4.2) → one model.** Briefing "add to core"
+filled to the 15% hard cap; the Sizing tab used `position_sizing`'s conviction-led
+target. `cash_deployment` now sizes add-to-core off that same target (skips when
+already at/above it), so Briefing and Sizing agree by construction. Each action item
+carries `held_pct` + `new_weight` for the log/holdings write.
+
+**4. Fresh adds were stranded → a loggable Validations bucket.** Names the narrative
+raised but the conv-8 action line filtered out (DHR — soft-scored healthcare he'd
+acted on from the Morning Alert) had no Log button. New **🧪 Validations** section
+surfaces not-held, on-thesis, `fits_profile` (wide moat + fair/cheap) names below the
+action line, each loggable. Keyed on moat so quality compounders aren't dropped for
+lacking momentum.
+
+**Reconciled + deployed:** holdings.yaml set to the real post-trade book (SOFI/ELF 3,
+AVGO 15, +RTX/GOOG/GLW/DHR 3, CASH 8). The 7 AWS diary rows were rewritten to the
+2-field schema with accurate trade/new values (notes preserved; original backed up to
+`investor_diary.csv.bak.s45`). Pushed to git (source of record), pulled on AWS,
+diary uploaded, Streamlit restarted.
+
+**Verified:** 27/27 tests (+7: apply_trade add/trim/insert/full-exit/comment-preserve
++ diary schema/migration); dashboard AppTest clean locally AND on AWS (0 exceptions,
+HTTP 200). On AWS post-deploy: CASH 8%, add-to-core emits conviction-led deltas
+(RTX/GOOG +6→9, etc.), AVGO correctly dropped (at cap), DHR moved candidate→holding so
+the Validations bucket self-updated to ETN. Diary reads 7 rows on the new schema.
+
+**Still open / next:** (1) **GitHub auto-backup** — now FOUR files drift on AWS
+(universe / themes / diary / **holdings.yaml**); needs the one-time PAT/deploy key;
+(2) narrative-quality review after a week; (3) optional Q&A news source + guest mode;
+(4) remove the fundamental lookahead fully. Feedback loop is now an explicit ongoing
+task — expect more small UI/logic tweaks like this one.
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
