@@ -116,14 +116,16 @@ validated stack into plain-English decisions for a concentrated conviction inves
   four historical YoY readings (no analyst feed); `valuation.compute_forward()`. In the
   narrative tag + Fundamentals tab. Deterministic and honest about uncertainty.
 
+- **Interactive Q&A on the dashboard (Session 38)** — `qa_engine.py` + 💬 Ask tab:
+  ask about any holding/candidate/the portfolio in plain English, answered from the
+  same signal stack the alerts use (reuses theme_engine / auto_classify / valuation /
+  cash_deployment). Signals only (no news feed). API spend behind the password gate.
+
 ## 🚧 In progress
 
 - *(open — pick the next build)*
 
 ## 🔜 Upcoming
-
-- **Interactive Q&A (auth-gated)** — "thoughts on GEV today? any news?" in the app,
-  behind authentication (no API-spending control on the public dashboard until then)
 - **Multi-user auth / guest mode** — read-only access without holdings visibility,
   for when interactive Q&A ships (the current single password is sufficient until then)
 - **Security hardening (remaining)** — spend-capped API key, HTTPS/TLS, and an

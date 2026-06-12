@@ -29,6 +29,9 @@ plain English: **"What, if anything, should I do today?"**
   go"** (add to core on weakness · fill a theme gap at entry · beaten-down quality ·
   or hold cash and show the trigger price), tracks stops on speculative names, and
   flags thesis erosion on core names.
+- **Interactive Q&A** — ask about any holding, candidate, or the portfolio in plain
+  English ("thoughts on GEV today?"); answers reuse the same signal stack as the
+  briefing. Signals only (no news feed), behind the dashboard password.
 - **Conviction scoring (0–10)** — entry quality right now: channel position +
   fundamentals + Widell state + flip recency. ≥8 = highest priority.
 - **Sector-aware quality + valuation** — a fundamental score (0–5) graded by each
@@ -135,6 +138,7 @@ stock-pipeline/
 │   ├── auto_classify.py      CORE vs SPECULATIVE per holding, derived from evidence
 │   ├── cash_deployment.py    "Where the next dollar goes" + speculative 7% stops
 │   ├── business_model.py     Business archetypes + sector-aware fundamental rubrics
+│   ├── qa_engine.py          Interactive Q&A — reuses the builders, answered by Claude
 │   ├── valuation.py          PE / PEG / P-OCF + our own forward-PE band (context)
 │   ├── positions.py          Exit/trim status for held names (TRIM/REVIEW/HOLD)
 │   ├── theme_engine.py       Secular-theme overlay: coverage, gaps, TLT regime

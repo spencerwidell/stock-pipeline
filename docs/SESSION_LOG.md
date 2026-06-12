@@ -700,12 +700,43 @@ regenerated `fundamentals.parquet` server-side with sector-aware scoring →
 dashboard HTTP 200 externally. `positions_seen.json` will be created on the first close
 run (record_positions); until then speculative stops anchor at the current price.
 
-**Still open:** interactive Q&A (auth), BKNG bad-price data, narrative-quality tuning,
-forward-PE for names with <8 clean EPS quarters (NVDA post-split — graceful N/A for now).
+**Still open:** BKNG bad-price data, narrative-quality tuning, forward-PE for names with
+<8 clean EPS quarters (NVDA post-split — graceful N/A for now).
 
 ---
 
-**B. Interactive Q&A on the app** *(Medium effort)*
+## Session 38 — June 12, 2026
+
+**Built:** Interactive Q&A on the dashboard — ask about any holding, candidate, or the
+portfolio in plain English, answered from the same signal stack the alerts use.
+
+**`qa_engine.py` (new):** `extract_tickers()` pulls universe tickers from a free-text
+question (stopword-guarded so "NOW"/"IT" don't false-match); `build_qa_context()`
+assembles the answer context by REUSING the existing builders — theme_engine
+`_name_status` + `_load_signals`, `auto_classify` (tier + reasons), `valuation`
+(incl. the forward-PE band), `cash_deployment` (per-ticker action/stop), moat detail,
+and a portfolio snapshot (core/spec counts, cash, TLT regime). `answer_question()` calls
+Claude (`claude-sonnet-4-6`) with a Q&A system prompt. **Signals only — no news feed**;
+the prompt makes the model say so rather than inventing a catalyst. Honest, concise,
+ends with a bottom line; core weakness framed as a buy, speculative stops respected.
+
+**Dashboard 💬 Ask tab (2nd tab):** `st.chat_input` + history in session_state; each
+answer shows the tickers it used as context. **API spend stays behind the password** —
+`require_auth()` gates the whole app before the tab is reachable, satisfying the
+standing rule (memory `public-dashboard-no-api-controls`, now unblocked by the Session 35
+password gate). Guide tab updated; eight tabs total.
+
+**Verified:** real Q&A answer validated end-to-end (AVGO "should I add?" → on-philosophy
+read: core weakness = buy, forward-PE band, tranche entry, bottom line). 20/20 tests,
+dashboard AppTest clean.
+
+**Still open:** BKNG bad-price data, NVDA forward-PE (split-adjusted EPS), narrative-
+quality review after a week, conviction mid-scale re-weight / remove fundamental lookahead,
+optional Q&A news source (web search / news API) + multi-user guest mode.
+
+---
+
+**B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
 - News needs a source (Claude web search/fetch, or a news API) — scope signals-only first

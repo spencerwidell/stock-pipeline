@@ -144,9 +144,9 @@ def read_doc(path):
         return None
 
 
-tab_brief, tab_themes, tab_sizing, tab1, tab2, tab3, tab4 = st.tabs(
-    ["🧭 Briefing", "🌐 Themes", "⚖️ Sizing", "📊 Signals", "📋 Fundamentals",
-     "📖 Guide", "🔄 Rotation"])
+tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4 = st.tabs(
+    ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Sizing", "📊 Signals",
+     "📋 Fundamentals", "📖 Guide", "🔄 Rotation"])
 
 with tab_brief:
     st.title("🧭 Daily Briefing")
@@ -212,6 +212,39 @@ with tab_brief:
     else:
         st.info("No briefing yet. It's generated automatically after the close "
                 "pipeline each weekday — check back after 4:30 PM ET.")
+
+with tab_ask:
+    st.title("💬 Ask")
+    st.caption("Ask about any holding, candidate, or your portfolio. Answers use the "
+               "same signal stack as the daily briefing (Widell state, conviction, tier, "
+               "moat, valuation, theme, cash-deployment) — there's no news feed, so it'll "
+               "say when it can't see a catalyst. Each question calls Claude.")
+
+    import qa_engine
+    if "qa_history" not in st.session_state:
+        st.session_state["qa_history"] = []
+
+    for _role, _content, _tks in st.session_state["qa_history"]:
+        with st.chat_message(_role):
+            st.markdown(_content)
+            if _role == "assistant" and _tks:
+                st.caption("context: " + ", ".join(_tks))
+
+    _q = st.chat_input("e.g. 'thoughts on GEV today?' or 'where should my cash go?'")
+    if _q:
+        st.session_state["qa_history"].append(("user", _q, []))
+        with st.chat_message("user"):
+            st.markdown(_q)
+        with st.chat_message("assistant"):
+            with st.spinner("Reading the signals…"):
+                try:
+                    _ans, _tks = qa_engine.answer_question(_q)
+                except Exception as _e:
+                    _ans, _tks = f"Sorry — couldn't answer that right now ({_e}).", []
+            st.markdown(_ans)
+            if _tks:
+                st.caption("context: " + ", ".join(_tks))
+        st.session_state["qa_history"].append(("assistant", _ans, _tks))
 
 with tab_themes:
     st.title("🌐 Secular Themes")
@@ -658,7 +691,8 @@ with tab3:
     st.markdown("""
 | Tab | What it's for |
 |---|---|
-| 🧭 **Briefing** | The plain-English daily read (same as the Telegram briefing): market context, actionable setups, watch list, portfolio check, bottom line. Read-only — generated server-side after the close. |
+| 🧭 **Briefing** | The plain-English daily read (same as the Telegram briefing): a 🧠 Portfolio Intelligence cockpit (core/speculative, where the next dollar goes, stop watch) plus market context, actionable setups, watch list, portfolio check, portfolio action, bottom line. Generated server-side after the close. |
+| 💬 **Ask** | Ask about any holding, candidate, or your portfolio in plain English — answers reuse the same signal stack (Widell, conviction, tier, moat, valuation, theme, deployment). Signals only: no news feed, so it says when it can't see a catalyst. Each question calls Claude (behind the password). |
 | 🌐 **Themes** | Your secular-trend map: TLT bond-regime banner, theme coverage vs gaps, over-concentration, off-thesis holdings, and the best entry per theme. |
 | 📊 **Signals** | The full signal stack: High Conviction callout, flips, up-state entry analysis, and the filterable full universe. |
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
