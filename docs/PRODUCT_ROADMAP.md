@@ -101,9 +101,19 @@ validated stack into plain-English decisions for a concentrated conviction inves
   conviction ≥8 validated (+2.5% 20d alpha, positive every year incl. 2022 bear);
   honest limits noted (top-tier filter, fundamental lookahead) (Session 35)
 
+- **Portfolio-intelligence redesign** — `holdings.yaml` is the only file maintained
+  by hand; CORE/SPECULATIVE tier, theme mapping, 7% stops (speculative only), and
+  cash deployment are all derived fresh. `holdings_io.py` + `auto_classify.py` +
+  `cash_deployment.py`; 🧠 Briefing cockpit, narrative PORTFOLIO ACTION, tier-aware
+  morning checks. Advisory only (Session 36)
+
 ## 🚧 In progress
 
-- *(open — pick the next build below)*
+- **Sector-aware fundamental scoring (Session 37)** — replace the single
+  software-tuned rubric with per-business-archetype 0-5 scoring (software / platform /
+  bank / energy / industrial / staple / pre-profit) on the right metrics (ROE,
+  efficiency ratio, FCF), using the full Polygon balance sheet (currently unused).
+  One comprehensive fundamentals pull + forward PE/PEG (yfinance). Re-scores the book.
 
 ## 🔜 Upcoming
 

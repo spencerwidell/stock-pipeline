@@ -8,7 +8,8 @@ import narrative_alert  # shared briefing logic (generate/save/load) — no fork
 import valuation        # PE / PEG / P-OCF from price + stored TTM inputs
 import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
 import position_sizing  # conviction-led target weights (advisory)
-import portfolio_health # one-glance roll-up: coverage / concentration / sizing / regime
+import auto_classify    # CORE vs SPECULATIVE, derived fresh from evidence
+import cash_deployment  # "where does my next dollar go" + speculative stops
 
 st.set_page_config(page_title="Widell Line Dashboard", page_icon="📈", layout="wide")
 
@@ -56,7 +57,8 @@ def require_auth():
 require_auth()
 
 # Section headers the briefing always emits — used to render it nicely in the app.
-_BRIEF_HEADERS = ("MARKET CONTEXT", "ACTIONABLE SETUPS", "WATCH LIST", "BOTTOM LINE")
+_BRIEF_HEADERS = ("MARKET CONTEXT", "ACTIONABLE SETUPS", "WATCH LIST",
+                  "PORTFOLIO CHECK", "PORTFOLIO ACTION", "BOTTOM LINE")
 
 def briefing_to_markdown(text):
     """Turn the plain-text Telegram briefing into app markdown: the four CAPS
@@ -125,17 +127,9 @@ def load_rotation():
 
 @st.cache_data(ttl=300)
 def load_holdings():
-    """holdings.yaml -> {ticker: 'weight'}. Empty dict if absent/unreadable."""
-    import os
-    if not os.path.exists("holdings.yaml"):
-        return {}
-    try:
-        import yaml
-        with open("holdings.yaml") as f:
-            raw = yaml.safe_load(f) or {}
-        return {str(k).upper(): str(v).strip() for k, v in raw.items() if v is not None}
-    except Exception:
-        return {}
+    """holdings.yaml -> {ticker: 'weight'} (incl CASH). Empty dict if absent."""
+    import holdings_io
+    return holdings_io.load_positions(include_cash=True)
 
 
 def read_doc(path):
@@ -159,13 +153,50 @@ with tab_brief:
     st.caption("Plain-English read on today's signals — the same briefing sent to Telegram "
                "after the close.")
 
-    # Portfolio health cockpit — one-glance roll-up above the narrative.
-    _h = portfolio_health.get_health()
-    _hicon = {"good": "🟢", "warn": "🟡", "bad": "🔴", "info": "⚪"}
-    _grade_emoji = {"good": "🟢", "warn": "🟡", "bad": "🔴"}.get(_h["grade"], "⚪")
-    with st.expander(f"🩺 Portfolio Health — {_grade_emoji} {_h['overall']}", expanded=True):
-        for _c in _h["checks"]:
-            st.markdown(f"{_hicon[_c['status']]} **{_c['label']}** — {_c['detail']}")
+    # Portfolio Intelligence — the cockpit: who's core, where the next dollar goes,
+    # which speculative names are near their stop, and any thesis erosion. Derived
+    # fresh from holdings.yaml (the only file Spencer maintains).
+    try:
+        _d = cash_deployment.deployment()
+
+        # Row 1 — classification summary
+        st.markdown(
+            f"#### 🧠 Portfolio Intelligence\n"
+            f"**{_d['n_core']} core** · **{_d['n_speculative']} speculative** · "
+            f"**{_d['cash_pct']:.0f}% cash**"
+            + (f" (${_d['cash_dollars']:,})" if _d['cash_dollars'] else "")
+            + " available to deploy")
+
+        # Row 2 — immediate actions (priority-ordered, max 3)
+        if _d["actions"]:
+            st.markdown("**Where your next dollar goes:**")
+            for a in _d["actions"][:3]:
+                dol = f" · ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
+                tier = "🔵" if a["tier"] == "CORE" else "🟠"
+                st.markdown(f"- {tier} **{a['action']} {a['ticker']}** "
+                            f"+{a['suggested_pct']}%{dol} — {a['detail']}")
+        elif _d["hold_cash"]:
+            st.info("💵 " + _d["hold_cash"]["message"])
+            for t in _d["hold_cash"]["triggers"][:3]:
+                st.markdown(f"- {t['detail']}")
+        else:
+            st.markdown("**No action needed — hold and be patient.**")
+
+        # Row 3 — speculative watch (within 3% of stop)
+        _watch = [s for s in _d["stops"] if s["dist_to_stop_pct"] <= 3 or s["status"] == "triggered"]
+        if _watch:
+            st.markdown("**⚠️ Speculative watch (near −7% stop):**")
+            for s in _watch:
+                tag = "🛑 STOP HIT" if s["status"] == "triggered" else "watch"
+                st.markdown(f"- **{s['ticker']}** ${s['current']} — stop at ${s['stop']} "
+                            f"({s['dist_to_stop_pct']}% away) — {tag}")
+
+        # Row 4 — thesis integrity (core only)
+        if _d["thesis_alerts"]:
+            for a in _d["thesis_alerts"]:
+                st.warning(f"⚠️ {a['ticker']}: {a['detail']}")
+    except Exception as _e:
+        st.caption(f"Portfolio Intelligence unavailable: {_e}")
     st.divider()
 
     # Read-only by design: this dashboard is publicly reachable, so it must not

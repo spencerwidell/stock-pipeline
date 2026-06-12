@@ -48,6 +48,7 @@ import positions
 import macro_calendar
 import theme_engine
 import position_sizing
+import cash_deployment
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -130,22 +131,9 @@ def load_signals():
 
 
 def load_holdings():
-    """holdings.yaml -> {ticker: 'weight string'}. Empty dict if absent."""
-    if not os.path.exists(HOLDINGS_PATH):
-        return {}
-    try:
-        import yaml
-        with open(HOLDINGS_PATH) as f:
-            raw = yaml.safe_load(f) or {}
-    except Exception as e:
-        print(f"Could not read {HOLDINGS_PATH}: {e}")
-        return {}
-    out = {}
-    for k, v in raw.items():
-        if v is None:
-            continue
-        out[str(k).upper()] = str(v).strip()
-    return out
+    """holdings.yaml -> {ticker: 'weight string'} (incl CASH). Empty dict if absent."""
+    import holdings_io
+    return holdings_io.load_positions(include_cash=True)
 
 
 def load_earnings():
@@ -380,6 +368,41 @@ def build_context(df, holdings, earnings, moat):
         lines.append(f"DRY POWDER: {cash} cash available to deploy")
         lines.append("")
 
+    # --- Cash deployment (priority-ordered "where the next dollar goes" + the
+    #     speculative stops and any thesis erosion). Defensive — never break the
+    #     briefing if the engine hiccups. ---
+    try:
+        d = cash_deployment.deployment()
+        lines.append("CASH DEPLOYMENT (where the next dollar goes — advisory):")
+        lines.append(f"  Classification: {d['n_core']} core, {d['n_speculative']} "
+                     f"speculative | {d['cash_pct']:.0f}% cash"
+                     + (f" (${d['cash_dollars']:,})" if d['cash_dollars'] else "")
+                     + " dry powder")
+        if d["actions"]:
+            lines.append("  Priority actions (deploy top-down, stage in tranches):")
+            for a in d["actions"][:4]:
+                dol = f" ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
+                lines.append(f"    - {a['action']} {a['ticker']} +{a['suggested_pct']}%"
+                             f"{dol} [{a['tier']}]: {a['detail']}")
+        elif d["hold_cash"]:
+            lines.append(f"  {d['hold_cash']['message']}")
+            for t in d["hold_cash"]["triggers"][:3]:
+                lines.append(f"    - would trigger: {t['detail']}")
+        watch = [s for s in d["stops"] if s["status"] in ("watch", "triggered")]
+        if watch:
+            lines.append("  Speculative stops approaching (−7% from entry):")
+            for s in watch:
+                tag = "STOP HIT" if s["status"] == "triggered" else "watch"
+                lines.append(f"    - {s['ticker']} ${s['current']} vs stop ${s['stop']} "
+                             f"({s['dist_to_stop_pct']}% away) — {tag}")
+        if d["thesis_alerts"]:
+            lines.append("  Thesis integrity (core — evidence eroded):")
+            for a in d["thesis_alerts"]:
+                lines.append(f"    - {a['ticker']}: {a['detail']}")
+        lines.append("")
+    except Exception as e:
+        print(f"cash deployment unavailable: {e}")
+
     return "\n".join(lines)
 
 
@@ -430,7 +453,13 @@ holdings (names in no theme) when relevant. Use POSITION SIZING here too — cal
 where he is most underweight vs conviction (a name worth adding to) or overweight in \
 a low-conviction name (worth trimming). Sizing is advisory, not a mechanical rebalance.
 
-Write EXACTLY these five sections, plain English, no jargon, no tables, concise:
+There is also a CASH DEPLOYMENT block — the derived, priority-ordered answer to \
+"where does my next dollar go," plus speculative stop distances and any thesis \
+erosion. Use it to write the PORTFOLIO ACTION section below. Core names are held \
+through volatility (a core name showing weakness is a BUY signal, never a stop); \
+only speculative names carry a −7% stop.
+
+Write EXACTLY these six sections, plain English, no jargon, no tables, concise:
 
 MARKET CONTEXT
 2-3 sentences on what SPY/QQQ are telling us. Is this a good environment to be \
@@ -451,6 +480,15 @@ Look at YOUR POSITIONS. Call out only the names flagged TRIM (rich, above the \
 channel top - consider trimming into strength) or REVIEW (breaking down - reassess \
 the thesis); one short bullet each with what you'd do. If every holding is HOLD, \
 write "All holdings healthy - nothing to trim or review." Don't list healthy names.
+
+PORTFOLIO ACTION
+Translate the CASH DEPLOYMENT block into plain English. If there are priority \
+actions, give the top 1-3 as short bullets: what to buy/add, how much, and why \
+(core weakness add, theme-gap starter, or beaten-down speculative). If there are \
+none, say "No compelling entries - hold cash, patience is the edge" and name the \
+one trigger worth waiting for. Then, if any speculative position is approaching its \
+-7% stop, add a one-line watch. Finally, surface any thesis-integrity alert (a core \
+name whose fundamentals eroded) as a "review the thesis" line.
 
 BOTTOM LINE
 One sentence: what should Spencer actually do today (often "nothing — wait").
@@ -545,6 +583,14 @@ def main():
     print(msg)
     if not dry_run:
         save_briefing(narrative)   # persist for the dashboard before pushing
+        try:
+            # Maintain the position tracker (entry-price anchors for speculative
+            # stops + fundamental baselines for thesis integrity). After the
+            # briefing has already read the OLD baseline, so a fundamental drop is
+            # caught on the transition, then the baseline moves forward.
+            cash_deployment.record_positions()
+        except Exception as e:
+            print(f"position tracker update skipped: {e}")
         send_telegram(msg)
         print("\nNarrative alert sent.")
 

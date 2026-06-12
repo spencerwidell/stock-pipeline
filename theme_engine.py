@@ -19,6 +19,7 @@ import duckdb
 import pandas as pd
 import yaml
 
+import holdings_io
 import valuation
 
 THEMES_PATH   = "themes.yaml"
@@ -33,7 +34,6 @@ TLT_TICKER     = "TLT"
 # Optional annotations for holdings that map to no theme. Absence of a note just
 # means "off-thesis" with no further qualifier (e.g. ELF — genuinely discretionary).
 OFF_THESIS_NOTES = {
-    "META": "Advertising + speculative AR — not core thesis",
 }
 TARGET_MIN     = 10              # held-positions target band
 TARGET_MAX     = 15
@@ -52,23 +52,16 @@ def load_themes(path=THEMES_PATH):
 
 def load_holdings(path=HOLDINGS_PATH):
     """{TICKER: 'weight'} excluding CASH. Empty if absent/unreadable."""
-    if not os.path.exists(path):
-        return {}
-    try:
-        with open(path) as f:
-            raw = yaml.safe_load(f) or {}
-        return {str(k).upper(): str(v).strip()
-                for k, v in raw.items() if v is not None and str(k).upper() != "CASH"}
-    except Exception:
-        return {}
+    return holdings_io.load_positions(path)
 
 
 def _load_signals():
     """Latest bar per ticker + fundamentals/valuation/moat, indexed by ticker."""
     df = duckdb.query("""
         WITH latest AS (
-            SELECT ticker, close, wl_state, conviction_score, channel_zone,
-                   flip_price, resistance,
+            SELECT ticker, date, close, wl_state, conviction_score, channel_zone,
+                   channel_pos, flip_price, flip_date, resistance,
+                   high_52w, low_52w, dist_52w_high, dist_52w_low,
                    ROUND((close - flip_price) / flip_price * 100, 1) AS gap_from_flip,
                    ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
             FROM 'data/stock_vsa.parquet'
@@ -153,6 +146,15 @@ def _name_status(ticker, sig, holdings):
         "held": holdings.get(ticker),
         "entry_rank": _entry_rank(r),
         "fits_profile": fits_profile,
+        # raw context for auto_classify / cash_deployment (one source of truth)
+        "date": str(r["date"])[:10] if pd.notna(r.get("date")) else None,
+        "channel_pos": float(r["channel_pos"]) if pd.notna(r.get("channel_pos")) else None,
+        "high_52w": float(r["high_52w"]) if pd.notna(r.get("high_52w")) else None,
+        "low_52w": float(r["low_52w"]) if pd.notna(r.get("low_52w")) else None,
+        "dist_52w_high": float(r["dist_52w_high"]) if pd.notna(r.get("dist_52w_high")) else None,
+        "dist_52w_low": float(r["dist_52w_low"]) if pd.notna(r.get("dist_52w_low")) else None,
+        "flip_price": float(r["flip_price"]) if pd.notna(r.get("flip_price")) else None,
+        "flip_date": str(r["flip_date"])[:10] if pd.notna(r.get("flip_date")) else None,
     }
 
 

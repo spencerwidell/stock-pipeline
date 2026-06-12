@@ -594,11 +594,59 @@ priority"; surfaced in the Guide tab. Re-run periodically.
 
 ---
 
-## Session 36 — (upcoming)
+## Session 36 — June 11, 2026
 
-First task: review narrative quality after a week of live runs. Then item B
-(interactive Q&A, behind auth), the BKNG price-data fix, and deciding whether the
-off-thesis holdings belong in a theme.
+**Built:** Portfolio-intelligence redesign — `holdings.yaml` is now the ONLY file
+Spencer maintains; tier classification, theme mapping, 7% stop tracking, and cash
+deployment are all DERIVED automatically (fresh at dashboard load + pipeline close).
+
+**Design principle (the spine):** one hand-maintained file. New `holdings.yaml`
+schema: `portfolio:` (total_value $1.3M, bi_weekly_contribution $1,600), `positions:`
+(weights + CASH), `overrides:` (TSLA → core). Everything else computes from it.
+
+**`holdings_io.py` (new):** single source of truth for reading holdings — positions /
+cash / portfolio-meta / overrides, back-compatible with the old flat format. All six
+prior `load_holdings()` copies + `position_sizing._load_cash` now delegate to it.
+
+**`auto_classify.py` (new):** evidence-based CORE vs SPECULATIVE. CORE requires ALL of
+moat≥4, fundamental≥4 (missing F doesn't block — international), high/medium theme,
+weight>2%; else SPECULATIVE with the failing reasons spelled out. Overrides win.
+Precedence resolves the deep-drawdown conflict: a core-quality name down ≥40% stays
+CORE (buy-weakness, not a stop) — only non-core-eligible names are demoted by it.
+First read: CORE = NVDA, MSFT, PLTR, AVGO, TSM, META, TSLA(override); SPEC = AMZN, ELF,
+SOFI.
+
+**`cash_deployment.py` (new):** "where does my next dollar go" — 4 priority steps
+(add to core on weakness → high-conviction theme gap at entry → beaten-down quality →
+hold cash with the trigger price). 7% stops tracked for SPECULATIVE only (core weakness
+is a buy signal, never a stop), anchored on first-seen entry price in
+`data/positions_seen.json` (system-maintained, gitignored). Thesis-integrity watches
+core names for a ≥2-pt fundamental drop vs the last reading. First read: add
+AVGO/NVDA/PLTR on weakness, ISRG beaten-down quality.
+
+**Wiring:** Briefing tab's health cockpit replaced by a 🧠 Portfolio Intelligence
+section (classification summary · next-dollar actions ≤3 · speculative stop watch ·
+thesis alerts). Narrative gets a PORTFOLIO ACTION section + `record_positions()` at
+close. Morning alert gets tier-aware open checks (speculative down >4% → stop watch;
+core down >5% → potential add). Abandoned `table_setting.py` (the earlier deployment
+sketch) deleted.
+
+**Classification fixes (on evidence, not overrides):** META added to AI_Software theme
+→ now CORE (was off-thesis). `fetch_fundamentals.py` EPS-growth criterion switched to
+the stable TTM figure (was a noisy single quarter) — lifted AMZN 1→2, but confirmed
+AMZN's low score is the software-tuned RUBRIC, not bad data (real blended margins
+48.5%/11.7%, rev 13.6%). AMZN left SPECULATIVE pending the Session 37 fix.
+
+**Verified:** 20/20 tests, both CLIs, dashboard AppTest clean. Not yet deployed to AWS.
+
+**Next (Session 37) — sector-aware fundamental scoring:** one software-tuned rubric
+mis-scores banks (JPM F=1 — no gross margin; ROE/efficiency), energy (cyclical), and
+low-margin mega-caps (AMZN/COST). Polygon returns a full balance sheet + bank lines
+(currently unused) → per-business-archetype 0-5 scoring on the right metrics. Fold in
+the broader fundamentals pull + forward PE/PEG (yfinance) since a pull is needed anyway.
+Re-scores all ~68 names → needs a full pipeline re-run. (memory `sector-aware-fundamentals`)
+
+**Still open:** interactive Q&A (auth), BKNG bad-price data, narrative-quality tuning.
 
 **B. Interactive Q&A on the app** *(Medium effort)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's

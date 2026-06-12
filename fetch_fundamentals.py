@@ -155,9 +155,12 @@ def score_fundamentals(row):
     # Operating margin
     if pd.notna(row["op_margin"]):
         if row["op_margin"] > 15:        score += 1
-    # EPS growth
-    if pd.notna(row["eps_growth_yoy"]):
-        if row["eps_growth_yoy"] > 10:   score += 1
+    # EPS growth — prefer the stable TTM figure (a single quarter is too noisy to
+    # gate quality on); fall back to the latest-quarter YoY only if TTM is missing.
+    eps_growth = (row["ttm_eps_growth"] if pd.notna(row.get("ttm_eps_growth"))
+                  else row.get("eps_growth_yoy"))
+    if pd.notna(eps_growth):
+        if eps_growth > 10:              score += 1
     # Positive operating cash flow
     if pd.notna(row["operating_cf_B"]):
         if row["operating_cf_B"] > 0:    score += 1

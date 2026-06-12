@@ -20,7 +20,7 @@ AI_Software:
   thesis: "AI is eating software — platforms and verticalized agents will capture enterprise value at scale"
   conviction: high
   constraint: "Competitive moats less clear than hardware; winner take most but winners not yet determined"
-  names: [PLTR, APP, MSFT, GOOG, NOW, CRM, ORCL, SNOW, CRWD, PANW, AMZN]
+  names: [PLTR, APP, MSFT, GOOG, NOW, CRM, ORCL, SNOW, CRWD, PANW, AMZN, META]
   best_in_class: [PLTR, APP]
 
 Power_Grid:

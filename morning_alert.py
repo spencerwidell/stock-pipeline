@@ -29,6 +29,8 @@ from datetime import date
 
 import positions
 import theme_engine
+import auto_classify
+import cash_deployment
 
 CONV_MIN          = 8     # high-conviction threshold
 ENTRY_RANGE_PCT   = 3.0   # within X% of pullback target = entry range
@@ -128,16 +130,9 @@ def earn_tag(ticker, earnings):
 
 
 def load_holdings():
-    """holdings.yaml -> {ticker: 'weight'}. Empty dict if absent/unreadable."""
-    if not os.path.exists(HOLDINGS_PATH):
-        return {}
-    try:
-        import yaml
-        with open(HOLDINGS_PATH) as f:
-            raw = yaml.safe_load(f) or {}
-        return {str(k).upper(): str(v).strip() for k, v in raw.items() if v is not None}
-    except Exception:
-        return {}
+    """holdings.yaml -> {ticker: 'weight'} (incl CASH). Empty dict if absent."""
+    import holdings_io
+    return holdings_io.load_positions(include_cash=True)
 
 
 def hold_tag(ticker, holdings):
@@ -154,6 +149,19 @@ def main():
     holdings = load_holdings()
 
     high_conv, breakout, notable, position_flags = [], [], [], []
+    spec_watch, core_adds = [], []
+
+    # Tier each holding (CORE held through volatility; SPECULATIVE on a −7% stop)
+    # and grab the stop levels — both derived fresh, defensive on any failure.
+    SPEC_OPEN_DOWN = -4.0   # speculative down this much at open → stop-distance watch
+    CORE_OPEN_DOWN = -5.0   # core down this much at open → potential add opportunity
+    try:
+        tier_of = {c["ticker"]: c["tier"]
+                   for c in auto_classify.classify_holdings()["classifications"]}
+        stop_of = {s["ticker"]: s["stop"] for s in cash_deployment.speculative_stops()}
+    except Exception as e:
+        print(f"classification unavailable: {e}")
+        tier_of, stop_of = {}, {}
 
     for _, r in df.iterrows():
         tkr = r["ticker"]
@@ -187,6 +195,17 @@ def main():
             status, reason = positions.assess_position(r.get("channel_zone"), state)
             if status in ("TRIM", "REVIEW"):
                 position_flags.append((tkr, price, status, reason, holdings[tkr]))
+
+        # Section 5/6 — open-move checks by tier. SPECULATIVE down hard → how close
+        # to its −7% stop; CORE down hard → a potential add (core weakness = buy).
+        tier = tier_of.get(tkr)
+        if move is not None and tkr in holdings:
+            if tier == "SPECULATIVE" and move <= SPEC_OPEN_DOWN:
+                stop = stop_of.get(tkr)
+                dist = pct(price, stop) if stop else None   # % above the stop
+                spec_watch.append((tkr, price, move, stop, dist))
+            elif tier == "CORE" and move <= CORE_OPEN_DOWN:
+                core_adds.append((tkr, price, move, conv, r.get("channel_zone")))
 
     # ----- build message -----
     lines = [f"🌅 *Morning Alert — {today}*\n"]
@@ -250,7 +269,25 @@ def main():
                          f"(conv {conv}/10, {status}){hold_tag(tk, holdings)}")
         lines.append("")
 
-    if not (high_conv or breakout or notable or position_flags or theme_opps):
+    if spec_watch:
+        lines.append("*⚠️ SPECULATIVE — STOP WATCH:*")
+        for tkr, price, move, stop, dist in sorted(spec_watch, key=lambda x: x[2]):
+            stoptxt = (f"stop ${stop:.2f} is {dist:+.1f}% away" if stop and dist is not None
+                       else "stop level pending")
+            lines.append(f"  🔻 *{tkr}* ${price:.2f} open {move:+.1f}% — {stoptxt}. "
+                         f"Watch today.{hold_tag(tkr, holdings)}")
+        lines.append("")
+
+    if core_adds:
+        lines.append("*🔵 CORE — POTENTIAL ADD ON WEAKNESS:*")
+        for tkr, price, move, conv, zone in sorted(core_adds, key=lambda x: x[2]):
+            convtxt = f"conv {int(conv)}/10" if pd.notna(conv) else "conv n/a"
+            lines.append(f"  💪 *{tkr}* ${price:.2f} open {move:+.1f}% — potential add "
+                         f"({convtxt}, {zone} channel).{hold_tag(tkr, holdings)}")
+        lines.append("")
+
+    if not (high_conv or breakout or notable or position_flags or theme_opps
+            or spec_watch or core_adds):
         lines.append("Nothing actionable this morning.")
 
     msg = "\n".join(lines).rstrip()

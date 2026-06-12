@@ -1,25 +1,40 @@
-# Current holdings — a simple snapshot of what you own and roughly how much.
+# Your portfolio — the ONE file you maintain by hand.
 #
-# Format:  TICKER: weight        (weight is your % of portfolio; "%" optional)
+# Everything else (CORE vs SPECULATIVE tier, theme mapping, 7% stop tracking, and
+# cash-deployment suggestions) is DERIVED automatically by the system, recomputed
+# fresh at dashboard load and after each close. You never edit those.
 #
-# This is NOT a transaction ledger — no buy prices, no history. Just update the
-# weights by hand after a meaningful trade. It's used to personalize the alerts
-# and dashboard ("you hold ISRG at 5% — it pulled back to entry today") instead
-# of generic "ISRG is a high-conviction setup".
+# After a trade, just update the weights below. That's it.
 #
-# CASH is special: it's money-market dry powder available to buy stock with. The
-# narrative alert reads it as "how much you have to deploy" when deciding whether
-# today is a buy-or-wait day.
+# ─────────────────────────────────────────────────────────────────────────────
+# portfolio  — context the system uses to turn % weights into dollar amounts
+#   total_value             approximate total portfolio value ($)
+#   bi_weekly_contribution  new cash added every two weeks ($) — sizes suggestions
+#
+# positions  — one line per holding, just the % weight. CASH is money-market dry
+#              powder available to deploy.
+#
+# overrides  — only when the auto-classifier would be WRONG. "core" forces a name
+#              to be held-through-volatility (no 7% stop); "speculative" forces the
+#              stop discipline. The override always wins over the evidence rules.
+# ─────────────────────────────────────────────────────────────────────────────
 
-NVDA: 11%
-MSFT: 11%
-AMZN: 11%
-ELF:  10%
-SOFI: 8%
-PLTR: 7%
-TSLA: 7%
-META: 7%
-AVGO: 7%
-TSM:  5%
+portfolio:
+  total_value: 1300000
+  bi_weekly_contribution: 1600
 
-CASH: 16%
+positions:
+  NVDA: 11
+  MSFT: 11
+  AMZN: 11
+  ELF:  10
+  SOFI: 8
+  PLTR: 7
+  TSLA: 7
+  META: 7
+  AVGO: 7
+  TSM:  5
+  CASH: 16
+
+overrides:
+  TSLA: core      # long-term Physical-AI bull — hold through volatility, no stop

@@ -39,16 +39,9 @@ DATA_PARQUETS = [
 
 
 def load_holdings():
-    """holdings.yaml -> {TICKER: 'weight'}. Empty if absent/unreadable."""
-    if not os.path.exists(HOLDINGS_PATH):
-        return {}
-    try:
-        import yaml
-        with open(HOLDINGS_PATH) as f:
-            raw = yaml.safe_load(f) or {}
-        return {str(k).upper(): str(v).strip() for k, v in raw.items() if v is not None}
-    except Exception:
-        return {}
+    """holdings.yaml -> {TICKER: 'weight'} (incl CASH). Empty if absent."""
+    import holdings_io
+    return holdings_io.load_positions(include_cash=True)
 
 
 def parse_sector(s):

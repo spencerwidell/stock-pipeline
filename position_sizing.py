@@ -23,10 +23,7 @@ This NEVER trades — it's a suggestion, not a mechanical rebalance. Reuses
 theme_engine for per-name signal/quality/theme data so there's one source of truth.
 """
 
-import os
-
-import yaml
-
+import holdings_io
 import theme_engine
 
 HOLDINGS_PATH = "holdings.yaml"
@@ -39,17 +36,7 @@ CONV_RANK_BONUS  = {"high": 2, "medium": 1, "low": 0}
 
 def _load_cash(path=HOLDINGS_PATH):
     """Current CASH weight (%) from holdings.yaml; 0.0 if absent."""
-    if not os.path.exists(path):
-        return 0.0
-    try:
-        with open(path) as f:
-            raw = yaml.safe_load(f) or {}
-        for k, v in raw.items():
-            if str(k).upper() == "CASH":
-                return float(str(v).replace("%", "").strip())
-    except Exception:
-        pass
-    return 0.0
+    return holdings_io.load_cash(path)
 
 
 def _weight(w):
