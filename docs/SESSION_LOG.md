@@ -34,13 +34,20 @@ Deployed on AWS (password-gated), three Telegram alerts + an eight-tab dashboard
   Better Spearman, monotonic win rate, ≥8 +13.7% in the 2022 bear.
 
 **Next steps (priority order):**
-1. **Narrative-quality review** — after a week of live runs in the new format, tune the
-   system prompt where the read is off.
-2. **Q&A enhancements (optional)** — a news source (web search / news API) and multi-user
-   guest mode with a per-session rate/cost guard.
-3. **Remove the fundamental lookahead fully** — needs point-in-time fundamentals history
-   (not currently stored); until then the backtest caveat stands (now 2 of 10 pts).
-4. **Watch:** confirm the nightly close keeps `positions_seen.json` + the narrative healthy.
+1. **Universe add/remove UI** *(Spencer-requested)* — a no-terminal way to add/remove
+   companies in the scoring universe (CLI `manage_universe.py` exists; wants a
+   password-gated dashboard "Manage" tab). New tickers backfill at the next close.
+2. **Investor diary / action log** *(Spencer-requested)* — lightweight, fixed-schema
+   (date, ticker, action, weight%, recommendation, note); a "✅ I acted on this" checkbox
+   next to a recommendation that auto-logs it. Keep simple; complements holdings.yaml (the
+   diary is action history, holdings stays the snapshot). See memory
+   `universe-ui-and-investor-diary` — both share one decision: how AWS dashboard writes to
+   git-tracked files (universe.yaml + diary) sync back to GitHub (recommend a nightly cron
+   commit+push).
+3. **Narrative-quality review** — after a week of live runs in the new format.
+4. **Q&A enhancements (optional)** — a news source + multi-user guest mode with a rate guard.
+5. **Remove the fundamental lookahead fully** — needs point-in-time fundamentals history.
+6. **Watch:** confirm the nightly close keeps `positions_seen.json` + the narrative healthy.
 
 ---
 
