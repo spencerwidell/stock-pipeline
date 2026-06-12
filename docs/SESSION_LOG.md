@@ -964,11 +964,44 @@ ROK/ETN/PH) scored correctly.
 
 **Still open / next:** (1) **sector-aware fundamentals** — add a healthcare/
 life-sciences-tools archetype so XLV names aren't graded as software (concrete,
-surfaced today); (2) **GitHub auto-backup** of universe.yaml / themes.yaml / diary —
-now THREE files drift on AWS via the dashboard (themes.yaml joined the list this
-session); needs the one-time PAT/deploy key from Spencer; (3) narrative-quality
-review after a week; (4) optional Q&A news source + guest mode; (5) remove the
-fundamental lookahead fully (needs point-in-time fundamentals).
+surfaced today) — ✅ DONE in Session 44; (2) **GitHub auto-backup** of universe.yaml /
+themes.yaml / diary — now THREE files drift on AWS via the dashboard (themes.yaml
+joined the list this session); needs the one-time PAT/deploy key from Spencer;
+(3) narrative-quality review after a week; (4) optional Q&A news source + guest mode;
+(5) remove the fundamental lookahead fully (needs point-in-time fundamentals).
+
+---
+
+## Session 44 — June 12, 2026
+
+**Built:** Closed the Session-43 follow-up #1 — the `healthcare` business archetype, so
+XLV names stop being graded by the software rubric.
+
+**The fix (`business_model.py`):** `XLV` now maps to a new `healthcare` archetype
+(was `software`). New `_score_health` rubric grades medical-device / life-sciences /
+pharma compounders on what actually signals quality for them — durable operating
+margin (>15), a recurring cash engine (OCF>0), returns on capital (ROE>12), and
+STEADY (not 20%+ SaaS) growth (eps>8, rev>5). Deliberately omits gross_margin:
+Polygon often drops gross_profit for these names (TMO is NaN), so using it would
+penalize on a data gap, not economics.
+
+**Result (re-scored on AWS):** ISRG **5** (unchanged — genuinely fires on all
+cylinders), TMO **2→4** (the bug — a quality compounder no longer punished for not
+being hypergrowth), DHR **3** (fairly soft right now: slow growth + goodwill-depressed
+ROE; its franchise quality shows via moat 4/5, and `fits_profile` keys off moat, so
+DHR still flags). Biotech/pre-profit is still caught upstream by the `pre_profit`
+archetype, so the new rubric only applies to profitable healthcare names.
+
+**Verified:** rubric unit-tested against the 3 names' real fundamentals (5/4/3 as
+intended); 20/20 tests; deployed to AWS, re-ran `fetch_fundamentals.py` +
+`conviction_score.py`, restarted Streamlit (HTTP 200). Committed + pushed; AWS
+reconciled to HEAD.
+
+**Still open / next:** (1) **GitHub auto-backup** of universe.yaml / themes.yaml /
+diary (3 files drift on AWS via the dashboard; needs a one-time PAT/deploy key);
+(2) narrative-quality review after a week; (3) optional Q&A news source + guest mode;
+(4) remove the fundamental lookahead fully. Possible further sector-aware tuning if a
+new archetype surfaces (e.g. REITs/utilities) — none in the universe today.
 
 ---
 

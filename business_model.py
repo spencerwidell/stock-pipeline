@@ -2,8 +2,10 @@
 
 One software-tuned rubric (rev>20, gross>50, op>15, eps>10, +OCF) mis-scores whole
 categories: banks have no "gross margin" (they run on ROE / efficiency ratio), energy
-is cyclical (margins swing with the commodity), and low-margin-by-design mega-caps
-(AMZN, COST) get punished for a model that's actually excellent. So each name is judged
+is cyclical (margins swing with the commodity), low-margin-by-design mega-caps
+(AMZN, COST) get punished for a model that's actually excellent, and healthcare/
+life-sciences compounders (ISRG, DHR, TMO) are penalized for not growing 20%+ like
+SaaS when their quality is durable margins + recurring cash. So each name is judged
 on the metrics that fit its business.
 
 Archetype is assigned from the ticker's sector ETF (universe.yaml) with a small override
@@ -21,9 +23,11 @@ import pandas as pd
 
 # Sector ETF (universe.yaml primary sector) -> archetype.
 ETF_ARCHETYPE = {
-    # high-margin tech / chips / software / healthcare
-    "SMH": "software", "IGV": "software", "XLK": "software", "XLV": "software",
-    "SKYY": "software",
+    # high-margin tech / chips / software
+    "SMH": "software", "IGV": "software", "XLK": "software", "SKYY": "software",
+    # healthcare / medical devices / life-sciences tools (steady compounders,
+    # NOT hypergrowth SaaS — graded on margins/returns/cash, not 20%+ rev growth)
+    "XLV": "healthcare",
     # ad / media / communications platforms
     "XLC": "platform",
     # consumer discretionary (cyclical retail / brands)
@@ -149,6 +153,23 @@ def _score_staple(r):
     return int(s)
 
 
+def _score_health(r):
+    """Healthcare / medical devices / life-sciences tools — quality compounders, not
+    hypergrowth SaaS. The franchise hallmarks are durable operating margins, strong
+    returns on capital, a steady cash engine (recurring consumables/services), and
+    steady — not explosive — top- and bottom-line growth. (gross_margin is
+    deliberately NOT used: Polygon often omits gross_profit for these names, e.g. TMO,
+    so it would penalize on missing data, not economics.) Pre-profit biotech is caught
+    upstream by the pre_profit archetype."""
+    s = 0
+    s += _gt(r.get("op_margin"), 15)                 # high-margin device/tools/pharma
+    s += _gt(r.get("operating_cf_B"), 0)             # recurring cash engine
+    s += _gt(r.get("roe"), 12)                       # returns on capital
+    s += _gt(r.get("eps_growth"), 8)                 # steady compounding (< SaaS bar)
+    s += _gt(r.get("rev_growth_yoy"), 5)             # durable secular growth, not 20%+
+    return int(s)
+
+
 def _score_consumer(r):
     s = 0
     s += _gt(r.get("rev_growth_yoy"), 10)
@@ -177,6 +198,7 @@ _RUBRICS = {
     "financial":  _score_financial,
     "energy":     _score_energy,
     "industrial": _score_industrial,
+    "healthcare": _score_health,
     "staple":     _score_staple,
     "consumer":   _score_consumer,
     "pre_profit": _score_pre_profit,
