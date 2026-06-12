@@ -340,6 +340,20 @@ project's first-principles ethos, and the band itself communicates uncertainty (
 forward PE flags an earnings decline; a 400× flags a story stock). None for pre-profit
 names (TTM EPS ≤ 0).
 
+**Conviction re-weighted: Widell-state-led, breakdowns not rewarded (Session 40)**
+The Session 35 backtest showed the original weighting (channel `lower=4`/`breakdown=2`,
+Widell state 0–2, fundamentals 0–3) rewarded beaten-down beta and under-weighted the
+*validated* Widell-state edge — the mid-scale 0–3 bucket beat 4–5 and 6–7. We tested four
+candidate schemes on 100k+ bars of SPY-relative forward alpha and adopted the winner:
+**Widell state 0–4** (top driver; ≥8 now requires confirmed up-momentum), **channel 0–3**
+with **breakdown/extended = 0** (broken structure isn't a buy-the-dip), **fundamentals
+0–2** (lighter weight on the only lookahead-prone component), flip 0–1. Result: Spearman
++0.0259 → +0.0333, monotonic win rate, and a ≥8 bucket that beats the rest in nearly every
+year incl. the 2022 bear (+13.7%). Honest limit kept: it's a top-tier filter (≥8), not a
+linear dial — the mid-scale is coarse context, and ≥8 is correctly sparse in a weak tape.
+`cash_deployment.CORE_WEAK_CONV` lowered 6 → 5 to match the new scale (a down-state core
+pullback now tops out ~5–6). See `docs/CONVICTION_BACKTEST.md`.
+
 ---
 
 *Add new decisions here as the project evolves.*

@@ -11,7 +11,7 @@ For sessions 1-24 see docs/SESSION_ARCHIVE.md
 
 ---
 
-## 📍 Current state & open items (as of Session 39, June 12 2026)
+## 📍 Current state & open items (as of Session 40, June 12 2026)
 
 **What the system is now:** you maintain ONE file (`holdings.yaml`); the system derives
 tier (CORE/SPECULATIVE), theme coverage, cash-deployment priorities, 7% stops, and grades
@@ -29,16 +29,18 @@ Deployed on AWS (password-gated), three Telegram alerts + an eight-tab dashboard
   signals-only, behind the password.
 - **S39 — Data-quality:** removed BKNG (corrupt ~30× price feed); made forward growth
   split-safe via fiscal-period-matched net income (fixes NVDA forward PE).
+- **S40 — Conviction re-weight:** backtest-driven — Widell state now the top driver
+  (≥8 requires up-momentum), breakdowns no longer rewarded, fundamental weight 3→2.
+  Better Spearman, monotonic win rate, ≥8 +13.7% in the 2022 bear.
 
 **Next steps (priority order):**
-1. **Conviction re-weight** — remove the fundamental-lookahead / fix the mid-scale buckets
-   (from the Session 35 conviction backtest findings).
-2. **Narrative-quality review** — after a week of live runs in the new format, tune the
+1. **Narrative-quality review** — after a week of live runs in the new format, tune the
    system prompt where the read is off.
-3. **Q&A enhancements (optional)** — a news source (web search / news API) and multi-user
+2. **Q&A enhancements (optional)** — a news source (web search / news API) and multi-user
    guest mode with a per-session rate/cost guard.
-4. **Watch:** first close run already created `data/positions_seen.json`; confirm the
-   nightly close keeps it + the narrative healthy.
+3. **Remove the fundamental lookahead fully** — needs point-in-time fundamentals history
+   (not currently stored); until then the backtest caveat stands (now 2 of 10 pts).
+4. **Watch:** confirm the nightly close keeps `positions_seen.json` + the narrative healthy.
 
 ---
 
@@ -794,6 +796,44 @@ narrative tag.
 
 **Still open:** narrative-quality review after a week, conviction mid-scale re-weight /
 remove fundamental lookahead, optional Q&A news source + multi-user guest mode.
+
+---
+
+## Session 40 — June 12, 2026
+
+**Built:** Conviction score re-weight — backtest-driven, addresses the two flaws the
+Session 35 backtest flagged (beaten-down-beta mid-scale + fundamental lookahead leverage).
+
+**The diagnosis (empirical, `backtest_conviction.py`):** the old weighting rewarded
+beaten-down names (channel `lower=4`, `breakdown=2`) and under-weighted the *validated*
+Widell-state edge (only 0–2 of 10). So the mid-scale carried beta, not signal — the 0–3
+bucket *beat* 4–5 and 6–7. Tested four candidate schemes on 100k+ bars of SPY-relative
+forward alpha; the winner (scheme D) wins on Spearman, top-bucket edge, and year-by-year
+persistence.
+
+**New weighting (`conviction_score.py`):** Widell state **0–4** (up=4/inc=2/down=0 — the
+validated edge becomes the top driver, so ≥8 now *requires confirmed up-momentum*),
+channel **0–3** (middle=3/lower=3/upper=1/**breakdown=0**/**extended=0** — no reward for
+broken structure), fundamentals **0–2** (down from 0–3 — less leverage on the only
+lookahead-prone component), flip 0–1.
+
+**Backtest result (vs the old scheme):** Spearman +0.0259 → **+0.0333**; win rate now
+**monotonic** (52.5 → 56.9 → 56.8 → 61.2%); ≥8 edge +2.99% (20d), +12.3% (60d); ≥8
+**positive every year incl. the 2022 bear at +13.72%** (was +8.46%). The 0–3 beaten-down
+spike is gone. Honest limit unchanged: it's a top-tier filter, not a linear dial — the
+mid-scale is coarse context.
+
+**Downstream:** `cash_deployment.CORE_WEAK_CONV` 6 → 5 — under the new scale a down-state
+core name in a good channel tops out ~5–6 (Widell "weakness" caps state pts), so 5 keeps
+catching quality core pullbacks. `auto_classify` unchanged (doesn't use conviction). The
+≥8 dashboard/narrative headline stays — in a weak tape it's correctly sparse/empty
+("wait"), since high conviction now means up-momentum + good entry + quality.
+
+**Verified:** 20/20 tests, dashboard AppTest clean, conviction range 0–10, classification
+unchanged (8 core / 2 spec). Re-ran conviction; backtest doc rewritten with new numbers.
+
+**Still open:** narrative-quality review after a week, optional Q&A news source +
+multi-user guest mode, remove fundamental lookahead fully (needs point-in-time fundamentals).
 
 ---
 

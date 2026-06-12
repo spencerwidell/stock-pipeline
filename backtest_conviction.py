@@ -105,8 +105,8 @@ def stress_by_year(df, label):
 def main():
     df = load()
     print("CONVICTION BACKTEST — honest pressure test")
-    print("CAVEAT: the fundamental sub-score (0-3 of 10) uses current fundamentals on")
-    print("past bars (lookahead in that component); channel/state/flip (7 pts) are clean.")
+    print("CAVEAT: the fundamental sub-score (0-2 of 10) uses current fundamentals on")
+    print("past bars (lookahead in that component); state/channel/flip (8 pts) are clean.")
 
     names = df[~df["ticker"].isin(NON_NAMES)]
     etfs  = df[df["ticker"].isin(NON_NAMES)]

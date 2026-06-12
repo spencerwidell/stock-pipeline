@@ -1,15 +1,24 @@
 """Conviction score (0-10) — adds a `conviction_score` column to stock_vsa.parquet.
 
-Blends entry-zone quality, fundamental quality, swing state, and flip freshness
+Blends swing state, entry-zone quality, fundamental quality, and flip freshness
 into a single 0-10 "how much conviction does a buy here deserve" number.
 
-Components:
-  Channel position (0-4)  lower=4 middle=3 breakdown=2 upper=1 unknown=1 extended=0
-  Fundamentals     (0-3)  F5=3 F4=2 F3=1 F0-2 / missing=0
-  Widell state     (0-2)  up=2 inconclusive=1 down=0
+Components (re-weighted Session 40 — backtest-driven):
+  Widell state     (0-4)  up=4 inconclusive=2 down=0
+  Channel position (0-3)  middle=3 lower=3 upper=1 unknown=1 breakdown=0 extended=0
+  Fundamentals     (0-2)  F5=2 F4=1 F3=1 F0-2 / missing=0
   Flip recency     (0-1)  flipped within last 5 bars=1 else=0
 
 Score 8+ = highest-conviction buy zone.
+
+Why this weighting (see docs/CONVICTION_BACKTEST.md): the prior scheme rewarded
+beaten-down names (channel lower=4, breakdown=2) and under-weighted the *validated*
+Widell-state edge, which made the mid-scale carry beaten-down beta rather than signal
+(0-3 bucket beat 4-5/6-7). The re-weight (a) makes the Widell state the top driver —
+so ≥8 requires confirmed up-momentum, which is exactly where the forward-alpha edge
+lives, (b) stops rewarding breakdowns/extended, and (c) lightens the lookahead-prone
+fundamental component (3→2 pts). Result: monotonic buckets, a stronger Spearman, and a
+≥8 bucket that beats the rest in nearly every year incl. the 2022 bear (+13.7% 20d).
 
 Run AFTER composite_score.py (needs channel_zone, wl_state, wl_flip) and after
 fetch_fundamentals.py (for fundamental_score).
@@ -22,23 +31,22 @@ VSA_PATH  = "data/stock_vsa.parquet"
 FUND_PATH = "data/fundamentals.parquet"
 
 CHANNEL_PTS = {
-    "lower": 4,
     "middle": 3,
-    "breakdown": 2,
+    "lower": 3,
     "upper": 1,
     "unknown": 1,
+    "breakdown": 0,   # a breakdown is broken structure, not a buy-the-dip
     "extended": 0,
 }
-STATE_PTS = {"up": 2, "inconclusive": 1, "down": 0}
+STATE_PTS = {"up": 4, "inconclusive": 2, "down": 0}
 
 
 def fundamental_pts(score):
     if pd.isna(score):
         return 0
     s = int(score)
-    if s >= 5: return 3
-    if s == 4: return 2
-    if s == 3: return 1
+    if s >= 5: return 2
+    if s in (3, 4): return 1
     return 0
 
 

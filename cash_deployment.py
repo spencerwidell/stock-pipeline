@@ -34,7 +34,10 @@ except Exception:                       # pragma: no cover - defensive
 SEEN_PATH = "data/positions_seen.json"
 
 # Tunables (documented inline above)
-CORE_WEAK_CONV  = 6
+CORE_WEAK_CONV  = 5   # Session 40 conviction re-weight: a down-state core name in a
+                      # good channel now tops out ~5-6 (Widell state is weighted 4, so
+                      # "weakness" caps state points), so 5 keeps catching quality core
+                      # pullbacks; ≥6 would require a recent flip on top.
 WEAK_STATES     = ("inconclusive", "down")
 WEAK_ZONES      = ("lower", "middle")
 MAX_WEIGHT      = 15.0
