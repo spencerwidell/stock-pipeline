@@ -59,8 +59,9 @@ def require_auth():
 require_auth()
 
 # Section headers the briefing always emits — used to render it nicely in the app.
-_BRIEF_HEADERS = ("MARKET CONTEXT", "ACTIONABLE SETUPS", "WATCH LIST",
-                  "PORTFOLIO CHECK", "PORTFOLIO ACTION", "BOTTOM LINE")
+_BRIEF_HEADERS = ("MARKET CONTEXT", "PORTFOLIO ACTION", "WATCHLIST", "BOTTOM LINE",
+                  # legacy headers (older stored briefings) still render cleanly:
+                  "ACTIONABLE SETUPS", "WATCH LIST", "PORTFOLIO CHECK")
 
 def briefing_to_markdown(text):
     """Turn the plain-text Telegram briefing into app markdown: the four CAPS
@@ -161,45 +162,61 @@ with tab_brief:
     try:
         _d = cash_deployment.deployment()
 
-        # Row 1 — classification summary
+        # Header — classification + position count vs target + cash (concentration
+        # stays visible without blocking).
+        _pos = _d.get("n_positions", _d["n_core"] + _d["n_speculative"])
         st.markdown(
             f"#### 🧠 Portfolio Intelligence\n"
             f"**{_d['n_core']} core** · **{_d['n_speculative']} speculative** · "
+            f"**{_pos} positions** (target {_d.get('target_min', 10)}–{_d.get('target_max', 15)}) · "
             f"**{_d['cash_pct']:.0f}% cash**"
             + (f" (${_d['cash_dollars']:,})" if _d['cash_dollars'] else "")
-            + " available to deploy")
+            + " to deploy")
+        if _d.get("macro_wait"):
+            st.warning(f"⏸ {_d['macro_label']} within {cash_deployment.WAIT_MACRO_DAYS} days — "
+                       "fresh buys held to the Watchlist until after the print.")
 
-        # Row 2 — immediate actions (priority-ordered, max 3)
+        _ICON = {"ADD": "🔵", "NEW": "🟢", "GAP": "🟢", "TRIM": "✂️", "REVIEW": "⚠️",
+                 "BEATEN": "🟠"}
+
+        # 🎯 Portfolio Action — the ONE ranked, loggable NOW list.
         if _d["actions"]:
-            st.markdown("**Where your next dollar goes:**")
-            for _i, a in enumerate(_d["actions"][:3]):
+            st.markdown("##### 🎯 Portfolio Action — ranked, act top-down")
+            for _i, a in enumerate(_d["actions"]):
                 dol = f" · ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
-                tier = "🔵" if a["tier"] == "CORE" else "🟠"
+                ic = _ICON.get(a.get("type"), "•")
                 _txt, _btn = st.columns([6, 1])
-                _txt.markdown(f"{tier} **{a['action']} {a['ticker']}** "
+                _txt.markdown(f"{ic} **{a['action']} {a['ticker']}** "
                               f"+{a['suggested_pct']}%{dol} — {a['detail']}")
                 if _btn.button("✅ Log", key=f"log_brief_{_i}_{a['ticker']}",
                                help="Log to your investor diary that you acted on this"):
-                    diary.log_action(a["ticker"], "ADD" if "ADD" in a["action"] else "BUY",
-                                     f"{a['suggested_pct']}%", f"{a['action']}: {a['detail']}")
+                    _da = a.get("type")
+                    _dact = "TRIM" if _da in ("TRIM", "REVIEW") else ("ADD" if _da == "ADD" else "BUY")
+                    diary.log_action(a["ticker"], _dact, f"{a['suggested_pct']}%",
+                                     f"{a['action']}: {a['detail']}")
                     st.success(f"Logged {a['ticker']} to your diary (see ⚙️ Manage).")
-        elif _d["hold_cash"]:
-            st.info("💵 " + _d["hold_cash"]["message"])
-            for t in _d["hold_cash"]["triggers"][:3]:
-                st.markdown(f"- {t['detail']}")
         else:
-            st.markdown("**No action needed — hold and be patient.**")
+            st.info("💵 " + (_d["hold_cash"]["message"] if _d.get("hold_cash")
+                            else "No actions at entry right now — hold and be patient."))
 
-        # Row 3 — speculative watch (within 3% of stop)
+        # 👀 Watchlist — WAIT-timed items + conv 6-7 approaching candidates (context).
+        if _d.get("watchlist"):
+            st.markdown("##### 👀 Watchlist — not yet actionable")
+            for w in _d["watchlist"][:8]:
+                wr = f" · ⏸ {w['wait_reason']}" if w.get("wait_reason") else ""
+                lbl = f"**{w['action']} {w['ticker']}**" if w.get("action") else f"**{w['ticker']}**"
+                st.markdown(f"- {lbl}{wr} — {w['detail']}")
+
+        # Speculative stop watch (within 3% of stop).
         _watch = [s for s in _d["stops"] if s["dist_to_stop_pct"] <= 3 or s["status"] == "triggered"]
         if _watch:
-            st.markdown("**⚠️ Speculative watch (near −7% stop):**")
+            st.markdown("##### ⚠️ Speculative stop watch")
             for s in _watch:
                 tag = "🛑 STOP HIT" if s["status"] == "triggered" else "watch"
-                st.markdown(f"- **{s['ticker']}** ${s['current']} — stop at ${s['stop']} "
+                st.markdown(f"- **{s['ticker']}** ${s['current']} — stop ${s['stop']} "
                             f"({s['dist_to_stop_pct']}% away) — {tag}")
 
-        # Row 4 — thesis integrity (core only)
+        # Thesis integrity (core only).
         if _d["thesis_alerts"]:
             for a in _d["thesis_alerts"]:
                 st.warning(f"⚠️ {a['ticker']}: {a['detail']}")

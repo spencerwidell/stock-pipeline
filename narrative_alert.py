@@ -374,21 +374,32 @@ def build_context(df, holdings, earnings, moat):
     #     briefing if the engine hiccups. ---
     try:
         d = cash_deployment.deployment()
-        lines.append("CASH DEPLOYMENT (where the next dollar goes — advisory):")
-        lines.append(f"  Classification: {d['n_core']} core, {d['n_speculative']} "
-                     f"speculative | {d['cash_pct']:.0f}% cash"
+        lines.append("PORTFOLIO ACTION ENGINE (the consolidated, ranked action list — "
+                     "this IS the action list; don't invent a parallel one):")
+        lines.append(f"  {d['n_core']} core, {d['n_speculative']} speculative | "
+                     f"{d.get('n_positions', '?')} positions (target "
+                     f"{d.get('target_min',10)}-{d.get('target_max',15)}) | "
+                     f"{d['cash_pct']:.0f}% cash"
                      + (f" (${d['cash_dollars']:,})" if d['cash_dollars'] else "")
-                     + " dry powder")
+                     + " to deploy")
+        if d.get("macro_wait"):
+            lines.append(f"  MACRO GATE: {d['macro_label']} within "
+                         f"{cash_deployment.WAIT_MACRO_DAYS} days — fresh buys are held to "
+                         "the watchlist until after the print.")
         if d["actions"]:
-            lines.append("  Priority actions (deploy top-down, stage in tranches):")
-            for a in d["actions"][:4]:
+            lines.append("  ACTION NOW (ranked top-down — adds, new setups, gap starters, trims):")
+            for a in d["actions"]:
                 dol = f" ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
                 lines.append(f"    - {a['action']} {a['ticker']} +{a['suggested_pct']}%"
-                             f"{dol} [{a['tier']}]: {a['detail']}")
-        elif d["hold_cash"]:
-            lines.append(f"  {d['hold_cash']['message']}")
-            for t in d["hold_cash"]["triggers"][:3]:
-                lines.append(f"    - would trigger: {t['detail']}")
+                             f"{dol}: {a['detail']}")
+        else:
+            lines.append(f"  ACTION NOW: none — {d['hold_cash']['message'] if d.get('hold_cash') else 'hold and wait.'}")
+        if d.get("watchlist"):
+            lines.append("  WATCHLIST (waiting on macro/entry, or conv 6-7 approaching):")
+            for w in d["watchlist"][:8]:
+                wr = f" [{w['wait_reason']}]" if w.get("wait_reason") else ""
+                lbl = f"{w['action']} {w['ticker']}" if w.get("action") else w["ticker"]
+                lines.append(f"    - {lbl}{wr}: {w['detail']}")
         watch = [s for s in d["stops"] if s["status"] in ("watch", "triggered")]
         if watch:
             lines.append("  Speculative stops approaching (−7% from entry):")
@@ -442,54 +453,33 @@ is within ~2 days or happened today/yesterday, weight it heavily: price action a
 fresh Widell flips around CPI/Fed are usually noise, and it's typically better to \
 wait until after the event before acting. Call this out in MARKET CONTEXT.
 
-Use THEME INTELLIGENCE actively, woven into the sections (do NOT add a new section):
-- MARKET CONTEXT: factor in the bond regime (TLT tailwind favors growth/AI; headwind \
-pressures valuations).
-- ACTIONABLE SETUPS: when there's dry powder, surface the best entry in an UNCOVERED \
-high-conviction theme (a "gap") even if its conviction is below 8 — a ⭐ name at AT \
-ENTRY in a high-conviction gap is exactly the wide-moat / secular / cash-flowing \
-profile he wants. Name the gap and the entry.
-- PORTFOLIO CHECK: also flag over-concentration (3+ in one theme) and off-thesis \
-holdings (names in no theme) when relevant. Use POSITION SIZING here too — call out \
-where he is most underweight vs conviction (a name worth adding to) or overweight in \
-a low-conviction name (worth trimming). Sizing is advisory, not a mechanical rebalance.
+THE PORTFOLIO ACTION ENGINE block is the SINGLE SOURCE OF TRUTH for what's actionable \
+— a derived, ranked list of every action (adds to core, new on-thesis setups, gap \
+starters, trims/reviews, beaten-down quality), each already split into ACTION NOW vs \
+WATCHLIST and macro-gated. Do NOT invent a parallel action list or contradict it; your \
+job is to translate it into plain English and add the market/macro "why". Core names \
+are held through volatility (core weakness is a BUY signal, never a stop); only \
+speculative names carry a −7% stop. A conv≥8 best-in-class name in a theme he's light \
+on is deliberate breadth across secular trends — treat it as a real buy candidate, not \
+dilution.
 
-There is also a CASH DEPLOYMENT block — the derived, priority-ordered answer to \
-"where does my next dollar go," plus speculative stop distances and any thesis \
-erosion. Use it to write the PORTFOLIO ACTION section below. Core names are held \
-through volatility (a core name showing weakness is a BUY signal, never a stop); \
-only speculative names carry a −7% stop.
-
-Write EXACTLY these six sections, plain English, no jargon, no tables, concise:
+Write EXACTLY these four sections, plain English, no jargon, no tables, concise:
 
 MARKET CONTEXT
-2-3 sentences on what SPY/QQQ are telling us. Is this a good environment to be \
-buying, or to wait?
-
-ACTIONABLE SETUPS
-One short bullet per conviction>=8 name (or write "None today."). For each: is it \
-in a buyable entry zone right now, or is it extended/chasing? Worth acting on or \
-wait? If Spencer already holds it, say so and frame as add-vs-hold. Flag 🗓️ \
-earnings within 7 days as a reason to wait.
-
-WATCH LIST
-One short bullet per name approaching a signal but not ready — what to watch for \
-tomorrow. "None today." is fine.
-
-PORTFOLIO CHECK
-Look at YOUR POSITIONS. Call out only the names flagged TRIM (rich, above the \
-channel top - consider trimming into strength) or REVIEW (breaking down - reassess \
-the thesis); one short bullet each with what you'd do. If every holding is HOLD, \
-write "All holdings healthy - nothing to trim or review." Don't list healthy names.
+2-3 sentences: what SPY/QQQ + the bond regime (TLT) are telling us, and any UPCOMING \
+MACRO (CPI/FOMC) — if one is within ~3 days, say it's a wait-for-the-print environment \
+(the engine already holds fresh buys to the watchlist). Note over-concentration (3+ in \
+one theme) or off-thesis holdings only if they matter today.
 
 PORTFOLIO ACTION
-Translate the CASH DEPLOYMENT block into plain English. If there are priority \
-actions, give the top 1-3 as short bullets: what to buy/add, how much, and why \
-(core weakness add, theme-gap starter, or beaten-down speculative). If there are \
-none, say "No compelling entries - hold cash, patience is the edge" and name the \
-one trigger worth waiting for. Then, if any speculative position is approaching its \
--7% stop, add a one-line watch. Finally, surface any thesis-integrity alert (a core \
-name whose fundamentals eroded) as a "review the thesis" line.
+Translate the engine's ACTION NOW list into plain English, in its ranked order — what \
+to do (add/start/trim), how much, and why. If ACTION NOW is empty, say "No compelling \
+entries — hold cash, patience is the edge." Then add a one-line speculative-stop watch \
+and any thesis-integrity ("review the thesis") line if present.
+
+WATCHLIST
+The engine's WATCHLIST in plain English — names waiting on macro/entry, or conv 6-7 \
+approaching — and the one trigger worth waiting for. "Nothing on watch." is fine.
 
 BOTTOM LINE
 One sentence: what should Spencer actually do today (often "nothing — wait").

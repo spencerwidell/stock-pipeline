@@ -24,6 +24,7 @@ import os
 
 import auto_classify
 import holdings_io
+import positions as positions_mod
 import theme_engine
 
 try:
@@ -40,8 +41,14 @@ CORE_WEAK_CONV  = 5   # Session 40 conviction re-weight: a down-state core name 
                       # pullbacks; ≥6 would require a recent flip on top.
 WEAK_STATES     = ("inconclusive", "down")
 WEAK_ZONES      = ("lower", "middle")
+GOOD_ENTRY      = ("AT ENTRY", "ELEVATED")  # acceptable entry statuses to deploy into now
 MAX_WEIGHT      = 15.0
 GAP_CONV        = 6
+NEW_SETUP_CONV  = 8           # not-held on-thesis name at conv≥8 = a fresh setup worth acting on
+WATCH_CONV      = 6           # conv 6-7 not-held = a watchlist candidate (not yet an action)
+WAIT_MACRO_DAYS = 3           # a CPI/FOMC within this many days → hold fresh buys (→ watchlist)
+WAIT_ENTRY      = ("EXTENDED", "CHASING")  # entry statuses that mean wait-for-pullback
+STARTER_PCT     = 3.0         # default starter size for a new on-thesis setup
 NOT_EXTENDED    = 0.8          # channel_pos below this = not extended
 NEAR_LOW_GAP    = 10.0         # within 10% of 52-wk low (step 2)
 BEATEN_LOW_GAP  = 15.0         # within 15% of 52-wk low (step 3)
@@ -188,9 +195,14 @@ def _dollars(pct, total_value):
 # The engine
 # ---------------------------------------------------------------------------
 def deployment():
-    """Full deployment read. Returns classification, priority actions (steps 1–3),
-    a hold-cash fallback with trigger prices (step 4), speculative stops, thesis
-    alerts, and dollar context."""
+    """Consolidated, ranked, macro-aware deployment read — ONE action model.
+
+    Every actionable item (add-to-core, new on-thesis setup, gap starter, trim/review,
+    beaten-down quality) flows through one builder with a priority rank and NOW/WAIT
+    timing (fresh buys WAIT near a CPI/FOMC print or when a name is extended). Returns
+    `actions` (NOW, ranked, loggable), `watchlist` (WAIT + conv 6-7 approaching),
+    speculative stops, thesis alerts, position-count context, and a hold-cash fallback.
+    """
     cls      = auto_classify.classify_holdings()
     classifications = cls["classifications"]
     holdings = holdings_io.load_positions()
@@ -200,65 +212,118 @@ def deployment():
     meta     = holdings_io.load_portfolio_meta()
     cash_pct = holdings_io.load_cash()
     total    = meta["total_value"]
+    cls_by   = {c["ticker"]: c for c in classifications}
+    held     = set(holdings)
 
-    actions = []
+    # Deterministic macro gate: a CPI/FOMC within WAIT_MACRO_DAYS holds fresh buys
+    # (respect the Fed/CPI — act after the print, not into it).
+    macro_wait, macro_label = False, None
+    try:
+        import macro_calendar
+        _evs = macro_calendar.nearby_events(ahead_days=WAIT_MACRO_DAYS, back_days=0)
+        if _evs:
+            macro_wait, macro_label = True, _evs[0]["event"]
+    except Exception:
+        pass
 
-    # --- STEP 1: add to CORE on weakness ---
+    _TCONV_BONUS = {"high": 2, "medium": 1, "low": 0}
+    items = []
+
+    def _add(tk, typ, action, pct, detail, ns, is_buy=True, best_in=False, theme_conv=None):
+        """Build one ranked, timed action item. Fresh buys WAIT near a macro print or
+        when the name is extended; trims/reviews are never macro-gated."""
+        entry = ns.get("entry_status")
+        if is_buy and macro_wait:
+            timing, wr = "WAIT", f"hold fresh buys near {macro_label}"
+        elif is_buy and entry in WAIT_ENTRY:
+            timing, wr = "WAIT", "wait for a pullback (extended)"
+        else:
+            timing, wr = "NOW", None
+        conv = ns.get("conviction_score") or 0
+        if is_buy:
+            pr = (conv + _TCONV_BONUS.get(theme_conv, 0)
+                  + (1 if ns.get("fits_profile") else 0)
+                  + (2 if entry == "AT ENTRY" else 1 if entry == "ELEVATED" else 0)
+                  + (1 if best_in else 0))
+        else:
+            pr = 9 if typ == "REVIEW" else 6      # REVIEW (thesis breaking) ranks above TRIM
+        items.append({
+            "ticker": tk, "type": typ, "action": action,
+            "suggested_pct": pct, "suggested_dollars": _dollars(pct, total),
+            "detail": detail, "price": ns.get("close"),
+            "conviction": ns.get("conviction_score"), "channel_zone": ns.get("channel_zone"),
+            "entry_status": entry, "tier": (cls_by.get(tk) or {}).get("tier"),
+            "is_buy": is_buy, "timing": timing, "wait_reason": wr, "priority": round(pr, 1),
+        })
+
+    # 1) ADD TO CORE — a held core name on weakness or sitting at entry
     for c in classifications:
         if c["tier"] != "CORE":
             continue
-        tk = c["ticker"]
-        ns = theme_engine._name_status(tk, sig, holdings)
+        tk = c["ticker"]; ns = theme_engine._name_status(tk, sig, holdings)
         conv = ns.get("conviction_score")
-        if (ns.get("wl_state") in WEAK_STATES and ns.get("channel_zone") in WEAK_ZONES
-                and conv is not None and conv >= CORE_WEAK_CONV):
-            w = _weight(holdings.get(tk))
-            gap = round(MAX_WEIGHT - w, 1)
-            add_pct = gap if gap >= 0.5 else 1.5      # under target → toward 15; else top-up
-            staged = " (stage in tranches)" if add_pct > 2 else ""
-            actions.append({
-                "step": 1, "ticker": tk, "tier": "CORE", "action": "ADD TO CORE",
-                "suggested_pct": add_pct, "suggested_dollars": _dollars(add_pct, total),
-                "detail": (f"core weakness — {ns.get('wl_state')}, {ns.get('channel_zone')} "
-                           f"channel, conv {conv}/10. Held {w:.0f}%, add toward "
-                           f"{min(MAX_WEIGHT, w + add_pct):.0f}%{staged}"),
-                "price": ns.get("close"), "conviction": conv,
-                "channel_zone": ns.get("channel_zone"),
-            })
+        weak = ns.get("wl_state") in WEAK_STATES and ns.get("channel_zone") in WEAK_ZONES
+        at_entry = ns.get("entry_status") in GOOD_ENTRY
+        if conv is not None and conv >= CORE_WEAK_CONV and (weak or at_entry):
+            w = _weight(holdings.get(tk)); gap = round(MAX_WEIGHT - w, 1)
+            pct = gap if gap >= 0.5 else 1.5
+            _add(tk, "ADD", "ADD TO CORE", pct,
+                 f"core {'weakness' if weak else 'at entry'} — {ns.get('wl_state')}, "
+                 f"{ns.get('channel_zone')} channel, conv {conv}/10. Held {w:.0f}%, "
+                 f"toward {min(MAX_WEIGHT, w + pct):.0f}%", ns,
+                 theme_conv=tidx.get(tk, {}).get("max_conv"))
 
-    # --- STEP 2: high-conviction theme gap at entry ---
+    # 2) NEW SETUP — a not-held on-thesis name at conv≥8 (best-in-class breadth across
+    #    secular themes IS the thesis, not dilution) + zero-exposure gap starters
+    seen = set()
+    for tk in tidx:
+        if tk in held or tk in SECTOR_ETFS:
+            continue
+        ns = theme_engine._name_status(tk, sig, holdings)
+        if not ns or ns.get("no_data"):
+            continue
+        conv = ns.get("conviction_score")
+        if conv is not None and conv >= NEW_SETUP_CONV:
+            ti = tidx.get(tk, {}); theme = (ti.get("themes") or ["off-thesis"])[0]
+            tier = auto_classify.tier_for_new(ns, ti)
+            stop = (f" · speculative → −7% stop ${round(ns['close'] * (1 - STOP_PCT), 2)}"
+                    if tier == "SPECULATIVE" else "")
+            _add(tk, "NEW", f"NEW SETUP ({theme})", STARTER_PCT,
+                 f"conv {conv}/10, {ns.get('entry_status')}, {ns.get('channel_zone')} "
+                 f"channel, moat {ns.get('moat_rating')}/5{stop}", ns,
+                 best_in=True, theme_conv=ti.get("max_conv"))
+            seen.add(tk)
     for th in status["themes"]:
         if th["is_regime"] or th["conviction"] != "high" or not th["theme_gap"]:
             continue
         for n in th["best_in_class"]:
-            if n.get("no_data") or n.get("ticker") in holdings:
+            tk = n["ticker"]
+            if tk in held or tk in seen or n.get("no_data"):
                 continue
-            conv = n.get("conviction_score")
-            cpos = n.get("channel_pos")
-            near_low = (n.get("dist_52w_low") is not None and n["dist_52w_low"] <= NEAR_LOW_GAP)
-            at_pullback = n.get("entry_status") == "AT ENTRY"
+            conv = n.get("conviction_score"); cpos = n.get("channel_pos")
+            near_low = n.get("dist_52w_low") is not None and n["dist_52w_low"] <= NEAR_LOW_GAP
             if (n.get("channel_zone") in WEAK_ZONES and conv is not None and conv >= GAP_CONV
-                    and cpos is not None and cpos < NOT_EXTENDED and (near_low or at_pullback)):
-                tier = auto_classify.tier_for_new(n, tidx.get(n["ticker"]))
-                stop_note = (f" · speculative → −7% stop at "
-                             f"${round(n['close'] * (1 - STOP_PCT), 2)}"
-                             if tier == "SPECULATIVE" else "")
-                actions.append({
-                    "step": 2, "ticker": n["ticker"], "tier": tier,
-                    "action": f"GAP STARTER ({th['name']})",
-                    "suggested_pct": GAP_STARTER_PCT,
-                    "suggested_dollars": _dollars(GAP_STARTER_PCT, total),
-                    "detail": (f"fills the {th['name']} gap at entry — {n['entry_status']}, "
-                               f"{n.get('channel_zone')} channel, conv {conv}/10, "
-                               f"moat {n.get('moat_rating')}/5{stop_note}"),
-                    "price": n.get("close"), "conviction": conv,
-                    "channel_zone": n.get("channel_zone"),
-                })
+                    and cpos is not None and cpos < NOT_EXTENDED
+                    and (near_low or n.get("entry_status") == "AT ENTRY")):
+                _add(tk, "NEW", f"GAP STARTER ({th['name']})", GAP_STARTER_PCT,
+                     f"fills the {th['name']} gap (zero exposure) — conv {conv}/10, "
+                     f"{n.get('entry_status')}, moat {n.get('moat_rating')}/5", n,
+                     best_in=True, theme_conv="high")
+                seen.add(tk)
 
-    # --- STEP 3: beaten-down quality (speculative), not held ---
-    themed = set(tidx)                                  # single names that map to a theme
-    for tk in themed:
-        if tk in holdings or tk in SECTOR_ETFS:
+    # 3) TRIM / REVIEW — a held name that's extended (trim into strength) or breaking
+    #    down (reassess the thesis). Not a buy, so never macro-gated.
+    for c in classifications:
+        tk = c["ticker"]; ns = theme_engine._name_status(tk, sig, holdings)
+        st, reason = positions_mod.assess_position(ns.get("channel_zone"), ns.get("wl_state"))
+        if st in ("TRIM", "REVIEW"):
+            w = _weight(holdings.get(tk)); pct = round(min(max(w * 0.3, 1.0), 3.0), 1)
+            _add(tk, st, st, pct, (reason or st) + f" — held {w:.0f}%, trim ~{pct:.0f}%",
+                 ns, is_buy=False)
+
+    # 4) BEATEN-DOWN QUALITY — a non-held quality name near its low, not a falling knife
+    for tk in tidx:
+        if tk in held or tk in SECTOR_ETFS or tk in seen:
             continue
         ns = theme_engine._name_status(tk, sig, holdings)
         if not ns or ns.get("no_data"):
@@ -267,51 +332,43 @@ def deployment():
         if (ns.get("dist_52w_low") is not None and ns["dist_52w_low"] <= BEATEN_LOW_GAP
                 and moat is not None and moat >= 3 and fund is not None and fund >= 3
                 and ns.get("wl_state") != "down" and ns.get("channel_zone") in BEATEN_ZONES):
-            if any(a["ticker"] == tk for a in actions):   # already surfaced in step 2
-                continue
             stop = round(ns["close"] * (1 - STOP_PCT), 2)
-            actions.append({
-                "step": 3, "ticker": tk, "tier": "SPECULATIVE",
-                "action": "BEATEN-DOWN QUALITY",
-                "suggested_pct": BEATEN_PCT, "suggested_dollars": _dollars(BEATEN_PCT, total),
-                "detail": (f"near 52-wk low ({ns['dist_52w_low']:.0f}% above), moat "
-                           f"{moat}/5, F {fund}/5, {ns.get('wl_state')}, "
-                           f"{ns.get('channel_zone')} — speculative → −7% stop at ${stop}"),
-                "price": ns.get("close"), "conviction": ns.get("conviction_score"),
-                "channel_zone": ns.get("channel_zone"),
+            _add(tk, "BEATEN", "BEATEN-DOWN QUALITY", BEATEN_PCT,
+                 f"near 52-wk low ({ns['dist_52w_low']:.0f}% above), moat {moat}/5, "
+                 f"F {fund}/5, {ns.get('wl_state')} — speculative → −7% stop ${stop}", ns,
+                 theme_conv=tidx.get(tk, {}).get("max_conv"))
+            seen.add(tk)
+
+    actions    = sorted([i for i in items if i["timing"] == "NOW"], key=lambda i: -i["priority"])
+    wait_items = sorted([i for i in items if i["timing"] == "WAIT"], key=lambda i: -i["priority"])
+
+    # Watchlist = WAIT-timed actions + conv 6-7 not-held "approaching" candidates.
+    watch_seen = {i["ticker"] for i in items}
+    approaching = []
+    for tk in tidx:
+        if tk in held or tk in SECTOR_ETFS or tk in watch_seen:
+            continue
+        ns = theme_engine._name_status(tk, sig, holdings)
+        conv = ns.get("conviction_score") if ns else None
+        if (conv is not None and WATCH_CONV <= conv < NEW_SETUP_CONV
+                and not ns.get("no_data")):
+            ti = tidx.get(tk, {}); theme = (ti.get("themes") or ["off-thesis"])[0]
+            approaching.append({
+                "ticker": tk, "type": "WATCH", "conviction": conv,
+                "entry_status": ns.get("entry_status"), "channel_zone": ns.get("channel_zone"),
+                "priority": conv + _TCONV_BONUS.get(ti.get("max_conv"), 0),
+                "detail": f"approaching — conv {conv}/10, {ns.get('entry_status')}, "
+                          f"{ns.get('channel_zone')} channel ({theme})",
             })
+    approaching.sort(key=lambda w: -w["priority"])
+    watchlist = wait_items + approaching
 
-    actions.sort(key=lambda a: (a["step"], -(a["conviction"] or 0)))
-
-    # --- STEP 4: hold cash + what would need to happen ---
     hold_cash = None
     if not actions:
-        triggers = []
-        for th in status["themes"]:
-            if th["is_regime"] or th["conviction"] != "high" or not th["theme_gap"]:
-                continue
-            be = th.get("best_entry_now")
-            if not be or be.get("no_data"):
-                continue
-            low = be.get("low_52w")
-            pull_to = round(low * (1 + NEAR_LOW_GAP / 100.0), 2) if low else None
-            blocks = []
-            conv = be.get("conviction_score")
-            if conv is None or conv < GAP_CONV:
-                blocks.append(f"conviction {conv}/10 (need ≥{GAP_CONV})")
-            if be.get("channel_zone") not in WEAK_ZONES:
-                blocks.append(f"{be.get('channel_zone')} channel (need lower/middle)")
-            price_hint = (f" — pull back from ${be.get('close'):.0f} toward ${pull_to:.0f}"
-                          if pull_to and be.get("close") else "")
-            triggers.append({
-                "theme": th["name"], "ticker": be["ticker"],
-                "detail": (f"{be['ticker']} ({th['name']}): "
-                           + ("; ".join(blocks) if blocks else "watching for entry")
-                           + price_hint),
-            })
         hold_cash = {
-            "message": "No compelling entries. Hold cash. Patience is the edge.",
-            "triggers": triggers,
+            "message": "No compelling entries right now — hold cash, patience is the edge.",
+            "triggers": [{"ticker": w["ticker"], "detail": w["detail"]}
+                         for w in watchlist[:3]],
         }
 
     stops  = speculative_stops(classifications, sig)
@@ -324,7 +381,13 @@ def deployment():
         "bi_weekly_contribution": meta["bi_weekly_contribution"],
         "n_core": len(cls["core"]),
         "n_speculative": len(cls["speculative"]),
+        "n_positions": len(classifications),
+        "target_min": theme_engine.TARGET_MIN,
+        "target_max": theme_engine.TARGET_MAX,
+        "macro_wait": macro_wait,
+        "macro_label": macro_label,
         "actions": actions,
+        "watchlist": watchlist,
         "hold_cash": hold_cash,
         "stops": stops,
         "stops_watch": [s for s in stops if s["status"] in ("watch", "triggered")],
@@ -336,18 +399,22 @@ def deployment():
 if __name__ == "__main__":
     d = deployment()
     print(f"CASH {d['cash_pct']:.0f}% (${d['cash_dollars']:,}) · "
-          f"CORE {d['n_core']} · SPEC {d['n_speculative']}")
-    print("=" * 70)
+          f"CORE {d['n_core']} · SPEC {d['n_speculative']} · "
+          f"{d['n_positions']} positions (target {d['target_min']}-{d['target_max']})"
+          + (f" · ⏸ macro WAIT: {d['macro_label']}" if d["macro_wait"] else ""))
+    print("=" * 70, "\n🎯 PORTFOLIO ACTION (NOW, ranked):")
     if d["actions"]:
         for a in d["actions"]:
             dol = f" (~${a['suggested_dollars']:,})" if a["suggested_dollars"] else ""
-            print(f"[STEP {a['step']}] {a['action']} {a['ticker']} "
-                  f"+{a['suggested_pct']}%{dol}")
-            print(f"          {a['detail']}")
+            print(f"  [{a['priority']:>4}] {a['action']} {a['ticker']} "
+                  f"+{a['suggested_pct']}%{dol}\n          {a['detail']}")
     else:
-        print(d["hold_cash"]["message"])
-        for t in d["hold_cash"]["triggers"]:
-            print(f"   · {t['detail']}")
+        print("  " + d["hold_cash"]["message"])
+    print("\n👀 WATCHLIST:")
+    for w in d["watchlist"]:
+        wr = f" [WAIT: {w.get('wait_reason')}]" if w.get("wait_reason") else ""
+        lbl = w.get("action", "WATCH")
+        print(f"  {lbl} {w['ticker']}{wr} — {w['detail']}")
     if d["stops_watch"]:
         print("-" * 70, "\nSPECULATIVE STOPS:")
         for s in d["stops_watch"]:

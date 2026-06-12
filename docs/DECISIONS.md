@@ -371,6 +371,22 @@ Adopted the pragmatic model instead: the **diary is gitignored and AWS-authorita
 (infrequent, handled manually). Full GitHub auto-backup of these two files is an optional
 follow-up gated only on Spencer creating a repo token.
 
+**One consolidated action model; the engine is the source of truth (Session 42)**
+The Briefing had three overlapping recommendation surfaces that disagreed: the
+deterministic `cash_deployment` cockpit (loggable, but showed only its top 3, no trims,
+no macro timing), and the LLM narrative's ACTIONABLE SETUPS (conv≥8 names) + PORTFOLIO
+CHECK (trims) — different names, none loggable. Resolved by making `cash_deployment` the
+single source of truth: one ranked, macro-aware action model covering every actionable
+type (add-to-core, NEW SETUP at conv≥8, gap starter, TRIM/REVIEW, beaten-down), each
+with a priority rank and NOW/WAIT timing (a CPI/FOMC within 3 days or an extended entry
+→ WAIT → watchlist). The dashboard shows 🎯 Portfolio Action (the one ranked, loggable
+NOW list) + 👀 Watchlist; the narrative is reduced to four sections (MARKET CONTEXT /
+PORTFOLIO ACTION / WATCHLIST / BOTTOM LINE) and is forbidden to invent a parallel list —
+it translates the engine and adds the macro "why". **A conv≥8 best-in-class name in a
+theme he's light on is deliberate breadth across secular trends (Spencer's call), a real
+buy candidate, not dilution** — so it's an action (ranked), not buried. Position count
+vs the 10-15 target is shown so concentration stays visible without blocking.
+
 ---
 
 *Add new decisions here as the project evolves.*

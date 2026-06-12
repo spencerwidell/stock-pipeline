@@ -11,7 +11,7 @@ For sessions 1-24 see docs/SESSION_ARCHIVE.md
 
 ---
 
-## 📍 Current state & open items (as of Session 41, June 12 2026)
+## 📍 Current state & open items (as of Session 42, June 12 2026)
 
 **What the system is now:** you maintain ONE file (`holdings.yaml`); the system derives
 tier (CORE/SPECULATIVE), theme coverage, cash-deployment priorities, 7% stops, and grades
@@ -34,6 +34,10 @@ Deployed on AWS (password-gated), three Telegram alerts + an eight-tab dashboard
   Better Spearman, monotonic win rate, ≥8 +13.7% in the 2022 bear.
 - **S41 — Manage tab:** dashboard universe add/remove (over `manage_universe`) + a
   lightweight investor diary (`diary.py`, gitignored, ✅ Log buttons on Briefing).
+- **S42 — Consolidated recommendations:** one ranked, macro-aware action model in
+  `cash_deployment` (adds/new-setups/gap-starters/trims/beaten-down, NOW vs WAIT) →
+  🎯 Portfolio Action + 👀 Watchlist on the Briefing; narrative cut to 4 sections,
+  engine is the single source of truth (no more parallel/disagreeing lists).
 
 **Next steps (priority order):**
 1. **Narrative-quality review** — after a week of live runs in the new format.
@@ -872,6 +876,41 @@ add/remove round-trip tested, `investor_diary.csv` confirmed gitignored.
 **Still open:** narrative-quality review after a week; optional Q&A news source +
 guest mode; optional GitHub auto-backup of universe/diary (one-time token); remove the
 fundamental lookahead fully (needs point-in-time fundamentals).
+
+---
+
+## Session 42 — June 12, 2026
+
+**Built:** Consolidated the recommendation surfaces — Spencer caught that the Briefing
+had THREE overlapping, disagreeing action lists (the deterministic cockpit with Log
+buttons showed only its top 3; the LLM narrative emitted its own ACTIONABLE SETUPS /
+PORTFOLIO CHECK with different names + trims; only 3 items were loggable). Fixed by
+making the engine the single source of truth.
+
+**`cash_deployment` — one ranked, macro-aware action model:** every actionable item now
+flows through one builder: **add-to-core, NEW SETUP (not-held on-thesis at conv≥8 —
+best-in-class breadth across themes IS the thesis, Spencer's call, not dilution), gap
+starter, TRIM/REVIEW (new — folds in `positions.assess_position`), beaten-down**. Each
+gets a **priority rank** (conviction + theme conviction + ⭐fits-profile + entry quality)
+and **NOW vs WAIT timing**: fresh buys WAIT (→ watchlist) when a CPI/FOMC is within 3
+days (deterministic `macro_calendar` gate — so the engine agrees with the LLM's
+"wait for the Fed") or the name is extended. Returns `actions` (NOW, ranked, loggable),
+`watchlist` (WAIT items + conv 6-7 approaching), plus position-count/target context.
+
+**Dashboard Briefing → two buckets:** 🎯 Portfolio Action (the one ranked NOW list,
+every item ✅-loggable, type-iconed) + 👀 Watchlist, with a header showing positions vs
+the 10-15 target + a macro-WAIT banner. **Narrative → context:** consolidated from six
+sections to four (MARKET CONTEXT / PORTFOLIO ACTION / WATCHLIST / BOTTOM LINE); the
+prompt now treats the engine block as the single source of truth and forbids a parallel
+action list. `_BRIEF_HEADERS` updated (legacy headers still render).
+
+**Verified:** 20/20 tests, dashboard AppTest clean, narrative context carries the
+consolidated engine block. Engine output locally: 6 core adds + ISRG ranked NOW;
+APP/GOOG/GLW (conv 6-7) on the watchlist (on AWS those are conv 8-9 → promote to NEW
+SETUP actions).
+
+**Still open:** narrative-quality review after a week; optional Q&A news source + guest
+mode; optional GitHub auto-backup (token); remove fundamental lookahead fully.
 
 ---
 
