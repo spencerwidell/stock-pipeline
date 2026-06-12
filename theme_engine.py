@@ -72,7 +72,9 @@ def _load_signals():
     if os.path.exists(FUND_PATH):
         fund_all = pd.read_parquet(FUND_PATH)
         keep = [c for c in ["ticker", "fundamental_score", "ttm_eps", "ttm_ocf",
-                            "shares", "ttm_eps_growth"] if c in fund_all.columns]
+                            "shares", "ttm_eps_growth", "eps_growth_base",
+                            "eps_growth_bear", "eps_growth_bull"]
+                if c in fund_all.columns]
         df = df.merge(fund_all[keep], on="ticker", how="left")
     if os.path.exists(MOAT_PATH):
         moat = pd.read_parquet(MOAT_PATH)[["ticker", "moat_rating"]]

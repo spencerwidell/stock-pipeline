@@ -107,13 +107,18 @@ validated stack into plain-English decisions for a concentrated conviction inves
   `cash_deployment.py`; 🧠 Briefing cockpit, narrative PORTFOLIO ACTION, tier-aware
   morning checks. Advisory only (Session 36)
 
+- **Sector-aware fundamental scoring (Session 37)** — `business_model.py`:
+  per-business-archetype 0-5 rubrics (software / platform / bank / energy / industrial /
+  staple / pre-profit), each on the metrics that fit (ROE, efficiency ratio, FCF), using
+  the full Polygon balance sheet. `pre_profit` is data-driven (no earnings AND no cash).
+  Fixed AMZN/JPM/XOM/CMI on evidence — AMZN now CORE without an override.
+- **Forward PE/PEG — our own run-rate projection** — bear/base/bull EPS-growth band from
+  four historical YoY readings (no analyst feed); `valuation.compute_forward()`. In the
+  narrative tag + Fundamentals tab. Deterministic and honest about uncertainty.
+
 ## 🚧 In progress
 
-- **Sector-aware fundamental scoring (Session 37)** — replace the single
-  software-tuned rubric with per-business-archetype 0-5 scoring (software / platform /
-  bank / energy / industrial / staple / pre-profit) on the right metrics (ROE,
-  efficiency ratio, FCF), using the full Polygon balance sheet (currently unused).
-  One comprehensive fundamentals pull + forward PE/PEG (yfinance). Re-scores the book.
+- *(open — pick the next build)*
 
 ## 🔜 Upcoming
 

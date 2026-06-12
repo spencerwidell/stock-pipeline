@@ -526,7 +526,10 @@ with tab1:
                  use_container_width=True, height=250)
 with tab2:
     st.title("📋 Fundamental Scores")
-    st.caption("Quarterly financials scored 0-5 across revenue growth, margins, EPS growth, and cash flow")
+    st.caption("Sector-aware 0-5 score: each name graded by the rubric for its business "
+               "archetype (software / platform / bank / energy / industrial / staple / "
+               "pre-profit) — banks on ROE & efficiency, energy on ROE & cash flow, not "
+               "software margins. Forward PE is our own run-rate projection (base = median).")
 
     import os
     if os.path.exists("data/fundamentals.parquet"):
@@ -551,6 +554,8 @@ with tab2:
             fund["PE"]    = [v["pe"]    for v in vals]
             fund["PEG"]   = [v["peg"]   for v in vals]
             fund["P/OCF"] = [v["p_ocf"] for v in vals]
+            fwd = fund.apply(lambda r: valuation.compute_forward(r.get("close"), r), axis=1)
+            fund["fwd PE"] = [f["fwd_pe_base"] for f in fwd]
 
         # Summary metrics
         c1,c2,c3,c4 = st.columns(4)
@@ -580,12 +585,15 @@ with tab2:
             return ""
 
         display_cols = ["ticker","fundamental_score"]
+        if "archetype" in filtered.columns:
+            display_cols += ["archetype"]
         if has_moat:
             display_cols += ["moat_rating","moat_type"]
         if has_val:
-            display_cols += ["PE","PEG","P/OCF"]
-        display_cols += ["rev_growth_yoy","gross_margin","op_margin",
-                         "eps_growth_yoy","operating_cf_B","as_of"]
+            display_cols += ["PE","PEG","P/OCF","fwd PE"]
+        _extra = [c for c in ["rev_growth_yoy","op_margin","roe","efficiency_ratio",
+                              "operating_cf_B","as_of"] if c in filtered.columns]
+        display_cols += _extra
         styler = filtered[display_cols].style.map(color_fscore, subset=["fundamental_score"])
         if has_moat:
             styler = styler.map(color_moat, subset=["moat_rating"])

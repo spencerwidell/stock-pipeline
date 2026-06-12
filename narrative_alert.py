@@ -117,7 +117,8 @@ def load_signals():
         SELECT * EXCLUDE (rn) FROM latest WHERE rn = 1
     """).df()
 
-    val_cols = ["ttm_eps", "ttm_ocf", "shares", "ttm_eps_growth"]  # valuation inputs
+    val_cols = ["ttm_eps", "ttm_ocf", "shares", "ttm_eps_growth",   # valuation inputs
+                "eps_growth_base", "eps_growth_bear", "eps_growth_bull"]  # forward band
     want = ["ticker", "fundamental_score", "rev_growth_yoy", "gross_margin"] + val_cols
     if os.path.exists(FUND_PATH):
         fund_all = pd.read_parquet(FUND_PATH)

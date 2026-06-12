@@ -64,11 +64,52 @@ def compute_valuation(price, row):
     return out
 
 
+def compute_forward(price, row):
+    """Forward PE/PEG band from our OWN run-rate projection (no analyst feed).
+
+    fetch_fundamentals stores three EPS-growth scenarios (bear/base/bull = min/median/
+    max of the last four YoY readings). Forward EPS = TTM EPS × (1 + growth); forward
+    PE = price ÷ forward EPS. base = the median-growth case; the low/high PEs bracket
+    the bull/bear cases. None for pre-profit names (TTM EPS ≤ 0).
+    """
+    out = {"fwd_pe_base": None, "fwd_pe_low": None, "fwd_pe_high": None,
+           "fwd_peg": None, "base_growth": None}
+    p, eps = _num(price), _num(row.get("ttm_eps"))
+    if not p or p <= 0 or not eps or eps <= 0:
+        return out
+
+    def pe_at(g):
+        g = _num(g)
+        if g is None:
+            return None
+        fwd_eps = eps * (1 + g / 100.0)
+        if fwd_eps <= 0:                      # growth wipes out earnings → meaningless
+            return None
+        v = round(p / fwd_eps, 1)
+        return v if 2 <= v <= 5000 else None
+
+    gb = _num(row.get("eps_growth_base"))
+    out["fwd_pe_base"] = pe_at(gb)
+    out["fwd_pe_low"]  = pe_at(row.get("eps_growth_bull"))   # bull growth → lowest PE
+    out["fwd_pe_high"] = pe_at(row.get("eps_growth_bear"))   # bear growth → highest PE
+    out["base_growth"] = gb
+    if out["fwd_pe_base"] is not None and gb and gb > 0:
+        out["fwd_peg"] = round(out["fwd_pe_base"] / gb, 2)
+    return out
+
+
 def valuation_tag(price, row):
-    """Compact ' | PE 38.2, PEG 1.4, P/OCF 30.1' suffix for the narrative, or ''."""
+    """Compact ' | PE 38.2, PEG 1.4, P/OCF 30.1, fwd PE 25 (20-32)' suffix, or ''."""
     v = compute_valuation(price, row)
     parts = []
     if v["pe"]    is not None: parts.append(f"PE {v['pe']}")
     if v["peg"]   is not None: parts.append(f"PEG {v['peg']}")
     if v["p_ocf"] is not None: parts.append(f"P/OCF {v['p_ocf']}")
+    fw = compute_forward(price, row)
+    if fw["fwd_pe_base"] is not None:
+        rng = ""
+        if fw["fwd_pe_low"] is not None and fw["fwd_pe_high"] is not None:
+            lo, hi = sorted([fw["fwd_pe_low"], fw["fwd_pe_high"]])
+            rng = f" ({lo}-{hi})"
+        parts.append(f"fwd PE {fw['fwd_pe_base']}{rng}")
     return " | " + ", ".join(parts) if parts else ""

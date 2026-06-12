@@ -2,10 +2,12 @@ import requests
 import pandas as pd
 import os
 import time
+from statistics import median
 from dotenv import load_dotenv
 
 from universe import tickers as universe_tickers
-from sector_map import SECTOR_ETFS
+from sector_map import SECTOR_ETFS, get_parent_etfs
+import business_model
 
 load_dotenv()
 KEY = os.environ["POLYGON_API_KEY"]
@@ -31,19 +33,30 @@ def get_financials(ticker, limit=8):
 def extract_metrics(results):
     rows = []
     for r in results:
-        inc = r["financials"].get("income_statement", {})
-        cf  = r["financials"].get("cash_flow_statement", {})
+        fin = r["financials"]
+        inc = fin.get("income_statement", {})
+        cf  = fin.get("cash_flow_statement", {})
+        bs  = fin.get("balance_sheet", {})
+        def v(stmt, key):
+            return stmt.get(key, {}).get("value")
         row = {
             "fiscal_period": r.get("fiscal_period"),
             "fiscal_year":   r.get("fiscal_year"),
             "end_date":      r.get("end_date"),
-            "revenue":       inc.get("revenues", {}).get("value"),
-            "gross_profit":  inc.get("gross_profit", {}).get("value"),
-            "operating_income": inc.get("operating_income_loss", {}).get("value"),
-            "net_income":    inc.get("net_income_loss", {}).get("value"),
-            "eps_basic":     inc.get("basic_earnings_per_share", {}).get("value"),
-            "operating_cf":  cf.get("net_cash_flow_from_operating_activities", {}).get("value"),
-            "shares":        inc.get("diluted_average_shares", {}).get("value"),
+            "revenue":       v(inc, "revenues"),
+            "gross_profit":  v(inc, "gross_profit"),
+            "operating_income": v(inc, "operating_income_loss"),
+            "net_income":    v(inc, "net_income_loss"),
+            "eps_basic":     v(inc, "basic_earnings_per_share"),
+            "operating_cf":  v(cf, "net_cash_flow_from_operating_activities"),
+            "shares":        v(inc, "diluted_average_shares"),
+            # balance sheet — enables ROE / ROA / debt-to-equity (one pull, capture all)
+            "equity":        v(bs, "equity_attributable_to_parent") or v(bs, "equity"),
+            "assets":        v(bs, "assets"),
+            "long_term_debt": v(bs, "long_term_debt"),
+            # bank / extra income lines — efficiency ratio, dividends
+            "noninterest_expense": v(inc, "noninterest_expense"),
+            "dividends":     v(inc, "common_stock_dividends"),
         }
         rows.append(row)
     return pd.DataFrame(rows)
@@ -118,24 +131,90 @@ for ticker in TICKERS:
     prior_ttm_eps = ttm_sum(df["eps_basic"].iloc[4:], 4) if len(df) >= 8 else None
     if ttm_eps is not None and prior_ttm_eps not in (None, 0) and prior_ttm_eps > 0:
         ttm_eps_growth = round((ttm_eps - prior_ttm_eps) / prior_ttm_eps * 100, 1)
+    # The rubric grades on the stable TTM figure; fall back to single-quarter YoY.
+    eps_growth = ttm_eps_growth if ttm_eps_growth is not None else eps_yoy
+
+    # --- Forward EPS projection from our OWN historical run-rate (no analyst feed).
+    #     Four YoY readings (each recent quarter vs the same quarter a year prior)
+    #     give a bear/base/bull growth band; base = median (robust to one outlier). ---
+    eps_q = df["eps_basic"].tolist()
+    yoy = []
+    if len(eps_q) >= 8:
+        for i in range(4):
+            base, cur = eps_q[i + 4], eps_q[i]
+            if (base is not None and not pd.isna(base) and base > 0
+                    and cur is not None and not pd.isna(cur)):
+                yoy.append((cur - base) / base * 100)
+    if len(yoy) >= 3:
+        eps_g_bear, eps_g_base, eps_g_bull = (round(min(yoy), 1),
+                                              round(median(yoy), 1), round(max(yoy), 1))
+    elif ttm_eps_growth is not None:                 # fallback: one reading ± a spread
+        eps_g_base = ttm_eps_growth
+        eps_g_bear, eps_g_bull = round(ttm_eps_growth - 15, 1), round(ttm_eps_growth + 15, 1)
+    else:
+        eps_g_bear = eps_g_base = eps_g_bull = None
+
+    # --- Balance-sheet-derived ratios (ROE / ROA / efficiency / debt-to-equity) ---
+    ttm_net_income = ttm_sum(df["net_income"], 4)
+    ttm_revenue    = ttm_sum(df["revenue"], 4)
+    ttm_nie        = ttm_sum(df["noninterest_expense"], 4)
+    equity = latest.get("equity"); assets = latest.get("assets")
+    ltd    = latest.get("long_term_debt")
+    roe = (round(ttm_net_income / equity * 100, 1)
+           if ttm_net_income is not None and equity and equity > 0 else None)
+    roa = (round(ttm_net_income / assets * 100, 1)
+           if ttm_net_income is not None and assets and assets > 0 else None)
+    efficiency_ratio = (round(ttm_nie / ttm_revenue * 100, 1)
+                        if ttm_nie is not None and ttm_revenue and ttm_revenue > 0 else None)
+    debt_to_equity = (round(ltd / equity, 2)
+                      if ltd is not None and equity and equity > 0 else None)
+    op_margin_prev = None
+    if len(df) >= 5:
+        p = df.iloc[4]
+        if p["revenue"] and p["revenue"] > 0 and p["operating_income"] is not None:
+            op_margin_prev = round(p["operating_income"] / p["revenue"] * 100, 1)
+    dividends = latest.get("dividends")
+    dividend_payer = bool(dividends is not None and not pd.isna(dividends) and dividends != 0)
+
+    # Business archetype — pre_profit is data-driven (non-positive TTM earnings),
+    # else sector-ETF-derived (+ a small override list) in business_model.
+    sec = get_parent_etfs(ticker)
+    sector_etf = sec.get("sector_etf") if isinstance(sec, dict) else None
+    archetype = business_model.get_archetype(
+        ticker, {"ttm_net_income": ttm_net_income}, sector_etf)
 
     records.append({
         "ticker":       ticker,
         "as_of":        latest["end_date"],
+        "archetype":    archetype,
         "revenue_B":    round(latest["revenue"] / 1e9, 2) if latest["revenue"] else None,
         "rev_growth_yoy": rev_yoy,
         "gross_margin": gross_margin,
         "op_margin":    op_margin,
+        "op_margin_prev": op_margin_prev,
         "eps_basic":    latest["eps_basic"],
         "eps_growth_yoy": eps_yoy,
+        "eps_growth":   eps_growth,
         "operating_cf_B": round(latest["operating_cf"] / 1e9, 2) if latest["operating_cf"] else None,
+        # balance-sheet ratios
+        "roe":          roe,
+        "roa":          roa,
+        "efficiency_ratio": efficiency_ratio,
+        "debt_to_equity": debt_to_equity,
+        "dividend_payer": dividend_payer,
+        "ttm_net_income": round(ttm_net_income, 0) if ttm_net_income is not None else None,
         # valuation inputs
         "ttm_eps":        round(ttm_eps, 4) if ttm_eps is not None else None,
         "ttm_ocf":        ttm_ocf,
         "shares":         shares,
         "ttm_eps_growth": ttm_eps_growth,
+        # forward projection (our own run-rate band)
+        "eps_growth_bear": eps_g_bear,
+        "eps_growth_base": eps_g_base,
+        "eps_growth_bull": eps_g_bull,
     })
-    print(f"  {ticker}: rev=${records[-1]['revenue_B']}B  rev_yoy={rev_yoy}%  gm={gross_margin}%")
+    print(f"  {ticker}: {archetype} | rev=${records[-1]['revenue_B']}B  "
+          f"rev_yoy={rev_yoy}%  gm={gross_margin}%  roe={roe}%")
     time.sleep(0.12)  # rate limit
 
 print(f"\nFetched {len(records)} tickers, skipped {len(skipped)}")
@@ -143,34 +222,16 @@ print(f"Skipped: {skipped}")
 
 fund_df = pd.DataFrame(records)
 
-# Fundamental score (0-5)
-def score_fundamentals(row):
-    score = 0
-    # Revenue growth
-    if pd.notna(row["rev_growth_yoy"]):
-        if row["rev_growth_yoy"] > 20:   score += 1
-    # Gross margin
-    if pd.notna(row["gross_margin"]):
-        if row["gross_margin"] > 50:     score += 1
-    # Operating margin
-    if pd.notna(row["op_margin"]):
-        if row["op_margin"] > 15:        score += 1
-    # EPS growth — prefer the stable TTM figure (a single quarter is too noisy to
-    # gate quality on); fall back to the latest-quarter YoY only if TTM is missing.
-    eps_growth = (row["ttm_eps_growth"] if pd.notna(row.get("ttm_eps_growth"))
-                  else row.get("eps_growth_yoy"))
-    if pd.notna(eps_growth):
-        if eps_growth > 10:              score += 1
-    # Positive operating cash flow
-    if pd.notna(row["operating_cf_B"]):
-        if row["operating_cf_B"] > 0:    score += 1
-    return score
+# Fundamental score (0-5) — sector-aware: each name is graded by the rubric for its
+# business archetype (software / platform / financial / energy / industrial / staple /
+# consumer / pre_profit). See business_model.py.
+fund_df["fundamental_score"] = fund_df.apply(
+    lambda r: business_model.score_fundamentals(r), axis=1)
 
-fund_df["fundamental_score"] = fund_df.apply(score_fundamentals, axis=1)
-
-fund_df = fund_df.sort_values("fundamental_score", ascending=False)
-print("\nFundamental scores:")
-print(fund_df[["ticker","fundamental_score","rev_growth_yoy","gross_margin","op_margin","eps_growth_yoy","operating_cf_B"]].to_string(index=False))
+fund_df = fund_df.sort_values(["archetype", "fundamental_score"], ascending=[True, False])
+print("\nFundamental scores (by archetype):")
+print(fund_df[["ticker", "archetype", "fundamental_score", "rev_growth_yoy",
+               "op_margin", "roe", "efficiency_ratio", "operating_cf_B"]].to_string(index=False))
 
 fund_df.to_parquet("data/fundamentals.parquet", index=False)
 print("\nSaved to data/fundamentals.parquet")

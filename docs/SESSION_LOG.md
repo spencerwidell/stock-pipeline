@@ -648,6 +648,57 @@ Re-scores all ~68 names → needs a full pipeline re-run. (memory `sector-aware-
 
 **Still open:** interactive Q&A (auth), BKNG bad-price data, narrative-quality tuning.
 
+---
+
+## Session 37 — June 11, 2026
+
+**Built:** Sector-aware fundamental scoring + our own forward-PE projection — replaced
+the single software-tuned rubric that mis-scored whole business categories.
+
+**The problem:** one rubric (rev>20, gross>50, op>15, eps>10, +OCF) judged a bank, an
+oil major, and a SaaS company by the same software thresholds. JPM scored F=1 (banks
+have no gross margin), XOM/CVX F=1 (cyclical), AMZN F=1-2 (low blended margins by
+design). Not bad data — the wrong yardstick.
+
+**`business_model.py` (new):** each name gets a business archetype, then is graded by a
+rubric that fits it (same 0-5 scale, so conviction + auto_classify are unchanged):
+- Archetype from sector ETF (universe.yaml) + a small override list (AMZN/MELI→platform,
+  TSLA→industrial, COST→staple). `pre_profit` is DATA-driven: non-positive TTM earnings
+  AND non-positive operating cash flow (a GAAP loss alone doesn't qualify — cash-
+  generative SaaS like CRWD/SNOW/ZS run GAAP losses from stock comp yet are real
+  businesses, so they stay in software).
+- Rubrics: software (current), platform (rev>10 / margin-expanding / ROE / FCF), financial
+  (ROE / efficiency ratio / EPS growth / +NI), energy (ROE / FCF / low debt / +NI — not
+  growth), industrial (op margin / ROE / FCF / trough-tolerant growth), staple (ROE /
+  margin / FCF / dividend), consumer, pre_profit (path-to-profit, capped low).
+
+**Comprehensive Polygon pull (`fetch_fundamentals.py`):** now extracts the full balance
+sheet (equity, assets, long-term debt) + bank lines (noninterest_expense) — previously
+discarded — and derives ROE, ROA, efficiency ratio, debt-to-equity, op-margin trend,
+dividend flag. One pull, captured broadly.
+
+**Our own forward projection (no analyst feed):** four YoY EPS readings (each recent
+quarter vs the same quarter a year prior) → bear/base/bull growth band (min/median/max,
+base=median). `valuation.compute_forward()` turns it into a forward PE band live against
+price; forward PEG off base. Replaces the planned yfinance dependency — deterministic,
+transparent, and the band itself communicates uncertainty (XOM's rising fwd PE flags
+earnings decline; TSLA ~450 flags story-stock). Surfaced in the narrative valuation tag
+and the dashboard Fundamentals tab (+ archetype column).
+
+**Impact (on evidence, no overrides):** AMZN 1→5 (platform), JPM 1→4, XOM 1→3, CMI 1→4,
+CAT→5, GOOG/META/NFLX→platform, HOOD→5. **AMZN is now CORE on its own merits** — the
+classification reads 8 core / 2 speculative (only ELF + SOFI speculative, the genuinely
+speculative names). Re-ran `conviction_score.py` to propagate F into conviction.
+
+**Verified:** 20/20 tests, dashboard AppTest clean, full-book archetype/score review.
+Not yet deployed to AWS (deploy regenerates fundamentals.parquet server-side; needs the
+new business_model.py — committed).
+
+**Still open:** interactive Q&A (auth), BKNG bad-price data, narrative-quality tuning,
+forward-PE for names with <8 clean EPS quarters (NVDA post-split — graceful N/A for now).
+
+---
+
 **B. Interactive Q&A on the app** *(Medium effort)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
