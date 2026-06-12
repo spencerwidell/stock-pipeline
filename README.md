@@ -23,11 +23,18 @@ plain English: **"What, if anything, should I do today?"**
   software, power & grid, reindustrialization, defense, critical materials, …). The
   system shows which themes you cover, where the **gaps** are, where you're
   **over-concentrated**, and the best entry in each.
+- **Portfolio intelligence** — you maintain one file (`holdings.yaml`); the system
+  derives the rest. It classifies each holding **CORE** (held through volatility) vs
+  **SPECULATIVE** (a −7% stop) from the evidence, answers **"where does my next dollar
+  go"** (add to core on weakness · fill a theme gap at entry · beaten-down quality ·
+  or hold cash and show the trigger price), tracks stops on speculative names, and
+  flags thesis erosion on core names.
 - **Conviction scoring (0–10)** — entry quality right now: channel position +
   fundamentals + Widell state + flip recency. ≥8 = highest priority.
-- **Quality + valuation context** — fundamental score (0–5), moat rating (1–5), and
-  valuation (PE / PEG / P-OCF) frame whether a business is durable and reasonably
-  priced — context, never an auto-buy.
+- **Sector-aware quality + valuation** — a fundamental score (0–5) graded by each
+  name's **business archetype** (banks on ROE/efficiency, energy on cash flow, not
+  software margins), moat rating (1–5), and valuation including a **forward PE band**
+  from our own run-rate projection — context, never an auto-buy.
 - **Macro awareness** — the bond-market (TLT) regime and the CPI/FOMC calendar frame
   whether it's an environment to act or wait. The system can't see news, so it says
   so and treats flips around macro events as likely noise.
@@ -81,9 +88,10 @@ context that the narrative weaves together. **The system advises; the human deci
 | Widell Line state | up / inconclusive / down | Where is price vs swing structure? |
 | Composite score | -6 to +6 | Momentum / signal *direction* |
 | Conviction score | 0 to 10 | Entry *quality* — channel + fundamentals + state + flip recency |
-| Fundamental score | 0 to 5 | Quality of the underlying business |
+| Tier | CORE / SPECULATIVE | Held through volatility vs −7% stop — derived from evidence |
+| Fundamental score | 0 to 5 | Business quality — *sector-aware* (graded by archetype) |
 | Moat rating | 1 to 5 | Durability of the competitive advantage (Claude, quarterly) |
-| Valuation | PE / PEG / P-OCF | Price paid — *context, not part of conviction* |
+| Valuation | PE / PEG / P-OCF / fwd PE | Price paid + our own forward-PE band — *context, not conviction* |
 | Theme coverage | 11 secular themes | Which trends you own, gaps, over-concentration |
 | Bond regime (TLT) | tailwind / headwind / neutral | Is the macro backdrop for growth supportive? |
 | Sector rotation | 23 ETFs ranked | Which sector to be in, then which laggard within it |
@@ -92,10 +100,12 @@ Moat, valuation, and themes inform the briefing and dashboard but do **not** alt
 the conviction score — conviction stays a clean buy-zone-quality metric.
 
 **Delivery:**
-- **Streamlit dashboard** on AWS EC2 (`http://18.188.180.99:8501`) — six tabs:
-  Briefing (the LLM read), Themes (secular coverage + TLT regime), Signals (with a
-  High Conviction callout), Fundamentals (F score + moat + valuation), Guide
-  (objectives + model-risk docs in-app), and Rotation.
+- **Streamlit dashboard** on AWS EC2 (`http://18.188.180.99:8501`, password-gated) —
+  seven tabs: Briefing (🧠 Portfolio Intelligence cockpit + the LLM read), Themes
+  (secular coverage + TLT regime), Sizing (conviction-led target weights), Signals
+  (with a High Conviction callout), Fundamentals (sector-aware F score + moat +
+  valuation + forward PE + archetype), Guide (objectives + model-risk docs in-app),
+  and Rotation.
 - **Telegram alerts**, three on weekdays via cron:
   - **10:30 AM ET — morning alert** (`morning_alert.py`): live snapshot prices vs
     yesterday's levels — entries in range, breakout watch, notable moves, position
@@ -111,7 +121,7 @@ the conviction score — conviction stays a clean buy-zone-quality metric.
 stock-pipeline/
 ├── Data pipeline
 │   ├── fetch_stock.py        Polygon.io API to Parquet (99 tickers, 6 years)
-│   ├── fetch_fundamentals.py Quarterly financials → F score (0-5) + valuation inputs
+│   ├── fetch_fundamentals.py Quarterly financials (full balance sheet) → derived ratios + sector-aware F score (0-5) + forward-PE inputs
 │   ├── fetch_earnings.py     Forward earnings dates (yfinance) → 🗓️ flag
 │   ├── vsa_features.py       OHLCV to VSA features + regime + RSI/MACD + channel
 │   ├── vsa_labels.py         Deterministic bar classification
@@ -121,7 +131,11 @@ stock-pipeline/
 │   └── moat_score.py         Quarterly competitive-moat rating via Claude (1-5)
 ├── Intelligence layer
 │   ├── narrative_alert.py    LLM plain-English daily briefing (Claude) + persistence
-│   ├── valuation.py          PE / PEG / P-OCF from price + TTM inputs (context)
+│   ├── holdings_io.py        Single source of truth for reading holdings.yaml
+│   ├── auto_classify.py      CORE vs SPECULATIVE per holding, derived from evidence
+│   ├── cash_deployment.py    "Where the next dollar goes" + speculative 7% stops
+│   ├── business_model.py     Business archetypes + sector-aware fundamental rubrics
+│   ├── valuation.py          PE / PEG / P-OCF + our own forward-PE band (context)
 │   ├── positions.py          Exit/trim status for held names (TRIM/REVIEW/HOLD)
 │   ├── theme_engine.py       Secular-theme overlay: coverage, gaps, TLT regime
 │   └── macro_calendar.py     CPI/FOMC proximity → narrative macro context
@@ -129,7 +143,7 @@ stock-pipeline/
 │   ├── universe.yaml         Tracked universe + sector mapping (manage_universe.py)
 │   ├── universe.py           Loader/writer for universe.yaml
 │   ├── manage_universe.py    CLI: --add / --remove / --list tickers
-│   ├── holdings.yaml         Current positions + weights + CASH (dry powder)
+│   ├── holdings.yaml         The ONE hand-maintained file — portfolio / positions / overrides
 │   ├── themes.yaml           Human-curated secular-trend map (11 themes)
 │   └── macro_calendar.yaml   Hand-maintained CPI/FOMC dates
 ├── Top-down / delivery
@@ -155,9 +169,10 @@ stock-pipeline/
 ├── data/                 Parquet/JSON files (gitignored — regenerate on deploy)
 │   ├── stock_ohlcv.parquet     Raw OHLCV
 │   ├── stock_vsa.parquet       Full feature + signal set
-│   ├── fundamentals.parquet    F score + valuation inputs
+│   ├── fundamentals.parquet    Sector-aware F score + derived ratios + forward-PE inputs
 │   ├── earnings.parquet        Forward earnings dates
 │   ├── moat.parquet            Quarterly moat ratings
+│   ├── positions_seen.json     Speculative entry-price anchors (system-maintained)
 │   └── narrative_latest.json   Last LLM briefing (shown in the dashboard)
 ├── logs/                 Pipeline logs (gitignored)
 └── docs/

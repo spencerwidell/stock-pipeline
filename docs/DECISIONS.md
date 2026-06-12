@@ -293,6 +293,53 @@ themes) are surfaced *separately* with a modest suggested size, explicitly funde
 from cash or trims — never auto-mixed into the held pie (so it won't suggest trimming
 a great holding to fund an unproven idea). Caps: 15% max position, 4% min starter.
 
+**Holdings is the only hand-maintained file; everything else is derived (Session 36)**
+Spencer maintains exactly one file — `holdings.yaml` (now `portfolio:` / `positions:` /
+`overrides:`). CORE/SPECULATIVE tier, theme mapping, 7% stop tracking, and cash
+deployment are all DERIVED fresh at dashboard load and pipeline close — never stored,
+never hand-edited. A single shared reader (`holdings_io.py`) replaced six divergent
+`load_holdings()` copies so there's one parse of the file. Rationale: the system should
+ask the investor for the minimum (what he owns) and compute everything else, so nothing
+drifts out of sync and there's no manual upkeep beyond updating weights after a trade.
+
+**CORE vs SPECULATIVE is evidence-based, with a deliberate drawdown carve-out (Session 36)**
+`auto_classify.py` tiers each holding: CORE requires ALL of moat ≥4, fundamental ≥4
+(missing F doesn't block — international names), a high/medium-conviction theme, and
+weight >2%; else SPECULATIVE, with the failing reasons shown. Overrides in holdings.yaml
+always win. Key carve-out: a name that is otherwise core-quality but down ≥40% from its
+high STAYS core (a buy-weakness signal), and the −40% rule only demotes names that don't
+otherwise earn core. This encodes the standing rule that *price level alone is never a
+core exit trigger* — only a broken thesis is. Stops are tracked for SPECULATIVE names
+only; core weakness is a buy signal, never a stop.
+
+**Cash deployment is priority-ordered, advisory, cash-only (Session 36)**
+`cash_deployment.py` answers "where does my next dollar go" in four priority steps: add
+to core on weakness → fill a high-conviction theme gap at entry → beaten-down quality
+(speculative) → else hold cash and show the trigger price. Deployment is funded from
+cash only (drops are flagged, never assumed sold); speculative buys carry a −7% stop
+anchored on first-seen entry price (`data/positions_seen.json`, system-maintained).
+Pacing favors staged tranches into pullbacks. It never trades — human-in-the-loop.
+
+**Fundamental scoring is sector-aware, not one rubric (Session 37)**
+One software-tuned rubric (rev>20, gross>50, op>15, eps>10, +OCF) mis-scored entire
+business categories — banks have no gross margin (they run on ROE/efficiency), energy is
+cyclical, and low-margin-by-design mega-caps (AMZN, COST) looked weak. `business_model.py`
+assigns each name a business archetype (software / platform / financial / energy /
+industrial / staple / consumer / pre-profit) and grades it on the metrics that fit, on
+the same 0–5 scale so conviction and classification are unchanged. `pre_profit` is
+data-driven (no TTM earnings AND no operating cash — a GAAP loss alone doesn't qualify,
+so cash-generative SaaS stays in software). This fixed AMZN/JPM/XOM/CMI on evidence and
+made AMZN core without a per-name override — the honest fix over hard-coding exceptions.
+
+**Forward PE is our own run-rate projection, not an analyst feed (Session 37)**
+Forward valuation uses a bear/base/bull EPS-growth band computed from four historical
+YoY readings (each recent quarter vs the same quarter a year prior; base = median, robust
+to one outlier), turned into a forward PE band live against price (`valuation.compute_forward`).
+Chosen over yfinance/analyst estimates because it's deterministic, transparent, fits the
+project's first-principles ethos, and the band itself communicates uncertainty (a rising
+forward PE flags an earnings decline; a 400× flags a story stock). None for pre-profit
+names (TTM EPS ≤ 0).
+
 ---
 
 *Add new decisions here as the project evolves.*
