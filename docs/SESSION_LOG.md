@@ -1166,6 +1166,51 @@ token (now even more valuable — would have prevented the clobber).
 
 ---
 
+## Session 48 — June 12, 2026
+
+**Context:** Next strategic item — the **Tide overlay** (roadmap item a). Spencer wanted
+the Rotation tab, which had "no intelligence/no action," turned into the top-down regime
+that scales deployment: *a rising tide lifts all boats, a falling tide smashes them —
+don't fight the tide.*
+
+**New `tide.py` — one market-direction read fused from three pipeline signals:**
+- broad benchmarks (SPY/QQQ/IWM Widell state) — the ocean
+- sector breadth (# sector/thematic ETFs up vs down) — the boats
+- the TLT bond regime — the wind
+→ `market_tide()` returns RISING / NEUTRAL / FALLING (score = 0.5·bench + 0.35·breadth
++ 0.15·tlt), a **cash reserve** per tide (5% rising / 8% neutral / 12% falling — 8% is
+Spencer's neutral baseline), and a posture. `sector_tides()` per ETF; `ticker_tide()` =
+the best (most favorable) tide among a name's parent sector ETFs.
+
+**Wiring — the tide PACES, it doesn't move the destination:**
+- `destination.py`: targets keep the FIXED 8% reserve (so the destination doesn't churn
+  when the tide flips). The tide sets how much cash to release NOW (`deployable = pool −
+  tide_reserve`) and, in a falling tide, defers completion adds whose sector is sinking
+  to the waitlist ("falling tide in its sector — wait for the turn"). Sells/reduces are
+  never tide-gated. Degrades gracefully if tide import fails.
+- Briefing: a 🌊 tide banner above Next Steps (green rising / red falling / blue neutral).
+- Rotation tab → **🌊 Tide**: the tide gauge (level, posture, breadth, the reserve it
+  sets), a sector-tides table (🟢 rising / 🟡 neutral / 🔴 falling), and the old laggard
+  scan reframed to scan ONLY rising/neutral-tide sectors (don't fight the tide).
+
+**Live behavior (data-driven, both regimes verified):** local (older parquet) read
+FALLING → reserve 12%, deployable halved, "hold powder." AWS (fresh nightly data) read
+**RISING** (7 sectors up/3 down, IWM up) → reserve 5%, deployable 9%, funds GOOG+RTX
+now. The engine correctly deploys harder in a rising tide and defends in a falling one.
+
+**Deploy:** used the FIXED reconcile from Session 47 — `git diff --quiet -- holdings.yaml`
+(real exit-code check) showed CLEAN, pulled, restarted. No clobber. (a1e08f8, HTTP 200.)
+
+**Verified:** 38/38 tests (+5 tide: level↔reserve consistency, falling>rising reserve,
+gate only when falling, sector/ticker tides valid, destination carries tide); AppTest
+clean locally and on AWS (0 exceptions).
+
+**Still open / next:** (b) editable holdings on Manage; (c) Idea of the Day; (d)
+de-emphasize raw Signals tab; (e) feed the destination queue + tide to narrative_alert
+so the LLM read matches the cockpit. Plus the standing GitHub auto-backup token.
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
