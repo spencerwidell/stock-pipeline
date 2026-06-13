@@ -23,12 +23,25 @@ plain English: **"What, if anything, should I do today?"**
   software, power & grid, reindustrialization, defense, critical materials, …). The
   system shows which themes you cover, where the **gaps** are, where you're
   **over-concentrated**, and the best entry in each.
-- **Portfolio intelligence** — you maintain one file (`holdings.yaml`); the system
-  derives the rest. It classifies each holding **CORE** (held through volatility) vs
-  **SPECULATIVE** (a −7% stop) from the evidence, answers **"where does my next dollar
-  go"** (add to core on weakness · fill a theme gap at entry · beaten-down quality ·
-  or hold cash and show the trigger price), tracks stops on speculative names, and
-  flags thesis erosion on core names.
+- **The Destination Book — concentrate & complete** — you maintain one file
+  (`holdings.yaml`); the system derives the rest, organized around the portfolio you're
+  *building toward*: your highest-conviction names at full conviction-led target weights
+  (capped at 15%, holding a cash reserve). Every recommendation is the *next step toward
+  the destination*, in one cash-aware queue: a held non-core name that's low-quality or
+  off-thesis gets a **decisive SELL** (a full exit, not a trim-to-rump), the proceeds
+  **complete the underweight winners** to target, and a **REDUCE** fires only on a name
+  that's overweight *and* low-conviction. The queue walks the available cash — funding
+  what it can now, waitlisting the rest — so you never get more choices than dry powder.
+  Names with a real edge but not core sit in a **speculative sleeve under a −7% stop**,
+  and there are **no manual overrides** — a name earns CORE on the evidence or it doesn't.
+- **The Tide — don't fight it** — a top-down market regime (rising / neutral / falling)
+  fused from the benchmarks (SPY/QQQ/IWM), sector breadth, and the TLT bond regime. It
+  *paces* deployment — a rising tide releases more cash (smaller reserve), a falling tide
+  holds powder and defers adds whose sector is sinking. It changes the pace, never the
+  destination.
+- **Logging keeps the book current** — an investor diary records each trade as a signed
+  amount *and* the resulting weight; logging writes the new weight straight back into
+  `holdings.yaml` (cash offsets so the book stays at 100%), so the snapshot never drifts.
 - **Interactive Q&A** — ask about any holding, candidate, or the portfolio in plain
   English ("thoughts on GEV today?"); answers reuse the same signal stack as the
   briefing. Signals only (no news feed), behind the dashboard password.
@@ -41,8 +54,9 @@ plain English: **"What, if anything, should I do today?"**
 - **Macro awareness** — the bond-market (TLT) regime and the CPI/FOMC calendar frame
   whether it's an environment to act or wait. The system can't see news, so it says
   so and treats flips around macro events as likely noise.
-- **Position management** — flags held names that are extended (trim) or breaking
-  down (review). No hard stops — long-term framing.
+- **Position management** — decisive by design: core names are held through volatility
+  and completed on weakness; speculative names live under a −7% stop; a name that fails
+  core conviction is a full exit, not a half-measure. Let the system work.
 
 The full mission and non-goals live in **[docs/KEY_OBJECTIVES.md](docs/KEY_OBJECTIVES.md)**;
 known risks and controls in **[docs/MODEL_RISK.md](docs/MODEL_RISK.md)**.
@@ -59,7 +73,7 @@ One investor, with a specific philosophy that the whole system is designed aroun
 
 ## Architecture overview
 
-Four layers, each feeding the next, ending in a plain-English decision:
+Five layers, each feeding the next, ending in a plain-English decision:
 
 ```
 1. Signal stack      Widell Line state · composite score · regression channel
@@ -71,14 +85,18 @@ Four layers, each feeding the next, ending in a plain-English decision:
 3. Theme layer       themes.yaml → coverage · gaps · concentration · best entry
    (does it fit?)     → a deliberate set of secular bets, not an accumulation
 
-4. Narrative         Claude reads 1-3 + holdings + macro/bond regime + earnings
+4. Decision layer    Destination Book (conviction-led targets) + Tide (regime pacing)
+   (what's the move?) → one cash-aware queue: sell non-core, complete the winners
+
+5. Narrative         Claude reads 1-4 + holdings + macro/bond regime + earnings
    intelligence       → "what should I do today?" in plain English
    (so what?)
 ```
 
-Conviction is the spine (entry quality); the quality, theme, and macro layers are
-context that the narrative weaves together. **The system advises; the human decides
-— it never places a trade.**
+Conviction is the spine (entry quality); the quality, theme, and macro layers are the
+context. The **Destination Book** turns it into one decisive, cash-aware plan, and the
+**Tide** sets the pace. **The system advises; the human decides — it never places a
+trade.**
 
 ---
 
@@ -97,18 +115,21 @@ context that the narrative weaves together. **The system advises; the human deci
 | Valuation | PE / PEG / P-OCF / fwd PE | Price paid + our own forward-PE band — *context, not conviction* |
 | Theme coverage | 11 secular themes | Which trends you own, gaps, over-concentration |
 | Bond regime (TLT) | tailwind / headwind / neutral | Is the macro backdrop for growth supportive? |
-| Sector rotation | 23 ETFs ranked | Which sector to be in, then which laggard within it |
+| Market Tide | rising / neutral / falling | Top-down regime (benchmarks + sector breadth + TLT) — paces deployment (the cash reserve) |
+| Destination targets | conviction-led %, cap 15% | The full-conviction weight each core name is building toward |
 
 Moat, valuation, and themes inform the briefing and dashboard but do **not** alter
 the conviction score — conviction stays a clean buy-zone-quality metric.
 
 **Delivery:**
 - **Streamlit dashboard** on AWS EC2 (`http://18.188.180.99:8501`, password-gated) —
-  seven tabs: Briefing (🧠 Portfolio Intelligence cockpit + the LLM read), Themes
-  (secular coverage + TLT regime), Sizing (conviction-led target weights), Signals
-  (with a High Conviction callout), Fundamentals (sector-aware F score + moat +
-  valuation + forward PE + archetype), Guide (objectives + model-risk docs in-app),
-  and Rotation.
+  nine tabs: **Briefing** (🧠 Portfolio Intelligence cockpit — the cash-aware Next Steps
+  queue + Tide banner + the LLM read), **Ask** (interactive Q&A), **Themes** (secular
+  coverage + TLT regime), **Destination** (the current→target Book + spec/exit/pending
+  buckets), **Signals** (with a High Conviction callout), **Fundamentals** (sector-aware
+  F score + moat + valuation + forward PE + archetype), **Guide** (objectives +
+  model-risk docs in-app), **Tide** (the market-regime gauge + sector tides), and
+  **Manage** (universe add/remove + investor diary, which writes holdings.yaml).
 - **Telegram alerts**, three on weekdays via cron:
   - **10:30 AM ET — morning alert** (`morning_alert.py`): live snapshot prices vs
     yesterday's levels — entries in range, breakout watch, notable moves, position
@@ -134,9 +155,12 @@ stock-pipeline/
 │   └── moat_score.py         Quarterly competitive-moat rating via Claude (1-5)
 ├── Intelligence layer
 │   ├── narrative_alert.py    LLM plain-English daily briefing (Claude) + persistence
-│   ├── holdings_io.py        Single source of truth for reading holdings.yaml
+│   ├── holdings_io.py        Read/write holdings.yaml (apply_trade keeps it in sync)
 │   ├── auto_classify.py      CORE vs SPECULATIVE per holding, derived from evidence
-│   ├── cash_deployment.py    "Where the next dollar goes" + speculative 7% stops
+│   ├── destination.py        Destination Book + cash-aware Next Steps (concentrate & complete)
+│   ├── tide.py               Market Tide — top-down regime that paces deployment
+│   ├── diary.py              Investor diary (trade Δ + new weight) → writes holdings.yaml
+│   ├── cash_deployment.py    Speculative 7% stops + thesis alerts + watchlist context
 │   ├── business_model.py     Business archetypes + sector-aware fundamental rubrics
 │   ├── qa_engine.py          Interactive Q&A — reuses the builders, answered by Claude
 │   ├── valuation.py          PE / PEG / P-OCF + our own forward-PE band (context)

@@ -18,6 +18,53 @@ canonical statement and `docs/PRODUCT_ROADMAP.md` for the active roadmap.
 
 ---
 
+## Portfolio decisioning model (Sessions 45–48)
+
+How the system turns the signal stack into action evolved from "a list of suggestions"
+into one decisive, cash-aware plan. The driving feedback: *too many choices, would run
+out of cash; make me more concentrated and decisive, not give me a longer menu.*
+
+**The diary records both halves of a trade, and logging keeps `holdings.yaml` in sync**
+*(Session 45).* The old single `weight` column was ambiguous (was "8%" the add amount or
+the resulting size?). Split into `trade_pct` (signed) + `new_weight` (resulting size).
+Logging now writes `new_weight` back into `holdings.yaml` via `holdings_io.apply_trade`
+(CASH offsets so the book stays at 100%), so the snapshot can't go stale. `holdings.yaml`
+is still the one hand-maintained file — it's just kept current automatically now.
+
+**One place to act; every other tab is read-only context** *(Sessions 42, 46).* The
+Briefing had three disagreeing action lists, and the Sizing tab's normalized-target
+rebalance told the investor to trim cheap, high-conviction cores. Decision: every
+actionable item flows through ONE engine onto ONE surface (the Briefing). Sizing became
+the read-only **Destination Book** map; Themes and Tide are context. No parallel lists.
+
+**The Destination Book — concentrate & complete** *(Session 47).* The system is now
+organized around the portfolio being *built toward*: held CORE names at conviction-led
+target weights (water-fill to 100−reserve, cap 15%). Recommendations are the *next step*
+toward it, in one cash-aware queue that completes the underweight winners before opening
+new positions, and never recommends more than the available cash funds.
+
+**Be decisive — sell non-core, no manual overrides** *(Session 47).* A held name that
+fails core conviction and is low-quality (moat≤2 & fund≤2) or off-thesis (no theme) gets
+a **full SELL**, not a trim-to-rump. A non-core name with a real edge sits in a
+**speculative sleeve under the −7% stop**. The `overrides` block was emptied (TSLA's
+`core` override dropped) — a name earns CORE on the evidence or it doesn't. "Let the
+system work." REDUCE fires only on a name that's overweight *and* low-conviction, so the
+system never nags a trim on a winner.
+
+**The Tide paces deployment; it never moves the destination** *(Session 48).* A top-down
+regime (rising/neutral/falling) from the benchmarks + sector breadth + TLT sets the cash
+reserve (5/8/12%) and, in a falling tide, defers adds whose sector is sinking. The
+*targets* keep a fixed 8% reserve so the destination doesn't churn when the tide flips —
+only the *pace* of getting there changes. "Don't fight the tide."
+
+**Deploy discipline — never blind-`git checkout` `holdings.yaml` on AWS** *(Session 47).*
+It's dashboard-written, so AWS is often the newer truth. A faulty reconcile once clobbered
+a live trade (recovered via the append-only diary). Always check `git diff --quiet` (real
+exit code) and cross-check the diary before reconciling. The recurring manual reconcile is
+the strongest case for the GitHub-auto-backup token.
+
+---
+
 ## Environment
 
 **WSL over plain Windows terminal**

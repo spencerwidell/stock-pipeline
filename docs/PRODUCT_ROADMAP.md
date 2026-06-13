@@ -125,32 +125,72 @@ validated stack into plain-English decisions for a concentrated conviction inves
   income (split-invariant), fixing NVDA's forward PE and hardening trailing PEG /
   rev-growth for every name across splits + missing quarters.
 
+- **Turn-key universe onboarding (Sessions 41, 43)** — ⚙️ Manage tab: add/remove a
+  company (`manage_universe.py`), pick its secular theme(s) (`themes_io.py`,
+  comment-preserving), and fire an **immediate full backfill** (`onboard.py`: price /
+  signals / fundamentals / conviction / moat in ~2-3 min, flock-coalesced). No
+  hand-editing YAML on the server.
+
+- **Investor diary that keeps the book current (Sessions 41, 45)** — `diary.py`: an
+  append-only action log recording each trade as a **signed amount (`trade_pct`) AND the
+  resulting weight (`new_weight`)**. Logging writes the new weight straight back into
+  `holdings.yaml` via `holdings_io.apply_trade` (CASH offsets so the book stays at 100%),
+  so the snapshot never drifts. ✅ Log buttons on the Briefing; gitignored + AWS-authoritative.
+
+- **One recommendation surface (Sessions 42, 46)** — every actionable item flows through
+  ONE engine and shows up in ONE place: the Briefing. Sizing / Themes / Tide are
+  read-only context, not parallel action lists. (Fixed the "three disagreeing action
+  lists" and the "every core says trim" noise.)
+
+- **Sector-aware healthcare archetype (Session 44)** — `business_model.py`: XLV names
+  (TMO/DHR/ISRG) graded on durable margins / recurring cash / ROE / steady growth, not
+  the SaaS rubric.
+
+- **The Destination Book — concentrate & complete (Session 47)** — `destination.py`: the
+  portfolio you're *building toward* — held CORE names at conviction-led targets
+  (water-fill to 100−reserve, cap 15%). One cash-aware queue: **decisive SELL** of a
+  non-core low-quality/off-thesis name (full exit, not a trim), proceeds **complete the
+  underweight winners**, **REDUCE** only on overweight-AND-low-conviction. Walks the
+  deployable cash (funds now / waitlists the rest). **No manual overrides** — a name
+  earns CORE on the evidence or sits in the speculative sleeve under the −7% stop.
+
+- **The Tide — top-down regime pacing (Session 48)** — `tide.py`: a market regime
+  (rising/neutral/falling) fused from the benchmarks + sector breadth + TLT. It paces
+  deployment (the cash reserve: 5/8/12%) and, in a falling tide, defers adds whose sector
+  is sinking — *don't fight the tide*. Changes the pace, never the destination. The old
+  Rotation tab became the 🌊 Tide tab.
+
 ## 🚧 In progress
 
-- *(open — pick the next build)*
-
-- **Universe manager + investor diary (Session 41)** — ⚙️ Manage tab: add/remove
-  companies in the scoring universe (over `manage_universe.py`; new names backfill at
-  the next close) and a lightweight investor diary (`diary.py`, fixed schema, ✅ Log
-  buttons on Briefing). Diary is gitignored + AWS-authoritative with a Download button.
+- **Editable holdings on Manage** — correct any weight directly (a safety valve for a
+  mis-synced journal entry); CASH auto-recomputes.
 
 ## 🔜 Upcoming
-- **Multi-user auth / guest mode** — read-only access without holdings visibility,
-  for when interactive Q&A ships (the current single password is sufficient until then)
-- **Security hardening (remaining)** — spend-capped API key, HTTPS/TLS, and an
-  optional IP allowlist. Dashboard auth is DONE (password gate, Session 35).
+- **Idea of the Day** — one daily highest-conviction synthesized insight pushed to phone
+  (the best next step toward the Destination Book, given today's tide).
+- **Narrative consumes the destination** — feed the Next Steps queue + tide to
+  `narrative_alert.py` so the LLM read matches the cockpit exactly.
+- **De-emphasize the raw Signals tab** — the action + its rationale carries the meaning.
+- **GitHub auto-backup** — four dashboard-written files now drift on AWS (universe /
+  themes / diary / **holdings.yaml**); a one-time PAT/deploy key lets the box back itself
+  up to git (would also have prevented the Session-47 holdings clobber).
+- **Multi-user auth / guest mode** — read-only access without holdings visibility.
 - **Correlation awareness** — flag when "diversification" across themes is really the
-  same underlying bet (e.g. everything long-duration growth)
+  same underlying bet (e.g. everything long-duration growth).
 
 ## Design principles for the product
 
-- Holdings is a weight snapshot, not a trade tracker; universe & themes are
-  single-source YAMLs
-- Moat and valuation run quarterly; themes are hand-curated — not daily overhead
-- The app is an insight + interaction surface; narrative/themes/Q&A reuse the same
-  context builders the alerts use (don't fork the logic)
-- No Claude-API-spending controls on the public (no-auth) dashboard until auth exists
-- The system advises; it never trades — human-in-the-loop is the ultimate control
+- `holdings.yaml` is the one hand-maintained file — but logging a trade now keeps it in
+  sync automatically; everything else (tier, stops, targets, tide, deployment) is derived.
+- **One place to act (the Briefing); every other tab is read-only context** — no
+  parallel or disagreeing action lists.
+- **Be decisive** — core is held/completed through volatility; non-core is a full exit,
+  not a trim; speculative lives under a stop; no manual overrides. Let the system work.
+- The Tide paces the plan; it never moves the destination (so the book doesn't churn).
+- Moat and valuation run quarterly; themes are hand-curated — not daily overhead.
+- Reuse the same context builders across narrative / themes / Q&A — don't fork the logic.
+- No Claude-API-spending controls on the public (no-auth) dashboard until auth exists.
+- The system advises; it never trades — human-in-the-loop is the ultimate control.
 
 ---
 

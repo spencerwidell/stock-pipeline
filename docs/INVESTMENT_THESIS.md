@@ -126,7 +126,7 @@ Constraint: regulatory and reimbursement timelines; more defensive, slower growt
 
 ## 4. Discipline — keeping conviction honest
 
-Conviction without discipline is just enthusiasm. Four guardrails:
+Conviction without discipline is just enthusiasm. The guardrails:
 
 - **Don't buy at the top.** Regression-channel position keeps entries on pullbacks
   (lower/middle), not at extended highs. Timing is confirmed by Widell Line flips,
@@ -138,6 +138,23 @@ Conviction without discipline is just enthusiasm. Four guardrails:
   as noise. The bond regime frames whether it's an environment to act or wait.
 - **Patience on commodities.** The materials thesis can be right for years before the
   stocks work. Size for that reality; don't confuse a correct thesis with a timely one.
+
+Three more guardrails govern *how the book is run* — discovered in use, now core:
+
+- **Concentrate & complete, don't scatter.** There is a *Destination Book* — the
+  highest-conviction names at full conviction-led target weights (capped at 15%). The
+  job is to *finish* those positions and add to winners, not to keep opening new fronts.
+  Every recommendation is the next step toward the destination, and the system never
+  recommends more than the available cash can fund — so dry powder is never over-promised.
+- **Be decisive — no half-measures, no exceptions.** A name held that fails core
+  conviction is a *full exit*, not a trim to a 3% rump; the proceeds redeploy into the
+  winners or wait as cash. A non-core name with a real edge lives in a *speculative
+  sleeve under a −7% stop*. There are **no manual core/spec overrides** — a name earns
+  its seat on the evidence, or the stop does its job. Let the system work.
+- **Don't fight the tide.** A top-down market regime (the benchmarks + sector breadth +
+  the bond market) sets the *pace* of deployment, not the destination: deploy harder in a
+  rising tide, hold powder and wait for the turn in a falling one. A rising tide lifts all
+  boats; a falling tide smashes them.
 
 ---
 
@@ -153,8 +170,11 @@ The thesis is enforced by software so it doesn't drift with mood:
 | Best-in-class | `best_in_class` per theme + ⭐ fits-profile flag |
 | Right entry | Widell Line state, conviction score (0–10), channel position |
 | Right macro | TLT bond regime + CPI/FOMC calendar |
-| Concentrated & deliberate | Position sizing engine (target weights, 10–15 names) |
-| Decision, not data | LLM narrative: "what should I do today?" |
+| Right pace | Market Tide (benchmarks + sector breadth + TLT) → cash reserve |
+| Concentrate & complete | Destination Book (`destination.py`): conviction-led targets + one cash-aware queue |
+| Be decisive | Full sell of non-core, speculative sleeve under −7% stop, no overrides |
+| Stay in sync | Investor diary writes each trade's resulting weight back to `holdings.yaml` |
+| Decision, not data | One action surface (the Briefing) + the LLM narrative |
 
 The result: a portfolio that is a *deliberate set of high-conviction secular bets in
 wide-moat, cash-generating leaders* — with gaps, over-concentration, and entry timing
