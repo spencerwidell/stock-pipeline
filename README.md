@@ -39,6 +39,11 @@ plain English: **"What, if anything, should I do today?"**
   *paces* deployment — a rising tide releases more cash (smaller reserve), a falling tide
   holds powder and defers adds whose sector is sinking. It changes the pace, never the
   destination.
+- **Idea of the Day** — the antidote to too many choices: ONE synthesized insight each
+  morning (the single thing that matters today — a stop hit, a thesis crack, the tide
+  turning, or the top step toward the Destination), framed by the tide and pushed to
+  phone. The whole system speaks with one voice — the morning Idea, the dashboard
+  cockpit, and the close narrative all reason off the same engines.
 - **Logging keeps the book current** — an investor diary records each trade as a signed
   amount *and* the resulting weight; logging writes the new weight straight back into
   `holdings.yaml` (cash offsets so the book stays at 100%), so the snapshot never drifts.
@@ -160,6 +165,7 @@ stock-pipeline/
 │   ├── auto_classify.py      CORE vs SPECULATIVE per holding, derived from evidence
 │   ├── destination.py        Destination Book + cash-aware Next Steps (concentrate & complete)
 │   ├── tide.py               Market Tide — top-down regime that paces deployment
+│   ├── idea_of_the_day.py    The one thing that matters today (priority ladder, tide-framed)
 │   ├── diary.py              Investor diary (trade Δ + new weight) → writes holdings.yaml
 │   ├── cash_deployment.py    Speculative 7% stops + thesis alerts + watchlist context
 │   ├── business_model.py     Business archetypes + sector-aware fundamental rubrics

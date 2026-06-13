@@ -18,7 +18,7 @@ canonical statement and `docs/PRODUCT_ROADMAP.md` for the active roadmap.
 
 ---
 
-## Portfolio decisioning model (Sessions 45–48)
+## Portfolio decisioning model (Sessions 45–52)
 
 How the system turns the signal stack into action evolved from "a list of suggestions"
 into one decisive, cash-aware plan. The driving feedback: *too many choices, would run
@@ -56,6 +56,16 @@ regime (rising/neutral/falling) from the benchmarks + sector breadth + TLT sets 
 reserve (5/8/12%) and, in a falling tide, defers adds whose sector is sinking. The
 *targets* keep a fixed 8% reserve so the destination doesn't churn when the tide flips —
 only the *pace* of getting there changes. "Don't fight the tide."
+
+**One synthesized voice — Idea of the Day + an aligned narrative** *(Sessions 50–51).*
+The system was producing a decisive cockpit but still narrating off the old engines. Two
+moves closed it: an **Idea of the Day** (`idea_of_the_day.py`) — ONE insight per day via
+a priority ladder (stop hit → thesis break → tide turn → top step → patience), framed by
+the tide, on a 💡 Briefing card and a morning phone push; and rewiring `narrative_alert.py`
+to feed Claude the SAME engines as the cockpit (Tide + Idea + Destination Next Steps) with
+a prompt that speaks the decisive, concentrate-&-complete, tide-aware language. The morning
+Idea, the dashboard cockpit, and the close narrative now all reason off the same engines —
+one voice end to end. (The raw Signals tab was de-emphasized to reference, Session 52.)
 
 **Deploy discipline — never blind-`git checkout` `holdings.yaml` on AWS** *(Session 47).*
 It's dashboard-written, so AWS is often the newer truth. A faulty reconcile once clobbered

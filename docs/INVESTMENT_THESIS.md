@@ -174,7 +174,8 @@ The thesis is enforced by software so it doesn't drift with mood:
 | Concentrate & complete | Destination Book (`destination.py`): conviction-led targets + one cash-aware queue |
 | Be decisive | Full sell of non-core, speculative sleeve under −7% stop, no overrides |
 | Stay in sync | Investor diary writes each trade's resulting weight back to `holdings.yaml` |
-| Decision, not data | One action surface (the Briefing) + the LLM narrative |
+| The one thing today | Idea of the Day (`idea_of_the_day.py`): a priority ladder, tide-framed, pushed to phone |
+| Decision, not data | One action surface (the Briefing) + a narrative that reasons off the same engines — one voice |
 
 The result: a portfolio that is a *deliberate set of high-conviction secular bets in
 wide-moat, cash-generating leaders* — with gaps, over-concentration, and entry timing

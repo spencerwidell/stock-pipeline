@@ -160,20 +160,35 @@ validated stack into plain-English decisions for a concentrated conviction inves
   is sinking — *don't fight the tide*. Changes the pace, never the destination. The old
   Rotation tab became the 🌊 Tide tab.
 
+- **Editable holdings on Manage (Session 49)** — `holdings_io.write_positions`: an
+  editable weights table on the Manage tab; CASH auto-recomputes; a 0 drops a name.
+  A correction safety valve (not a logged trade) for a mis-synced weight.
+
+- **Idea of the Day (Session 50)** — `idea_of_the_day.py`: ONE synthesized insight per
+  day, picked by a priority ladder (stop hit → thesis break → tide turn → top step →
+  patience), framed by the tide. A 💡 card atop the Briefing + a 10:30 AM phone push
+  (rides the morning cron, which also records the day's tide). Deterministic, no API cost.
+
+- **One voice — the narrative consumes the new model (Session 51)** — `narrative_alert.py`
+  now feeds Claude the SAME engines as the cockpit (the Tide, the Idea of the Day, the
+  Destination Book + cash-aware Next Steps) and the prompt speaks the decisive,
+  concentrate-&-complete, tide-aware language. The close briefing and the cockpit agree
+  exactly. Sections: MARKET & TIDE / NEXT STEPS / WATCHLIST / BOTTOM LINE.
+
+- **Decision-first tabs (Session 52)** — reordered so the meaning surfaces lead
+  (Briefing · Destination · Tide · Themes · Ask · Fundamentals · …) and the raw stack
+  ("📊 Signals (raw)") sits near the back as reference, not a daily read.
+
 ## 🚧 In progress
 
-- **Editable holdings on Manage** — correct any weight directly (a safety valve for a
-  mis-synced journal entry); CASH auto-recomputes.
+- *(open — the Session-47 strategic arc is complete; next is observation-and-feedback
+  from live use, or the GitHub backup token below)*
 
 ## 🔜 Upcoming
-- **Idea of the Day** — one daily highest-conviction synthesized insight pushed to phone
-  (the best next step toward the Destination Book, given today's tide).
-- **Narrative consumes the destination** — feed the Next Steps queue + tide to
-  `narrative_alert.py` so the LLM read matches the cockpit exactly.
-- **De-emphasize the raw Signals tab** — the action + its rationale carries the meaning.
-- **GitHub auto-backup** — four dashboard-written files now drift on AWS (universe /
-  themes / diary / **holdings.yaml**); a one-time PAT/deploy key lets the box back itself
-  up to git (would also have prevented the Session-47 holdings clobber).
+- **GitHub auto-backup** — four dashboard-written files drift on AWS (universe / themes /
+  diary / **holdings.yaml**); a one-time PAT/deploy key lets the box back itself up to git
+  (would also have prevented the Session-47 holdings clobber). The gating item is the
+  token from Spencer.
 - **Multi-user auth / guest mode** — read-only access without holdings visibility.
 - **Correlation awareness** — flag when "diversification" across themes is really the
   same underlying bet (e.g. everything long-duration growth).
