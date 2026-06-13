@@ -1256,6 +1256,45 @@ and would have prevented the S47 clobber).
 
 ---
 
+## Session 50 — June 12, 2026
+
+**Built:** Idea of the Day (roadmap item c) — Spencer's "fewer choices, more meaning"
+made concrete: ONE synthesized insight per day, the best next step toward the
+Destination Book given today's tide.
+
+**`idea_of_the_day.py`:** `build_idea()` picks the single most important thing via a
+priority ladder, most urgent first — (1) 🛑 a speculative stop was hit (protect
+capital); (2) ⚠️ a core name's thesis is eroding; (3) 🌊 the tide turned vs the prior
+day (shift posture); (4) 🎯 the top step toward the Destination (a SELL names the winner
+its proceeds complete; framed by the tide — rising "deploy now", falling "redeploy
+patiently"); (5) 👀 something setting up but waiting; (6) 💵 patience. **Deterministic
+(no API cost)**, reusing `destination` + `tide` + `cash_deployment`. Tide-turn memory
+persists in `data/tide_history.json`, recorded **once/day by the morning push** (so
+"previous" is always a real prior day, never a same-session overwrite).
+
+**Delivery:**
+- Dashboard: a 💡 **Idea of the Day** card atop the Briefing (headline + why + tide frame).
+- Telegram: `send_idea()` reuses `narrative_alert.send_telegram`; wired into
+  `run_morning_alert.sh` (decoupled + fail-soft, `|| true`) so the **10:30 AM cron pushes
+  it to phone** and records the day's tide. (No new cron line needed — rides the existing
+  morning runner.)
+
+**Live behavior:** local (falling tide) → "Sell ELF and put it toward GOOG (+6% → 9%) …
+redeploy patiently." AWS (rising tide, fresher data) → same core move but "… a rising
+tide says deploy the cash now." Tide-turn branch verified (injected a prior RISING day →
+"The tide turned RISING→FALLING — shift to defense," correctly out-prioritising the
+routine step).
+
+**Verified:** 42/42 tests (+3: idea shape/tag, to_text, tide-history record/prev +
+same-day no-op); AppTest clean locally and on AWS (0 exceptions). Deployed with the safe
+`git diff --quiet` reconcile (holdings clean). 9205742, HTTP 200.
+
+**Still open / next:** (d) de-emphasize the raw Signals tab; (e) feed the destination
+queue + tide (and ideally the Idea of the Day) to `narrative_alert.py` so the LLM read
+matches the cockpit. Plus the standing GitHub auto-backup token.
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
