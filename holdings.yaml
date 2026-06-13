@@ -29,7 +29,7 @@ positions:
   AMZN: 11
   ELF:  3
   SOFI: 3
-  PLTR: 7
+  PLTR: 8
   TSLA: 7
   META: 7
   AVGO: 11
@@ -39,7 +39,7 @@ positions:
   GLW: 3
   DHR: 3
   ETN: 3
-  CASH: 9
+  CASH: 8
 
 overrides:
   # Intentionally empty — "let the system work" (Session 47). No manual core/spec
