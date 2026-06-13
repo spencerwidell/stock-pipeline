@@ -63,9 +63,10 @@ def require_auth():
 require_auth()
 
 # Section headers the briefing always emits — used to render it nicely in the app.
-_BRIEF_HEADERS = ("MARKET CONTEXT", "PORTFOLIO ACTION", "WATCHLIST", "BOTTOM LINE",
+_BRIEF_HEADERS = ("MARKET & TIDE", "NEXT STEPS", "WATCHLIST", "BOTTOM LINE",
                   # legacy headers (older stored briefings) still render cleanly:
-                  "ACTIONABLE SETUPS", "WATCH LIST", "PORTFOLIO CHECK")
+                  "MARKET CONTEXT", "PORTFOLIO ACTION", "ACTIONABLE SETUPS",
+                  "WATCH LIST", "PORTFOLIO CHECK")
 
 def briefing_to_markdown(text):
     """Turn the plain-text Telegram briefing into app markdown: the four CAPS

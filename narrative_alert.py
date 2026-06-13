@@ -6,20 +6,21 @@ Claude to interpret them in plain English: is today a good environment to buy or
 wait, which high-conviction names are actually actionable, and what's worth
 watching tomorrow.
 
-Context fed to Claude:
-  - Date / day of week
-  - SPY & QQQ market state (wl_state, composite, channel zone/position)
-  - Universe counts (up / inconclusive / down, flip count)
-  - Every conviction>=8 name (full signal row)
-  - Flips today (ticker, direction, gap from flip, conviction)
-  - High composite (>=2) names not yet in an up state
+Context fed to Claude (the decisive, concentrate-&-complete model — same engines as
+the dashboard cockpit, so the written read and the cockpit speak with one voice):
+  - Date / day of week; SPY & QQQ market state
+  - THE TIDE (top-down regime — paces deployment) + IDEA OF THE DAY (the one move)
+  - DESTINATION BOOK + NEXT STEPS — the ranked, cash-aware action queue (decisive
+    sells, completions to target, reduces), WHEN CASH FREES UP, the speculative sleeve,
+    pending names, speculative stops + thesis-integrity alerts
+  - Theme coverage / gaps / concentration; universe counts; conviction>=8 names; flips
   - OPTIONAL enrichments, picked up automatically when their files exist:
       * holdings.yaml          -> personalize ("you hold ISRG at 5%")
       * data/earnings.parquet  -> 🗓️ earnings within 7 days (fetch_earnings.py)
       * data/moat.parquet      -> moat rating context (moat_score.py)
 
-Claude returns five sections: MARKET CONTEXT, ACTIONABLE SETUPS, WATCH LIST,
-PORTFOLIO CHECK, BOTTOM LINE. Sent via the same Telegram bot as the other alerts.
+Claude returns four sections: MARKET & TIDE, NEXT STEPS, WATCHLIST, BOTTOM LINE (led
+by the Idea of the Day). Sent via the same Telegram bot as the other alerts.
 
 Design notes:
   - Model is claude-sonnet-4-6 (current Sonnet; the roadmap's claude-sonnet-4
@@ -47,8 +48,9 @@ import valuation
 import positions
 import macro_calendar
 import theme_engine
-import position_sizing
-import cash_deployment
+import cash_deployment       # speculative stops + thesis-integrity context
+import destination           # the Destination Book + cash-aware Next Steps (the plan)
+import idea_of_the_day       # the single most important thing today
 
 MODEL          = "claude-sonnet-4-6"
 MAX_TOKENS     = 1000
@@ -276,29 +278,6 @@ def build_context(df, holdings, earnings, moat):
     except Exception as e:
         print(f"theme intelligence unavailable: {e}")
 
-    # --- Position sizing (advisory, conviction-led) — biggest over/underweights ---
-    try:
-        siz = position_sizing.compute_sizing()
-        adds  = sorted([r for r in siz["rebalance"] if r["action"] == "ADD"],
-                       key=lambda r: r["delta"], reverse=True)[:3]
-        trims = sorted([r for r in siz["rebalance"] if r["action"] == "TRIM"],
-                       key=lambda r: r["delta"])[:3]
-        if adds or trims or siz["starters"]:
-            lines.append("POSITION SIZING (advisory — conviction-led targets vs your weights):")
-            if adds:
-                lines.append("  Underweight vs conviction (add): "
-                             + ", ".join(f"{r['ticker']} {r['delta']:+.1f}%" for r in adds))
-            if trims:
-                lines.append("  Overweight / low-conviction (trim): "
-                             + ", ".join(f"{r['ticker']} {r['delta']:+.1f}%" for r in trims))
-            if siz["starters"]:
-                s = siz["starters"][0]
-                lines.append(f"  Top gap starter: {s['ticker']} ~{s['starter']:.1f}% "
-                             f"({s['theme']}, conv {s['conviction']}, {s['entry_status']})")
-            lines.append("")
-    except Exception as e:
-        print(f"position sizing unavailable: {e}")
-
     # --- Universe counts ---
     up   = int((df["wl_state"] == "up").sum())
     inc  = int((df["wl_state"] == "inconclusive").sum())
@@ -369,51 +348,78 @@ def build_context(df, holdings, earnings, moat):
         lines.append(f"DRY POWDER: {cash} cash available to deploy")
         lines.append("")
 
-    # --- Cash deployment (priority-ordered "where the next dollar goes" + the
-    #     speculative stops and any thesis erosion). Defensive — never break the
-    #     briefing if the engine hiccups. ---
+    # --- The Tide, the Idea of the Day, and the Destination Book Next Steps — the
+    #     decisive, cash-aware plan. This is the single source of truth for action.
+    #     Defensive — never break the briefing if an engine hiccups. ---
     try:
-        d = cash_deployment.deployment()
-        lines.append("PORTFOLIO ACTION ENGINE (the consolidated, ranked action list — "
-                     "this IS the action list; don't invent a parallel one):")
-        lines.append(f"  {d['n_core']} core, {d['n_speculative']} speculative | "
-                     f"{d.get('n_positions', '?')} positions (target "
-                     f"{d.get('target_min',10)}-{d.get('target_max',15)}) | "
-                     f"{d['cash_pct']:.0f}% cash"
-                     + (f" (${d['cash_dollars']:,})" if d['cash_dollars'] else "")
-                     + " to deploy")
-        if d.get("macro_wait"):
-            lines.append(f"  MACRO GATE: {d['macro_label']} within "
-                         f"{cash_deployment.WAIT_MACRO_DAYS} days — fresh buys are held to "
-                         "the watchlist until after the print.")
-        if d["actions"]:
-            lines.append("  ACTION NOW (ranked top-down — adds, new setups, gap starters, trims):")
-            for a in d["actions"]:
-                dol = f" ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
-                lines.append(f"    - {a['action']} {a['ticker']} +{a['suggested_pct']}%"
-                             f"{dol}: {a['detail']}")
+        dest = destination.compute_destination()
+        t = dest.get("tide") or {}
+        b = t.get("breadth", {})
+        lines.append("TIDE (top-down market regime — paces deployment; don't fight it):")
+        lines.append(f"  {t.get('level', '?')} — {t.get('posture', '')}")
+        lines.append(f"  reserve {dest['reserve']:.0f}% | sectors {b.get('up', 0)} up / "
+                     f"{b.get('down', 0)} down | bonds {(t.get('tlt') or {}).get('signal', 'n/a')}")
+        lines.append("")
+
+        try:
+            idea = idea_of_the_day.build_idea()
+            lines.append("IDEA OF THE DAY (the single most important thing — lead the BOTTOM LINE with this):")
+            lines.append(f"  {idea['headline']}")
+            lines.append(f"  {idea['body']}")
+            lines.append("")
+        except Exception as e:
+            print(f"idea of the day unavailable: {e}")
+
+        lines.append("DESTINATION BOOK + NEXT STEPS (THE plan — concentrate & complete; this IS "
+                     "the action list, do NOT invent a parallel one):")
+        lines.append(f"  {dest['n_core']} core, {dest['n_spec']} speculative, {dest['n_sell']} to exit "
+                     f"| {dest['cash']:.0f}% cash -> {dest['pool']:.0f}% to deploy "
+                     f"(holding a {dest['reserve']:.0f}% reserve)")
+        if dest.get("macro_wait"):
+            lines.append(f"  MACRO GATE: {dest['macro_label']} within 3 days — fresh adds held to "
+                         "'when cash frees up' until after the print.")
+        if dest["actions"]:
+            lines.append("  NEXT STEPS (ranked, cash-aware — act top-down until the cash runs out):")
+            for a in dest["actions"]:
+                dol = f" ~${abs(a['suggested_dollars']):,}" if a.get("suggested_dollars") else ""
+                nw = a.get("new_weight")
+                to = f" -> {nw:g}%" if nw is not None else ""
+                part = " (partial — rest waits for cash)" if a.get("partial") else ""
+                lines.append(f"    - {a['action']} {a['ticker']} {a['trade_pct']:+g}%{to}{dol}: "
+                             f"{a['detail']}{part}")
         else:
-            lines.append(f"  ACTION NOW: none — {d['hold_cash']['message'] if d.get('hold_cash') else 'hold and wait.'}")
-        if d.get("watchlist"):
-            lines.append("  WATCHLIST (waiting on macro/entry, or conv 6-7 approaching):")
-            for w in d["watchlist"][:8]:
-                wr = f" [{w['wait_reason']}]" if w.get("wait_reason") else ""
-                lbl = f"{w['action']} {w['ticker']}" if w.get("action") else w["ticker"]
-                lines.append(f"    - {lbl}{wr}: {w['detail']}")
-        watch = [s for s in d["stops"] if s["status"] in ("watch", "triggered")]
-        if watch:
-            lines.append("  Speculative stops approaching (−7% from entry):")
-            for s in watch:
-                tag = "STOP HIT" if s["status"] == "triggered" else "watch"
-                lines.append(f"    - {s['ticker']} ${s['current']} vs stop ${s['stop']} "
-                             f"({s['dist_to_stop_pct']}% away) — {tag}")
-        if d["thesis_alerts"]:
-            lines.append("  Thesis integrity (core — evidence eroded):")
-            for a in d["thesis_alerts"]:
-                lines.append(f"    - {a['ticker']}: {a['detail']}")
+            lines.append("  NEXT STEPS: none — the book is complete and balanced; hold and be patient.")
+        if dest.get("waitlist"):
+            lines.append("  WHEN CASH FREES UP (next to complete):")
+            for w in dest["waitlist"][:6]:
+                lines.append(f"    - {w['action']} {w['ticker']} +{w['trade_pct']:g}% -> "
+                             f"{w['target']:g}% [{w.get('wait_reason')}]: {w['detail']}")
+        if dest.get("spec_keep"):
+            lines.append("  SPECULATIVE SLEEVE (not core; held under a −7% stop): "
+                         + ", ".join(f"{k} {v:g}%" for k, v in dest["spec_keep"].items()))
+        if dest.get("pending"):
+            lines.append("  PENDING (just onboarded, untouched): "
+                         + ", ".join(f"{k} {v:g}%" for k, v in dest["pending"].items()))
+
+        try:
+            stops = [s for s in cash_deployment.speculative_stops()
+                     if s["status"] in ("watch", "triggered")]
+            if stops:
+                lines.append("  Speculative stops approaching (−7% from entry):")
+                for s in stops:
+                    tag = "STOP HIT" if s["status"] == "triggered" else "watch"
+                    lines.append(f"    - {s['ticker']} ${s['current']} vs stop ${s['stop']} "
+                                 f"({s['dist_to_stop_pct']}% away) — {tag}")
+            alerts = cash_deployment.thesis_integrity_alerts()
+            if alerts:
+                lines.append("  Thesis integrity (core — evidence eroded):")
+                for a in alerts:
+                    lines.append(f"    - {a['ticker']}: {a['detail']}")
+        except Exception as e:
+            print(f"stops/thesis unavailable: {e}")
         lines.append("")
     except Exception as e:
-        print(f"cash deployment unavailable: {e}")
+        print(f"destination/tide unavailable: {e}")
 
     return "\n".join(lines)
 
@@ -453,36 +459,46 @@ is within ~2 days or happened today/yesterday, weight it heavily: price action a
 fresh Widell flips around CPI/Fed are usually noise, and it's typically better to \
 wait until after the event before acting. Call this out in MARKET CONTEXT.
 
-THE PORTFOLIO ACTION ENGINE block is the SINGLE SOURCE OF TRUTH for what's actionable \
-— a derived, ranked list of every action (adds to core, new on-thesis setups, gap \
-starters, trims/reviews, beaten-down quality), each already split into ACTION NOW vs \
-WATCHLIST and macro-gated. Do NOT invent a parallel action list or contradict it; your \
-job is to translate it into plain English and add the market/macro "why". Core names \
-are held through volatility (core weakness is a BUY signal, never a stop); only \
-speculative names carry a −7% stop. A conv≥8 best-in-class name in a theme he's light \
-on is deliberate breadth across secular trends — treat it as a real buy candidate, not \
-dilution.
+HOW THE BOOK IS RUN — concentrate & complete, decisively:
+- There is a DESTINATION BOOK: his highest-conviction names at full target weights. The \
+job is to FINISH those positions (complete the underweight winners) before opening new \
+ones — not to scatter into a long menu.
+- The NEXT STEPS block is the SINGLE SOURCE OF TRUTH for action — a ranked, CASH-AWARE \
+queue. It already sequences everything (sells/reduces free cash; completion adds spend \
+it top-down until it runs out; the rest moves to WHEN CASH FREES UP). Do NOT invent a \
+parallel list, re-rank it, or recommend more than the cash funds. Translate it; add the \
+"why".
+- BE DECISIVE: a held non-core name that's low-quality or off-thesis is a FULL SELL \
+(not a trim to a rump); its cash redeploys into the winners. A non-core name with a real \
+edge sits in the SPECULATIVE SLEEVE under a −7% stop. Core names are held through \
+volatility and completed on weakness — never stopped. There are NO manual overrides.
+- THE TIDE paces deployment, it doesn't change the destination: a RISING tide means \
+deploy (the reserve is small); a FALLING tide means hold powder and wait for the turn \
+(exits/reduces still go). Don't fight the tide.
+- IDEA OF THE DAY is the one thing that matters most today — lead the BOTTOM LINE with it.
 
 Write EXACTLY these four sections, plain English, no jargon, no tables, concise:
 
-MARKET CONTEXT
-2-3 sentences: what SPY/QQQ + the bond regime (TLT) are telling us, and any UPCOMING \
-MACRO (CPI/FOMC) — if one is within ~3 days, say it's a wait-for-the-print environment \
-(the engine already holds fresh buys to the watchlist). Note over-concentration (3+ in \
-one theme) or off-thesis holdings only if they matter today.
+MARKET & TIDE
+2-3 sentences: what SPY/QQQ + the bond regime (TLT) + the TIDE are saying — is this a \
+deploy environment or a hold-powder one? Fold in any UPCOMING MACRO (CPI/FOMC) within \
+~3 days as a wait-for-the-print note. Mention over-concentration or off-thesis holdings \
+only if they matter today.
 
-PORTFOLIO ACTION
-Translate the engine's ACTION NOW list into plain English, in its ranked order — what \
-to do (add/start/trim), how much, and why. If ACTION NOW is empty, say "No compelling \
-entries — hold cash, patience is the edge." Then add a one-line speculative-stop watch \
-and any thesis-integrity ("review the thesis") line if present.
+NEXT STEPS
+Translate the NEXT STEPS queue into plain English, in its ranked order — the decisive \
+sells, the completions toward target (with how much), any reduce — and make clear it's \
+cash-aware (act top-down until the cash runs out). If NEXT STEPS is empty, say "Book is \
+complete and balanced — nothing to do; patience is the edge." Add a one-line \
+speculative-stop watch and any thesis-integrity ("review the thesis") line if present.
 
 WATCHLIST
-The engine's WATCHLIST in plain English — names waiting on macro/entry, or conv 6-7 \
-approaching — and the one trigger worth waiting for. "Nothing on watch." is fine.
+WHEN CASH FREES UP + anything waiting on the tide/macro/entry, in plain English — and \
+the one trigger worth waiting for. "Nothing on watch." is fine.
 
 BOTTOM LINE
-One sentence: what should Spencer actually do today (often "nothing — wait").
+One sentence, leading with the IDEA OF THE DAY: the single most important move today \
+(often "nothing — hold powder and wait").
 
 Keep the whole thing tight enough to read on a phone. This is sent as a plain-text \
 message, so DO NOT use any Markdown formatting — no #, no **bold**, no horizontal \
