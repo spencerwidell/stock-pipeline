@@ -42,4 +42,7 @@ positions:
   CASH: 9
 
 overrides:
-  TSLA: core      # long-term Physical-AI bull — hold through volatility, no stop
+  # Intentionally empty — "let the system work" (Session 47). No manual core/spec
+  # exceptions: a name earns CORE on the evidence (moat/fundamental/theme) or it
+  # lives in the speculative sleeve under the −7% stop. (TSLA's core override was
+  # dropped here; it now classifies on evidence and takes a stop if speculative.)

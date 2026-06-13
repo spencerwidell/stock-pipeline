@@ -9,7 +9,8 @@ import valuation        # PE / PEG / P-OCF from price + stored TTM inputs
 import theme_engine     # secular-trend overlay (coverage, gaps, TLT regime)
 import position_sizing  # conviction-led target weights (advisory)
 import auto_classify    # CORE vs SPECULATIVE, derived fresh from evidence
-import cash_deployment  # "where does my next dollar go" + speculative stops
+import cash_deployment  # speculative stops + thesis alerts + watchlist context
+import destination      # Destination Book + cash-aware "next steps" (concentrate & complete)
 import diary            # investor action log (append-only, AWS-authoritative)
 import holdings_io       # read/write holdings.yaml (logging a trade updates the snapshot)
 import manage_universe  # add/remove tickers in the scoring universe
@@ -183,7 +184,7 @@ def _log_and_apply(ticker, action, trade_pct, new_weight, recommendation, note="
 
 
 tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4, tab_manage = st.tabs(
-    ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Sizing", "📊 Signals",
+    ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Destination", "📊 Signals",
      "📋 Fundamentals", "📖 Guide", "🔄 Rotation", "⚙️ Manage"])
 
 with tab_brief:
@@ -191,77 +192,83 @@ with tab_brief:
     st.caption("Plain-English read on today's signals — the same briefing sent to Telegram "
                "after the close.")
 
-    # Portfolio Intelligence — the cockpit: who's core, where the next dollar goes,
-    # which speculative names are near their stop, and any thesis erosion. Derived
-    # fresh from holdings.yaml (the only file Spencer maintains).
+    # Portfolio Intelligence — the cockpit, now driven by the Destination Book:
+    # concentrate & complete. One decisive, cash-aware queue (sell the non-core,
+    # complete the winners), with the speculative sleeve and stop/thesis context below.
     try:
-        _d = cash_deployment.deployment()
+        _dest = destination.compute_destination()
+        _d = cash_deployment.deployment()   # context only: stops, thesis, watchlist
 
-        # Header — classification + position count vs target + cash (concentration
-        # stays visible without blocking).
-        _pos = _d.get("n_positions", _d["n_core"] + _d["n_speculative"])
         st.markdown(
             f"#### 🧠 Portfolio Intelligence\n"
-            f"**{_d['n_core']} core** · **{_d['n_speculative']} speculative** · "
-            f"**{_pos} positions** (target {_d.get('target_min', 10)}–{_d.get('target_max', 15)}) · "
-            f"**{_d['cash_pct']:.0f}% cash**"
-            + (f" (${_d['cash_dollars']:,})" if _d['cash_dollars'] else "")
-            + " to deploy")
-        if _d.get("macro_wait"):
-            st.warning(f"⏸ {_d['macro_label']} within {cash_deployment.WAIT_MACRO_DAYS} days — "
-                       "fresh buys held to the Watchlist until after the print.")
+            f"**{_dest['n_core']} core** · **{_dest['n_spec']} speculative** · "
+            f"**{_dest['n_sell']} to exit** · **{_dest['cash']:.0f}% cash** "
+            f"→ **{_dest['pool']:.0f}% to deploy** (cash + sells/reduces, "
+            f"keeping a {_dest['reserve']:.0f}% reserve)")
+        if _dest.get("macro_wait"):
+            st.warning(f"⏸ {_dest['macro_label']} within 3 days — fresh adds held to "
+                       "“when cash frees up” until after the print.")
 
-        _ICON = {"ADD": "🔵", "NEW": "🟢", "GAP": "🟢", "TRIM": "✂️", "REVIEW": "⚠️",
-                 "BEATEN": "🟠"}
+        _ICON = {"SELL": "🔴", "REDUCE": "🟡", "ADD": "🟢"}
+        _DACT = {"SELL": "SELL", "REDUCE": "TRIM", "ADD": "ADD"}
 
-        # 🎯 Portfolio Action — the ONE ranked, loggable NOW list.
-        if _d["actions"]:
-            st.markdown("##### 🎯 Portfolio Action — ranked, act top-down")
-            for _i, a in enumerate(_d["actions"]):
-                dol = f" · ~${a['suggested_dollars']:,}" if a.get("suggested_dollars") else ""
-                ic = _ICON.get(a.get("type"), "•")
+        # 🎯 Next Steps — the one ranked, loggable, cash-aware queue.
+        if _dest["actions"]:
+            st.markdown("##### 🎯 Next Steps — concentrate & complete (act top-down)")
+            for _i, a in enumerate(_dest["actions"]):
+                dol = (f" · ~${abs(a['suggested_dollars']):,}"
+                       if a.get("suggested_dollars") else "")
+                ic = _ICON.get(a["type"], "•")
                 _nw = a.get("new_weight")
                 _to = f" → {_nw:g}%" if _nw is not None else ""
+                _part = "  ·  *(partial — rest waits for cash)*" if a.get("partial") else ""
                 _txt, _btn = st.columns([6, 1])
                 _txt.markdown(f"{ic} **{a['action']} {a['ticker']}** "
-                              f"+{a['suggested_pct']}%{_to}{dol} — {a['detail']}")
-                if _btn.button("✅ Log", key=f"log_brief_{_i}_{a['ticker']}",
+                              f"{a['trade_pct']:+g}%{_to}{dol} — {a['detail']}{_part}")
+                if _btn.button("✅ Log", key=f"dest_{_i}_{a['ticker']}",
                                help="Log it to your diary and update holdings.yaml to the new weight"):
-                    _da = a.get("type")
-                    _dact = "TRIM" if _da in ("TRIM", "REVIEW") else ("ADD" if _da == "ADD" else "BUY")
-                    _sign = -1 if _dact in ("TRIM", "SELL") else 1
                     st.success(_log_and_apply(
-                        a["ticker"], _dact, f"{_sign * a['suggested_pct']:+g}", _nw,
+                        a["ticker"], _DACT[a["type"]], f"{a['trade_pct']:+g}", _nw,
                         f"{a['action']}: {a['detail']}") + " (see ⚙️ Manage).")
+            st.caption(f"That's the plan — ~{_dest['uncommitted']:.0f}% left uncommitted, "
+                       f"{_dest['reserve']:.0f}% reserve held back. Hold the rest; "
+                       "don't chase.")
         else:
-            st.info("💵 " + (_d["hold_cash"]["message"] if _d.get("hold_cash")
-                            else "No actions at entry right now — hold and be patient."))
+            st.info("💵 Book is complete and balanced at target — nothing to do. "
+                    "Patience is the edge.")
 
-        # 🧪 Validations — fresh, on-thesis quality you added to the universe and may
-        # want to start/validate (wide moat, fair value, below the conv-8 momentum line).
-        # Loggable so a name like DHR isn't stranded just because the engine ranks it soft.
-        if _d.get("validations"):
-            st.markdown("##### 🧪 Validations — fresh on-thesis adds to start")
-            for _vi, v in enumerate(_d["validations"][:6]):
-                dol = f" · ~${v['suggested_dollars']:,}" if v.get("suggested_dollars") else ""
-                _txt, _btn = st.columns([6, 1])
-                _txt.markdown(f"🧪 **{v['action']} {v['ticker']}** "
-                              f"+{v['suggested_pct']}% → {v['new_weight']:g}%{dol} — {v['detail']}")
-                if _btn.button("✅ Log", key=f"log_val_{_vi}_{v['ticker']}",
-                               help="Log a starter and update holdings.yaml to the new weight"):
-                    st.success(_log_and_apply(
-                        v["ticker"], "BUY", f"+{v['suggested_pct']:g}", v["new_weight"],
-                        f"{v['action']}: {v['detail']}") + " (see ⚙️ Manage).")
+        # ⏳ When cash frees up — the next steps to complete, once the queue funds.
+        if _dest["waitlist"]:
+            st.markdown("##### ⏳ When cash frees up — next to complete")
+            for w in _dest["waitlist"]:
+                st.markdown(f"- **{w['action']} {w['ticker']}** +{w['trade_pct']:g}% → "
+                            f"{w['target']:g}% · ⏸ {w.get('wait_reason')} — {w['detail']}")
 
-        # 👀 Watchlist — WAIT-timed items + conv 6-7 approaching candidates (context).
+        # 🟡 Speculative sleeve — held for upside, but on a leash (no thesis exceptions).
+        if _dest["spec_keep"]:
+            st.markdown("##### 🟡 Speculative sleeve — under a −7% stop")
+            st.caption("Not core on the evidence, but kept for upside on a leash. "
+                       "Let the stop work; no manual exception.")
+            for tk, w in _dest["spec_keep"].items():
+                st.markdown(f"- **{tk}** {w:g}%")
+        if _dest["pending"]:
+            st.caption("⏳ Pending scoring (just onboarded, untouched): "
+                       + ", ".join(f"{t} {w:g}%" for t, w in _dest["pending"].items()))
+
+        # 🆕 New ideas — surfaced AFTER the book is complete (don't dilute the queue).
+        if _dest.get("deployable", 0) < destination.MIN_ADD and _d.get("validations"):
+            with st.expander("🆕 New ideas — once the book is complete"):
+                for v in _d["validations"][:6]:
+                    st.markdown(f"- **{v['ticker']}** +{v['suggested_pct']:g}% — {v['detail']}")
+
+        # 👀 Watchlist (context) + speculative stop watch + thesis integrity.
         if _d.get("watchlist"):
             st.markdown("##### 👀 Watchlist — not yet actionable")
-            for w in _d["watchlist"][:8]:
+            for w in _d["watchlist"][:6]:
                 wr = f" · ⏸ {w['wait_reason']}" if w.get("wait_reason") else ""
                 lbl = f"**{w['action']} {w['ticker']}**" if w.get("action") else f"**{w['ticker']}**"
                 st.markdown(f"- {lbl}{wr} — {w['detail']}")
 
-        # Speculative stop watch (within 3% of stop).
         _watch = [s for s in _d["stops"] if s["dist_to_stop_pct"] <= 3 or s["status"] == "triggered"]
         if _watch:
             st.markdown("##### ⚠️ Speculative stop watch")
@@ -270,7 +277,6 @@ with tab_brief:
                 st.markdown(f"- **{s['ticker']}** ${s['current']} — stop ${s['stop']} "
                             f"({s['dist_to_stop_pct']}% away) — {tag}")
 
-        # Thesis integrity (core only).
         if _d["thesis_alerts"]:
             for a in _d["thesis_alerts"]:
                 st.warning(f"⚠️ {a['ticker']}: {a['detail']}")
@@ -402,49 +408,59 @@ with tab_themes:
             st.caption(f"⚠️ {t['constraint']}")
 
 with tab_sizing:
-    st.title("⚖️ Position Sizing")
-    st.caption("A read-only view of how your book is allocated — current weight vs your "
-               "per-name max — plus conviction/moat/valuation context. **No actions here:** "
-               "every recommended add/trim/starter lives on the 🧭 Briefing, so there's one "
-               "place to act.")
+    st.title("⚖️ Destination Book")
+    st.caption("The portfolio you're **building toward** — your highest-conviction names "
+               "at full target weights (conviction-led, capped at 15%, holding an "
+               f"{destination.CASH_RESERVE:.0f}% reserve). Read-only: every move toward it "
+               "lives on the 🧭 Briefing. *current → target* is the map; the Briefing is "
+               "the next step.")
 
-    siz = position_sizing.compute_sizing()
-    _MAXW = position_sizing.MAX_WEIGHT
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Invested", f"{siz['invested']:.0f}%")
-    c2.metric("Cash (dry powder)", f"{siz['cash']:.0f}%")
-    c3.metric("Positions", siz["n_held"],
-              help=f"target {siz['target_min']}–{siz['target_max']}")
+    _dst = destination.compute_destination()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Core names", _dst["n_core"])
+    c2.metric("Cash now", f"{_dst['cash']:.0f}%")
+    c3.metric("To deploy", f"{_dst['pool']:.0f}%", help="cash + sell/reduce proceeds")
+    c4.metric("Reserve", f"{_dst['reserve']:.0f}%")
     st.divider()
 
-    st.subheader("Your positions — weight vs max")
-    st.caption(f"Each name's current weight against your {_MAXW:.0f}% single-name cap, with "
-               "the room left to it. ⭐ = wide moat + reasonable valuation. Sorted by weight.")
-    rb = pd.DataFrame(siz["rebalance"])
-    if len(rb):
-        rb["⭐"] = rb["fits_profile"].map(lambda b: "⭐" if b else "")
-        rb["max %"]  = _MAXW
-        rb["room %"] = (_MAXW - rb["current"]).round(1)
-        rb = rb.sort_values("current", ascending=False)
-        rb = rb[["ticker", "current", "max %", "room %",
-                 "conviction", "moat_rating", "val_label", "⭐"]].rename(
-            columns={"current": "current %", "moat_rating": "moat", "val_label": "val"})
+    st.subheader("Core — current → target")
+    st.caption("Conviction is the driver. 🟢 below target (complete it) · 🔴 above · "
+               "⭐ = wide moat + reasonable valuation.")
+    bk = pd.DataFrame(_dst["book"])
+    if len(bk):
+        bk["⭐"] = bk["fits_profile"].map(lambda b: "⭐" if b else "")
+        bk = bk[["ticker", "current", "target", "delta", "conviction",
+                 "moat_rating", "val_label", "entry_status", "⭐"]].rename(
+            columns={"current": "current %", "target": "target %", "delta": "Δ to target",
+                     "moat_rating": "moat", "val_label": "val", "entry_status": "entry"})
 
-        def _c_room(v):
+        def _c_delta(v):
             try:
                 v = float(v)
             except (TypeError, ValueError):
                 return ""
-            return "color:#888" if v <= 0 else "color:#00cc44"
+            return ("color:#00cc44;font-weight:bold" if v >= 0.5
+                    else "color:#ff6666" if v <= -0.5 else "color:#888")
 
-        st.dataframe(
-            rb.style.map(_c_room, subset=["room %"]),
-            use_container_width=True, hide_index=True)
+        st.dataframe(bk.style.map(_c_delta, subset=["Δ to target"]),
+                     use_container_width=True, hide_index=True)
     else:
-        st.info("No holdings found in holdings.yaml.")
+        st.info("No core holdings found.")
 
-    st.caption("Informational only — to act on any of this, use the 🧭 Briefing "
-               "(ranked actions + validations). Not financial advice.")
+    if _dst["spec_keep"] or _dst["sells"] or _dst["pending"]:
+        cols = st.columns(3)
+        cols[0].markdown("**🟡 Spec sleeve** (−7% stop)\n\n" +
+                         ("\n".join(f"- {t} {w:g}%" for t, w in _dst["spec_keep"].items())
+                          or "_none_"))
+        cols[1].markdown("**🔴 Exit** (non-core)\n\n" +
+                         ("\n".join(f"- {t} {w:g}%" for t, w in _dst["sells"].items())
+                          or "_none_"))
+        cols[2].markdown("**⏳ Pending** (no score yet)\n\n" +
+                         ("\n".join(f"- {t} {w:g}%" for t, w in _dst["pending"].items())
+                          or "_none_"))
+
+    st.caption("Informational only — to act, use the 🧭 Briefing (the cash-aware next "
+               "steps). Not financial advice.")
 
 with tab1:
     st.title("📈 Widell Line Signal Dashboard")
@@ -755,10 +771,10 @@ with tab3:
     st.markdown("""
 | Tab | What it's for |
 |---|---|
-| 🧭 **Briefing** | The plain-English daily read (same as the Telegram briefing): a 🧠 Portfolio Intelligence cockpit (core/speculative, where the next dollar goes, stop watch) plus market context, actionable setups, watch list, portfolio check, portfolio action, bottom line. Generated server-side after the close. |
+| 🧭 **Briefing** | The plain-English daily read (same as the Telegram briefing): a 🧠 Portfolio Intelligence cockpit driven by the Destination Book — one cash-aware **Next Steps** queue (concentrate & complete: sell the non-core, complete the winners), the speculative sleeve under its stop, what's next when cash frees up, plus the stop watch and the LLM market read. Generated server-side after the close. |
 | 💬 **Ask** | Ask about any holding, candidate, or your portfolio in plain English — answers reuse the same signal stack (Widell, conviction, tier, moat, valuation, theme, deployment). Signals only: no news feed, so it says when it can't see a catalyst. Each question calls Claude (behind the password). |
 | 🌐 **Themes** | Your secular-trend map: TLT bond-regime banner, theme coverage vs gaps, over-concentration, off-thesis holdings, and the best entry per theme. The best opportunities to act on within each theme — informational, not directives. |
-| ⚖️ **Sizing** | Read-only view of how the book is allocated: each name's current weight vs your single-name max, with room left, plus conviction/moat/valuation. **No actions here** — every add/trim/starter recommendation lives on the Briefing. |
+| ⚖️ **Destination** | The book you're building toward — your highest-conviction names at full target weights (current → target), plus the spec sleeve, the exit list, and pending names. **No actions here** — the Briefing is the next step toward it. |
 | 📊 **Signals** | The full signal stack: High Conviction callout, flips, up-state entry analysis, and the filterable full universe. |
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |

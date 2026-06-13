@@ -275,3 +275,49 @@ def test_diary_migrates_legacy_schema(tmp_path):
     avgo = df[df.ticker == "AVGO"].iloc[0]
     assert sofi["new_weight"] == "3%" and sofi["trade_pct"] == ""
     assert avgo["trade_pct"] == "8%" and avgo["new_weight"] == ""
+
+
+# -----------------------------------------------------------------------
+# destination — Destination Book + cash-aware Next Steps (Session 47)
+# -----------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def dest():
+    import destination
+    return destination.compute_destination()
+
+
+def test_destination_has_expected_shape(dest):
+    for k in ("book", "sells", "spec_keep", "pending", "actions", "waitlist",
+              "pool", "deployable", "reserve"):
+        assert k in dest
+
+
+def test_destination_targets_within_cap(dest):
+    import position_sizing
+    for b in dest["book"]:
+        assert b["target"] <= position_sizing.MAX_WEIGHT + 1e-6
+
+
+def test_destination_sells_are_full_exits(dest):
+    # A SELL is decisive: full exit (new_weight 0) and a negative trade.
+    for a in dest["actions"]:
+        if a["type"] == "SELL":
+            assert a["new_weight"] == 0.0 and a["trade_pct"] < 0
+
+
+def test_destination_sells_are_not_core(dest):
+    core = {b["ticker"] for b in dest["book"]}
+    assert not (set(dest["sells"]) & core)        # never sell a core/destination name
+
+
+def test_destination_pool_accounts_for_sells_and_reduces(dest):
+    reduces = sum(-a["trade_pct"] for a in dest["actions"] if a["type"] == "REDUCE")
+    expected = round(dest["cash"] + sum(dest["sells"].values()) + reduces, 1)
+    assert abs(dest["pool"] - expected) < 0.2
+
+
+def test_destination_adds_respect_deployable_cash(dest):
+    # NOW-funded adds can't commit more than the deployable pool (within rounding).
+    funded = sum(a["trade_pct"] for a in dest["actions"] if a["type"] == "ADD")
+    assert funded <= dest["deployable"] + 0.2
