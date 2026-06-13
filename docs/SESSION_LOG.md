@@ -1295,6 +1295,44 @@ matches the cockpit. Plus the standing GitHub auto-backup token.
 
 ---
 
+## Session 51 — June 12, 2026
+
+**Built (chosen as the biggest gain): the daily LLM narrative now speaks the new
+model's voice — one voice across the whole system.** The briefing (Telegram + dashboard,
+the most-read surface) still reasoned off the OLD engines — `position_sizing`'s
+normalized rebalance (the spurious-trim source) and `cash_deployment`'s
+add-to-core/gap-starter/beaten-down action list — i.e. the exact split-brain Spencer
+hates, sitting on his most-read surface.
+
+**`narrative_alert.py`:**
+- `build_context`: dropped the `position_sizing` block and the old "PORTFOLIO ACTION
+  ENGINE" block. Now feeds Claude the SAME engines as the cockpit — **THE TIDE** (regime
+  + posture), the **IDEA OF THE DAY**, and the **DESTINATION BOOK + NEXT STEPS** (the
+  ranked, cash-aware queue: decisive sells, completions-to-target, reduces) + WHEN CASH
+  FREES UP + the speculative sleeve + pending, with stops/thesis from `cash_deployment`.
+- **`SYSTEM_PROMPT` rewritten** to the decisive, concentrate-&-complete, tide-aware
+  model: complete the winners before new positions; non-core is a FULL SELL, not a trim;
+  spec sleeve under a −7% stop; no overrides; the tide paces (don't fight it); lead the
+  BOTTOM LINE with the Idea of the Day. Sections: **MARKET & TIDE / NEXT STEPS /
+  WATCHLIST / BOTTOM LINE**. Dashboard `_BRIEF_HEADERS` updated (legacy headers still
+  render).
+
+**Verified with a real dry-run (one Sonnet call):** the new briefing reads SPY/QQQ +
+TLT + the FALLING tide → "hold-powder environment"; NEXT STEPS sells ELF/SOFI, reduces
+MSFT, completes GOOG (+ a partial META), flags the TSLA stop and GLW in the sleeve;
+WATCHLIST gives "a tide flip FALLING→RISING is the green light"; BOTTOM LINE leads with
+the Idea ("Sell ELF, complete GOOG"). Exactly the cockpit, in prose. 42/42 tests;
+AppTest clean. Deployed (d62e01e), and re-generated the dashboard's stored briefing on
+AWS **save-only (no Telegram send)** so the dashboard shows the new voice now; the 4:30
+PM close handles the real push.
+
+**Still open / next:** (d) de-emphasize the raw Signals tab (now the only roadmap
+remnant of the old "decode the tables" model); the standing GitHub auto-backup token.
+The system now speaks with ONE voice end-to-end: morning Idea push → dashboard cockpit
+(Destination + Tide + Next Steps) → close narrative, all off the same engines.
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
