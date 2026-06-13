@@ -1211,6 +1211,51 @@ so the LLM read matches the cockpit. Plus the standing GitHub auto-backup token.
 
 ---
 
+## Session 49 — June 12, 2026
+
+**Two parts: bring the docs current with the Sessions 45-48 model, then build editable
+holdings (roadmap item b).**
+
+**📚 Doc refresh (Spencer asked to capture the new philosophy before building more):**
+- **README** — rewrote "what it does today" around the Destination Book (concentrate &
+  complete, decisive sells, spec sleeve, no overrides) + the Tide; architecture is now
+  FIVE layers (added the Decision layer: Destination Book + Tide); 9 tabs documented;
+  production-signal table gained Market Tide + Destination targets rows; module list
+  added `destination.py` / `tide.py` / `diary.py`.
+- **PRODUCT_ROADMAP** — moved S42-48 into Completed; In-progress = editable holdings;
+  refreshed Upcoming (Idea of the Day, narrative-consumes-destination, de-emphasize
+  Signals, GitHub backup) and the design principles (one action surface, be decisive,
+  tide paces not targets).
+- **DECISIONS** — new "Portfolio decisioning model (Sessions 45-48)" record: diary
+  Δ+new-weight & holdings auto-sync, one recommendation surface, the Destination Book,
+  decisive sells + no overrides, the tide paces deployment, and the deploy-clobber lesson.
+- **INVESTMENT_THESIS (white paper)** — Section 4 gained three "how the book is run"
+  guardrails (concentrate & complete, be decisive, don't fight the tide); Section 5's
+  operationalization table now maps Right pace / Concentrate & complete / Be decisive /
+  Stay in sync to their modules.
+
+**📊 Editable holdings (the safety valve Spencer requested):**
+- `holdings_io.write_positions(weights)`: bulk rewrite of the positions: block from an
+  edited `{ticker: pct}` dict, preserving the rest of the file (comments, portfolio meta,
+  overrides) — line-based, no yaml re-dump. Existing tickers keep order; new ones append;
+  CASH last.
+- Manage tab → **"📊 Holdings — direct edit"**: an editable weights table
+  (`st.data_editor`); **CASH recomputes automatically** (100 − positions); a 0 drops a
+  name; warns + disables save if positions exceed 100%. It's a CORRECTION, explicitly NOT
+  a logged trade (the diary stays the action log). Fixes a mis-synced weight in one place
+  instead of logging a fake correcting trade.
+
+**Verified:** 39/39 tests (+1 write_positions: replaces the book, drops a name, preserves
+comments + overrides); AppTest clean. Deployed with the safe `git diff --quiet` reconcile
+(holdings clean, no clobber). d889b57, HTTP 200.
+
+**Still open / next:** (c) Idea of the Day; (d) de-emphasize the raw Signals tab; (e)
+feed the destination queue + tide to `narrative_alert.py`. Plus the standing GitHub
+auto-backup token (now backing up FIVE concerns: universe / themes / diary / holdings,
+and would have prevented the S47 clobber).
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
