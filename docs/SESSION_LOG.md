@@ -1108,6 +1108,64 @@ review after a week; (3) Q&A news/guest mode; (4) remove fundamental lookahead.
 
 ---
 
+## Session 47 — June 12, 2026
+
+**Context:** Spencer's first STRATEGIC feedback (vs point fixes). Strengths to keep:
+useful framework, simple UI, LLM-interactive, phone alerts, actionable, disciplined.
+Weaknesses all point one way: **make me more concentrated and decisive, not give me a
+longer menu** — too many actionable choices, would run out of cash, want positions to
+COMPLETE and add to winners, be decisive (non-core → sell not trim, drop overrides,
+"let the system work"). He picked **Concentrate & Complete** to build first, and
+confirmed **sell non-core + drop overrides** (incl. TSLA).
+
+**New `destination.py` — the Destination Book + cash-aware Next Steps:**
+- **Destination Book** = the portfolio he's building toward: held CORE names get a
+  conviction-led target (water-fill to 100−reserve, cap 15%, **8% cash reserve**).
+  Override-free classification.
+- **Decisive buckets:** a held non-core name that's low-quality (moat≤2 & fund≤2) OR
+  off-thesis (no theme) → **SELL** (full exit, not a trim-to-rump); one that still has
+  an edge → **SPEC sleeve** under the −7% stop; just-onboarded/unscored → **PENDING**
+  (untouched). On his book: SELL = ELF (off-thesis, low-Q) + SOFI (low-Q) — exactly
+  the two he'd flagged.
+- **Cash-aware queue:** sells + reduces free cash → COMPLETE the underweight winners,
+  ranked, walking the deployable pool (partial-fills the marginal name, waitlists the
+  rest). REDUCE fires **only** when overweight AND low-conviction (e.g. MSFT conv 3) —
+  never nags a trim on a high-conviction winner (Spencer's "leave winners alone" call).
+  The elegance: selling the 2 losers funds completing the winners, landing at reserve.
+
+**Wiring:**
+- Dropped the TSLA→core override (`holdings.yaml` overrides now intentionally empty,
+  with a comment); TSLA classifies on evidence → spec sleeve + stop.
+- Briefing cockpit is now **destination-driven**: one 🎯 Next Steps queue (Log +
+  holdings auto-sync), spec sleeve, "when cash frees up", new ideas demoted behind an
+  expander until the book is complete. Stops/thesis/watchlist kept as context.
+- Sizing tab → **⚖️ Destination**: the current→target book map + spec/exit/pending
+  buckets. Still read-only; the Briefing is the only place to act.
+
+**⚠️ Deploy incident (caught + fixed):** the AWS reconcile used
+`git diff origin/main … && echo MATCH` — but plain `git diff` returns 0 even WITH
+differences, so "MATCH" was a false positive and `git checkout -- holdings.yaml`
+**clobbered a live PLTR 7→8 trade** Spencer had logged on AWS. Caught via the
+append-only diary (the trade was recorded there), restored PLTR→8 / CASH→8, re-pushed.
+**Lesson (now in aws-deploy-gotchas):** before any reconcile/checkout, check AWS drift
+with `git diff --quiet` (exit code) and cross-check the diary; never blind-checkout
+holdings.yaml — it's dashboard-written and AWS is often the newer truth.
+
+**Verified:** 33/33 tests (+6 destination invariants: sells are full exits & non-core,
+targets ≤ cap, pool = cash+sells+reduces, adds ≤ deployable); AppTest clean locally and
+on AWS (0 exceptions); live engine on AWS sells ELF/SOFI, completes GOOG, waitlists
+RTX/ETN, TSLA in the spec sleeve. Deployed (b6a832a), HTTP 200.
+
+**Still open / next:** the rest of the strategic roadmap — (a) **Tide overlay**
+(Rotation → regime dial that scales deployment, "don't fight the tide"); (b) **editable
+holdings** on Manage (safety valve for a mis-synced weight); (c) **Idea of the Day**
+(single daily highest-conviction insight to phone); (d) de-emphasize the raw Signals
+tab (the action+detail carries the meaning); (e) narrative_alert should consume the
+destination queue so the LLM read matches. Plus the standing **GitHub auto-backup**
+token (now even more valuable — would have prevented the clobber).
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
