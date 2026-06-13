@@ -184,9 +184,13 @@ def _log_and_apply(ticker, action, trade_pct, new_weight, recommendation, note="
     return msg
 
 
-tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4, tab_manage = st.tabs(
-    ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Destination", "📊 Signals",
-     "📋 Fundamentals", "📖 Guide", "🌊 Tide", "⚙️ Manage"])
+# Tab order is deliberate: the DECISION surfaces lead (act → plan → regime →
+# opportunities → ask), the quality/raw REFERENCE sits behind them. The raw Signals
+# tab is intentionally near the back — the meaning (what to do) lives on the Briefing;
+# the signal stack is underlying data for a deep dive, not a daily read.
+tab_brief, tab_sizing, tab4, tab_themes, tab_ask, tab2, tab1, tab3, tab_manage = st.tabs(
+    ["🧭 Briefing", "⚖️ Destination", "🌊 Tide", "🌐 Themes", "💬 Ask",
+     "📋 Fundamentals", "📊 Signals (raw)", "📖 Guide", "⚙️ Manage"])
 
 with tab_brief:
     st.title("🧭 Daily Briefing")
@@ -486,8 +490,10 @@ with tab_sizing:
                "steps). Not financial advice.")
 
 with tab1:
-    st.title("📈 Widell Line Signal Dashboard")
-    st.caption(f"Data as of {date.today()}")
+    st.title("📊 Signals (raw)")
+    st.caption(f"Data as of {date.today()} — the underlying signal stack, for a deep "
+               "dive or to check a name. The *meaning* (what to actually do) is "
+               "synthesized on the 🧭 Briefing; this is reference data, not a daily read.")
     df = load_signals()
     holdings = load_holdings()
     df["held"] = df["ticker"].map(holdings).fillna("")
@@ -798,7 +804,7 @@ with tab3:
 | 💬 **Ask** | Ask about any holding, candidate, or your portfolio in plain English — answers reuse the same signal stack (Widell, conviction, tier, moat, valuation, theme, deployment). Signals only: no news feed, so it says when it can't see a catalyst. Each question calls Claude (behind the password). |
 | 🌐 **Themes** | Your secular-trend map: TLT bond-regime banner, theme coverage vs gaps, over-concentration, off-thesis holdings, and the best entry per theme. The best opportunities to act on within each theme — informational, not directives. |
 | ⚖️ **Destination** | The book you're building toward — your highest-conviction names at full target weights (current → target), plus the spec sleeve, the exit list, and pending names. **No actions here** — the Briefing is the next step toward it. |
-| 📊 **Signals** | The full signal stack: High Conviction callout, flips, up-state entry analysis, and the filterable full universe. |
+| 📊 **Signals (raw)** | The underlying signal stack — High Conviction callout, flips, up-state entry analysis, and the filterable full universe. Reference / deep-dive only; the *meaning* (what to do) is synthesized on the Briefing, so this sits near the back. |
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
 | 🌊 **Tide** | The top-down market regime (rising/neutral/falling) from the benchmarks + sector breadth + TLT. Sets how aggressively the Destination Book deploys (the cash reserve) and holds adds whose sector is sinking — *don't fight the tide*. Plus the sector tides and quality names that haven't moved in rising-tide sectors. |

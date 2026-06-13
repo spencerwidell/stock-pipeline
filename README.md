@@ -123,13 +123,14 @@ the conviction score — conviction stays a clean buy-zone-quality metric.
 
 **Delivery:**
 - **Streamlit dashboard** on AWS EC2 (`http://18.188.180.99:8501`, password-gated) —
-  nine tabs: **Briefing** (🧠 Portfolio Intelligence cockpit — the cash-aware Next Steps
-  queue + Tide banner + the LLM read), **Ask** (interactive Q&A), **Themes** (secular
-  coverage + TLT regime), **Destination** (the current→target Book + spec/exit/pending
-  buckets), **Signals** (with a High Conviction callout), **Fundamentals** (sector-aware
-  F score + moat + valuation + forward PE + archetype), **Guide** (objectives +
-  model-risk docs in-app), **Tide** (the market-regime gauge + sector tides), and
-  **Manage** (universe add/remove + investor diary, which writes holdings.yaml).
+  nine tabs, decision surfaces first and raw reference behind them: **Briefing** (🧠 the
+  cash-aware Next Steps queue + Idea of the Day + Tide banner + the LLM read),
+  **Destination** (the current→target Book + spec/exit/pending buckets), **Tide** (the
+  market-regime gauge + sector tides), **Themes** (secular coverage + TLT regime),
+  **Ask** (interactive Q&A), **Fundamentals** (sector-aware F score + moat + valuation +
+  forward PE + archetype), **Signals (raw)** (the underlying signal stack — reference /
+  deep-dive only), **Guide** (objectives + model-risk docs in-app), and **Manage**
+  (universe add/remove + investor diary + editable holdings, which write holdings.yaml).
 - **Telegram alerts**, three on weekdays via cron:
   - **10:30 AM ET — morning alert** (`morning_alert.py`): live snapshot prices vs
     yesterday's levels — entries in range, breakout watch, notable moves, position
