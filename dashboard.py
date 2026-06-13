@@ -788,7 +788,7 @@ with tab3:
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
 | 🌊 **Tide** | The top-down market regime (rising/neutral/falling) from the benchmarks + sector breadth + TLT. Sets how aggressively the Destination Book deploys (the cash reserve) and holds adds whose sector is sinking — *don't fight the tide*. Plus the sector tides and quality names that haven't moved in rising-tide sectors. |
-| ⚙️ **Manage** | Add/remove companies in the scoring universe — adding maps the name to your secular theme(s) and immediately backfills everything (price, signals, fundamentals, moat; ~2-3 min) — and keep an investor diary — log the actions you actually took (date, ticker, action, trade %, new weight, recommendation). Logging writes the new weight into holdings.yaml automatically. Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
+| ⚙️ **Manage** | Add/remove companies in the scoring universe — adding maps the name to your secular theme(s) and immediately backfills everything (price, signals, fundamentals, moat; ~2-3 min) — keep an investor diary — log the actions you actually took (date, ticker, action, trade %, new weight, recommendation; logging writes the new weight into holdings.yaml automatically) — and directly edit holdings as a safety valve if an auto-synced weight is ever wrong (CASH recomputes). Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
 """)
 
     st.divider()
@@ -1124,6 +1124,38 @@ with tab_manage:
                                + (f"  Unmapped from {len(_tch)} theme(s)." if _tch else "")
                                + (f"  ⚠️ Still in holdings.yaml — edit it if you sold."
                                   if _held else ""))
+    st.divider()
+
+    # ---------------- Correct holdings (safety valve) ----------------
+    st.subheader("📊 Holdings — direct edit")
+    st.caption("Safety valve: if an auto-synced weight is ever wrong, fix it here. "
+               "Edit the weights; **CASH recomputes automatically** so the book sums to "
+               "100%. Set a weight to 0 to drop a name. This is a correction — it's NOT "
+               "logged as a trade (use the diary below for actual trades).")
+    _hpos = holdings_io.load_positions()        # {ticker: 'weight'} excl CASH
+    _hdf = pd.DataFrame([{"ticker": t, "weight %": float(w)} for t, w in _hpos.items()])
+    _edited = st.data_editor(
+        _hdf, hide_index=True, num_rows="fixed", use_container_width=True,
+        key="holdings_editor",
+        column_config={
+            "ticker": st.column_config.TextColumn("Ticker", disabled=True),
+            "weight %": st.column_config.NumberColumn("Weight %", min_value=0.0,
+                                                      max_value=100.0, step=0.5, format="%.1f"),
+        })
+    _possum = round(float(_edited["weight %"].sum()), 1)
+    _derived_cash = round(100.0 - _possum, 1)
+    cc1, cc2 = st.columns(2)
+    cc1.metric("Positions sum", f"{_possum:.1f}%")
+    cc2.metric("Derived CASH", f"{_derived_cash:.1f}%")
+    if _derived_cash < 0:
+        st.warning(f"Positions total {_possum:.1f}% — over 100%. Reduce something before saving.")
+    if st.button("💾 Save holdings", disabled=_derived_cash < 0):
+        _w = {r["ticker"]: r["weight %"] for _, r in _edited.iterrows()
+              if float(r["weight %"]) > 0}          # 0 = dropped
+        _w["CASH"] = _derived_cash
+        holdings_io.write_positions(_w)
+        load_holdings.clear()
+        st.success(f"holdings.yaml updated — {len(_w) - 1} positions, CASH {_derived_cash:.1f}%.")
     st.divider()
 
     # ---------------- Investor diary ----------------

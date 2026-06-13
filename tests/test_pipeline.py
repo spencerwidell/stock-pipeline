@@ -242,6 +242,21 @@ def test_apply_trade_preserves_comments_and_overrides(holdings_file):
     assert holdings_io.load_overrides(holdings_file) == {"TSLA": "core"}
 
 
+def test_write_positions_replaces_book_and_preserves_rest(holdings_file):
+    import holdings_io
+    # Correct two weights, drop one name, set CASH — the manual safety valve.
+    new = holdings_io.load_positions(holdings_file, include_cash=True)
+    new["AVGO"] = "12"
+    new.pop("ELF")                                  # dropped name disappears
+    new["CASH"] = "10"
+    holdings_io.write_positions(new, holdings_file)
+    pos = holdings_io.load_positions(holdings_file, include_cash=True)
+    assert pos["AVGO"] == "12" and "ELF" not in pos and pos["CASH"] == "10"
+    # comments + overrides survive the rewrite
+    assert "# A comment that must survive a write." in open(holdings_file).read()
+    assert holdings_io.load_overrides(holdings_file) == {"TSLA": "core"}
+
+
 # -----------------------------------------------------------------------
 # diary — two-field schema + legacy migration (Session 45)
 # -----------------------------------------------------------------------

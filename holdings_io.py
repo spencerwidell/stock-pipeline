@@ -192,3 +192,57 @@ def apply_trade(ticker, new_weight, path=HOLDINGS_PATH):
         f.writelines(lines)
     return {"ticker": ticker, "old": old_w, "new": new_weight,
             "cash_old": cash_old, "cash_new": cash_new}
+
+
+def write_positions(weights, path=HOLDINGS_PATH):
+    """Rewrite the positions: block to exactly `weights` ({ticker: pct}, incl CASH),
+    preserving the rest of the file (comments, portfolio meta, overrides). A manual
+    correction path — the safety valve when an auto-synced weight is wrong. Existing
+    tickers keep their order; new ones append; CASH is placed last. Returns the cleaned
+    dict written, or None if the file/block is missing.
+    """
+    if not os.path.exists(path):
+        return None
+    clean = {}
+    for k, v in weights.items():
+        tk = str(k or "").upper().strip()
+        if not tk or str(v).strip() == "":
+            continue
+        try:
+            clean[tk] = round(float(str(v).replace("%", "").replace(",", "").strip()), 1)
+        except (TypeError, ValueError):
+            continue
+
+    with open(path) as f:
+        lines = f.readlines()
+    bounds = _positions_bounds(lines)
+    if bounds is None:
+        return None
+    start, end = bounds
+
+    order, trailing, indent = [], [], "  "
+    for i in range(start, end):
+        m = _POS_LINE.match(lines[i])
+        if m:
+            order.append(m.group(2).upper())
+            indent = m.group(1)
+        elif lines[i].strip() == "":
+            trailing.append(lines[i])           # keep the blank line(s) before the next block
+
+    final, seen = [], set()
+    for tk in order:                            # existing non-CASH tickers, in place
+        if tk != "CASH" and tk in clean and tk not in seen:
+            final.append(tk); seen.add(tk)
+    for tk in clean:                            # any newly-added tickers
+        if tk != "CASH" and tk not in seen:
+            final.append(tk); seen.add(tk)
+
+    body = [f"{indent}{tk}: {_fmt_weight(clean[tk])}\n" for tk in final]
+    if "CASH" in clean:
+        body.append(f"{indent}CASH: {_fmt_weight(clean['CASH'])}\n")
+    body += trailing
+
+    lines[start:end] = body
+    with open(path, "w") as f:
+        f.writelines(lines)
+    return clean
