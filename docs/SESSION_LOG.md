@@ -1333,6 +1333,32 @@ The system now speaks with ONE voice end-to-end: morning Idea push → dashboard
 
 ---
 
+## Session 52 — June 12, 2026
+
+**Built:** De-emphasized the raw Signals tab (roadmap item d) — the last remnant of the
+old "decode the tables" model. The signals already fuse into an action, so the raw stack
+is reference, not a daily read.
+
+- **Reordered the tabs** to lead with the decision/meaning surfaces and push raw
+  reference behind them: **Briefing · Destination · Tide · Themes · Ask · Fundamentals ·
+  Signals (raw) · Guide · Manage** (was Briefing · Ask · Themes · Destination · Signals ·
+  Fundamentals · Guide · Tide · Manage). Done by reordering the `st.tabs` labels + the
+  positional variable unpacking; the `with tab_X:` blocks were untouched.
+- Renamed **📊 Signals → 📊 Signals (raw)**; its caption + Guide row now frame it as
+  reference / deep-dive, pointing to the 🧭 Briefing for the meaning. README tab list
+  updated to the new order.
+
+**Verified:** 42/42 tests; AppTest clean (all 9 tabs render in the new order). Deployed
+(b600b77, HTTP 200), holdings clean (safe reconcile).
+
+**Roadmap status:** the strategic arc Spencer set in Session 47 is now COMPLETE —
+concentrate & complete (Destination Book), be decisive (sell non-core, no overrides),
+the Tide (don't fight it), Idea of the Day, one-voice narrative, editable-holdings
+safety valve, and now decision-first surfaces. Only the **GitHub auto-backup token**
+(needs a one-time PAT from Spencer) and future observation-and-feedback tweaks remain.
+
+---
+
 **B. Interactive Q&A on the app** *(DONE — Session 38)*
 - Free-text box: "thoughts on GEV today?" / "any news on X?" — pass that ticker's
   full signal row + theme as context, same builders the alerts use
