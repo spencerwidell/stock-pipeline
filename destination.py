@@ -112,6 +112,20 @@ def compute_destination():
     except Exception:
         pass
 
+    # --- tide: the top-down pacing layer. It does NOT move the destination
+    # targets (those stay stable so they don't churn when the tide flips) — it
+    # sets how much cash to release NOW (a bigger buffer in a falling tide) and
+    # holds adds whose sector is sinking. Exits/reduces are never tide-gated.
+    try:
+        import tide as _tide
+        tide_info = _tide.market_tide()
+        sect_tides = _tide.sector_tides()
+    except Exception:
+        tide_info = {"level": "NEUTRAL", "reserve": CASH_RESERVE, "gate": False}
+        sect_tides = {}
+    tide_reserve = tide_info.get("reserve", CASH_RESERVE)
+    tide_gate = tide_info.get("gate", False)
+
     # --- Next Steps queue ----------------------------------------------------
     actions, waitlist = [], []
 
@@ -146,9 +160,10 @@ def compute_destination():
                            f"for the winners."),
             })
 
-    # Cash to deploy = current cash + sell proceeds + reduce proceeds, less the reserve.
+    # Cash to deploy = current cash + sell proceeds + reduce proceeds, less the
+    # tide-set reserve (8% neutral, ~5% rising = deploy, ~12% falling = hold powder).
     pool = round(cash + sum(sells.values()) + reduce_proceeds, 1)
-    deployable = max(0.0, round(pool - CASH_RESERVE, 1))
+    deployable = max(0.0, round(pool - tide_reserve, 1))
 
     # 3) COMPLETE underweight winners — ranked, walk the deployable cash
     adds = [b for b in book if b["delta"] >= MIN_ADD]
@@ -163,19 +178,22 @@ def compute_destination():
         tk = b["ticker"]
         want = b["delta"]
         extended = b["entry_status"] in WAIT_ENTRY
+        tk_tide = _tide.ticker_tide(tk, sect_tides) if sect_tides else "NEUTRAL"
+        sinking = tide_gate and tk_tide == "FALLING"
         item = {
             "type": "ADD", "action": "ADD", "ticker": tk, "conviction": b["conviction"],
             "price": None, "from_pct": b["current"], "target": b["target"],
-            "priority": b["_pri"],
+            "priority": b["_pri"], "sector_tide": tk_tide,
             "detail": (f"complete to target — conv {b['conviction']}, "
                        f"{b['entry_status']}, {b['channel_zone']} channel "
                        f"(held {b['current']:.0f}% → {b['target']:.0f}%)"),
         }
-        if macro_wait or extended:
+        if macro_wait or extended or sinking:
             item.update({"trade_pct": round(want, 1), "new_weight": b["target"],
                          "suggested_dollars": _dollars(want, total),
                          "wait_reason": (f"hold near {macro_label}" if macro_wait
-                                         else "extended — wait for a pullback")})
+                                         else "extended — wait for a pullback" if extended
+                                         else "falling tide in its sector — wait for the turn")})
             waitlist.append(item)
             continue
         if remaining < MIN_ADD:                              # out of cash → defer
@@ -197,12 +215,12 @@ def compute_destination():
     return {
         "book": book, "sells": sells, "spec_keep": spec_keep, "pending": pending,
         "actions": actions, "waitlist": waitlist,
-        "cash": cash, "pool": pool, "reserve": CASH_RESERVE,
+        "cash": cash, "pool": pool, "reserve": tide_reserve,
         "deployable": deployable, "uncommitted": round(remaining, 1),
         "invested": invested, "total_value": total,
         "n_core": len(core), "n_spec": len(spec_keep), "n_sell": len(sells),
         "macro_wait": macro_wait, "macro_label": macro_label,
-        "stop_pct": STOP_PCT,
+        "tide": tide_info, "stop_pct": STOP_PCT,
     }
 
 

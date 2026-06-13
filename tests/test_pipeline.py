@@ -321,3 +321,40 @@ def test_destination_adds_respect_deployable_cash(dest):
     # NOW-funded adds can't commit more than the deployable pool (within rounding).
     funded = sum(a["trade_pct"] for a in dest["actions"] if a["type"] == "ADD")
     assert funded <= dest["deployable"] + 0.2
+
+
+def test_destination_carries_tide(dest):
+    assert "tide" in dest and dest["tide"].get("level") in ("RISING", "NEUTRAL", "FALLING")
+
+
+# -----------------------------------------------------------------------
+# tide — the top-down market regime (Session 48)
+# -----------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def market_tide():
+    import tide
+    return tide.market_tide()
+
+
+def test_tide_level_and_reserve_consistent(market_tide):
+    import tide
+    assert market_tide["level"] in ("RISING", "NEUTRAL", "FALLING")
+    assert market_tide["reserve"] == tide.RESERVE_BY_TIDE[market_tide["level"]]
+
+
+def test_tide_falling_holds_more_powder():
+    # The mapping must always reward defense: falling reserve > rising reserve.
+    import tide
+    assert tide.RESERVE_BY_TIDE["FALLING"] > tide.RESERVE_BY_TIDE["RISING"]
+
+
+def test_tide_gate_only_when_falling(market_tide):
+    assert market_tide["gate"] == (market_tide["level"] == "FALLING")
+
+
+def test_sector_and_ticker_tides_valid():
+    import tide
+    sect = tide.sector_tides()
+    assert all(v["level"] in ("RISING", "NEUTRAL", "FALLING") for v in sect.values())
+    assert tide.ticker_tide("NVDA", sect) in ("RISING", "NEUTRAL", "FALLING")

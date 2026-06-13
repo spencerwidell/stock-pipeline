@@ -185,7 +185,7 @@ def _log_and_apply(ticker, action, trade_pct, new_weight, recommendation, note="
 
 tab_brief, tab_ask, tab_themes, tab_sizing, tab1, tab2, tab3, tab4, tab_manage = st.tabs(
     ["🧭 Briefing", "💬 Ask", "🌐 Themes", "⚖️ Destination", "📊 Signals",
-     "📋 Fundamentals", "📖 Guide", "🔄 Rotation", "⚙️ Manage"])
+     "📋 Fundamentals", "📖 Guide", "🌊 Tide", "⚙️ Manage"])
 
 with tab_brief:
     st.title("🧭 Daily Briefing")
@@ -205,6 +205,15 @@ with tab_brief:
             f"**{_dest['n_sell']} to exit** · **{_dest['cash']:.0f}% cash** "
             f"→ **{_dest['pool']:.0f}% to deploy** (cash + sells/reduces, "
             f"keeping a {_dest['reserve']:.0f}% reserve)")
+
+        # 🌊 Tide banner — the top-down posture that paces deployment.
+        _t = _dest.get("tide") or {}
+        if _t:
+            _lvl = _t.get("level", "NEUTRAL")
+            _msg = f"{_t.get('icon','🌊')} **{_lvl} TIDE** — {_t.get('posture','')}"
+            (st.success if _lvl == "RISING" else st.error if _lvl == "FALLING"
+             else st.info)(_msg)
+
         if _dest.get("macro_wait"):
             st.warning(f"⏸ {_dest['macro_label']} within 3 days — fresh adds held to "
                        "“when cash frees up” until after the print.")
@@ -778,7 +787,7 @@ with tab3:
 | 📊 **Signals** | The full signal stack: High Conviction callout, flips, up-state entry analysis, and the filterable full universe. |
 | 📋 **Fundamentals** | F score (0-5), moat rating (1-5) + per-name detail, and valuation (PE / PEG / P-OCF). |
 | 📖 **Guide** | This page — objectives, model risk, and how to read everything. |
-| 🔄 **Rotation** | Top-down sector/ETF ranking + constituent laggard scan. |
+| 🌊 **Tide** | The top-down market regime (rising/neutral/falling) from the benchmarks + sector breadth + TLT. Sets how aggressively the Destination Book deploys (the cash reserve) and holds adds whose sector is sinking — *don't fight the tide*. Plus the sector tides and quality names that haven't moved in rising-tide sectors. |
 | ⚙️ **Manage** | Add/remove companies in the scoring universe — adding maps the name to your secular theme(s) and immediately backfills everything (price, signals, fundamentals, moat; ~2-3 min) — and keep an investor diary — log the actions you actually took (date, ticker, action, trade %, new weight, recommendation). Logging writes the new weight into holdings.yaml automatically. Use the ✅ Log buttons on Briefing to capture a recommendation you executed. |
 """)
 
@@ -907,71 +916,82 @@ Unlike composite (momentum/signal direction), conviction rewards buying quality 
     st.caption("Built by Spencer Widell | github.com/spencerwidell/stock-pipeline | Not financial advice.")
 
 with tab4:
-    st.title("🔄 Sector Rotation")
-    st.caption(f"Data as of {date.today()} — rank sectors by opportunity, then find quality laggards within them")
+    import tide as _tidemod
+    st.title("🌊 Market Tide")
+    st.caption("Top-down regime — the tide you're sailing in. A rising tide lifts all "
+               "boats; a falling tide smashes them. It sets how aggressively the "
+               "Destination Book deploys (the cash reserve) and holds adds whose sector "
+               "is sinking. *Don't fight the tide.*")
+
+    _tm = _tidemod.market_tide()
+    _lvl = _tm["level"]
+    _banner = f"{_tm['icon']} **{_lvl} TIDE** — {_tm['posture']}"
+    (st.success if _lvl == "RISING" else st.error if _lvl == "FALLING"
+     else st.info)(_banner)
+    b = _tm.get("breadth", {})
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Tide", _lvl)
+    c2.metric("Sectors up / down", f"{b.get('up', 0)} / {b.get('down', 0)}",
+              help=f"of {b.get('total', 0)} sector/thematic ETFs")
+    c3.metric("Bonds (TLT)", (_tm.get("tlt") or {}).get("signal", "n/a"))
+    c4.metric("Reserve it sets", f"{_tm['reserve']:.0f}%",
+              help="cash the Destination Book holds back at this tide")
+    st.divider()
 
     rot = load_rotation()
-
-    STATE_ICON = {"up": "🟢", "inconclusive": "🟡", "down": "🔴"}
-    STATE_RANK = {"up": 0, "inconclusive": 1, "down": 2}
     MIN_FUND = 3
 
     # ----------------------------------------------------------------------
-    # Section A — ETF / sector ranking
+    # Sector tides — which sectors are with you, which against
     # ----------------------------------------------------------------------
-    st.subheader("Section A — Sector / Thematic ETF Ranking")
-    st.caption("Best opportunity (favorable state + lower channel) at top")
+    st.subheader("Sector tides")
+    st.caption("Each sector/thematic ETF's tide. 🟢 rising (with you) · 🟡 neutral · "
+               "🔴 falling (against you). Channel position shows room to run.")
+    _sect = _tidemod.sector_tides()
+    _TIDE_ICON = {"RISING": "🟢", "NEUTRAL": "🟡", "FALLING": "🔴"}
+    _TIDE_RANK = {"RISING": 0, "NEUTRAL": 1, "FALLING": 2}
+    st_rows = [{"ETF": e, "tide": f"{_TIDE_ICON[v['level']]} {v['level'].lower()}",
+                "_r": _TIDE_RANK[v["level"]], "state": v["state"],
+                "channel_zone": v["channel_zone"], "channel_pos": v["channel_pos"]}
+               for e, v in _sect.items()]
+    st_df = pd.DataFrame(sorted(st_rows, key=lambda r: (r["_r"], r["channel_pos"]
+                                                        if r["channel_pos"] is not None else 9)))
 
-    etf = rot[rot["ticker"].isin(SECTOR_ETFS)].copy()
-    etf["state_rank"] = etf["wl_state"].map(STATE_RANK).fillna(3)
-    etf = etf.sort_values(["state_rank", "channel_pos"], na_position="last").reset_index(drop=True)
-    etf["state"] = etf["wl_state"].map(STATE_ICON).fillna("?") + " " + etf["wl_state"].astype(str)
-
-    etf_view = etf[["ticker","state","composite","channel_zone","channel_pos"]].rename(
-        columns={"state":"wl_state"})
-
-    def cs_state(v):
-        if "up" in str(v):           return "background-color:#1a472a;color:white"
-        if "down" in str(v):         return "background-color:#6b1a1a;color:white"
-        if "inconclusive" in str(v): return "background-color:#4a3800;color:white"
-        return ""
-    def csc(v):
-        if pd.isna(v): return ""
-        if v>=3:  return "color:#00ff88;font-weight:bold"
-        if v>=1:  return "color:#88ff88"
-        if v<=-3: return "color:#ff4444;font-weight:bold"
-        if v<=-1: return "color:#ff8888"
-        return ""
     def czone(v):
-        if v=="lower":     return "color:#00ff88;font-weight:bold"
-        if v=="middle":    return "color:#88ff88"
-        if v=="extended":  return "color:#ff4444;font-weight:bold"
-        if v=="upper":     return "color:#ffaa00"
+        if v == "lower":    return "color:#00ff88;font-weight:bold"
+        if v == "middle":   return "color:#88ff88"
+        if v == "extended": return "color:#ff4444;font-weight:bold"
+        if v == "upper":    return "color:#ffaa00"
         return ""
 
-    st.dataframe(
-        etf_view.style
-            .map(cs_state, subset=["wl_state"])
-            .map(csc,      subset=["composite"])
-            .map(czone,    subset=["channel_zone"])
-            .format({"channel_pos": "{:.3f}"}, na_rep="n/a"),
-        use_container_width=True, height=600)
+    if len(st_df):
+        def _ctide(v):
+            if "rising" in str(v):  return "background-color:#1a472a;color:white;font-weight:bold"
+            if "falling" in str(v): return "background-color:#6b1a1a;color:white;font-weight:bold"
+            return "background-color:#4a3800;color:white"
 
+        st.dataframe(
+            st_df[["ETF", "tide", "state", "channel_zone", "channel_pos"]].style
+                .map(_ctide, subset=["tide"]).map(czone, subset=["channel_zone"])
+                .format({"channel_pos": "{:.2f}"}, na_rep="n/a"),
+            use_container_width=True, hide_index=True, height=560)
     st.divider()
 
     # ----------------------------------------------------------------------
     # Section B — constituent laggard scan
     # ----------------------------------------------------------------------
-    st.subheader("Section B — Constituent Laggard Scan")
-    st.caption(f"For favorable ETFs (up state or lower/middle zone): F ≥ {MIN_FUND} constituents "
-               "with more room to run than their sector, or lagging its momentum")
+    st.subheader("Where the tide is rising — quality names that haven't moved")
+    st.caption(f"Only sectors with the tide ON your side (rising/neutral): F ≥ {MIN_FUND} "
+               "constituents with more room to run than their sector, or lagging its "
+               "momentum. (Falling-tide sectors are skipped — don't fight the tide.)")
 
     by_ticker = rot.set_index("ticker")
-    favorable = etf[(etf["wl_state"]=="up") | (etf["channel_zone"].isin(["lower","middle"]))]
+    # favorable = sectors whose tide is NOT falling
+    favorable = [(e, v["state"], v["channel_pos"]) for e, v in _sect.items()
+                 if v["level"] != "FALLING"]
 
     laggards = []
-    for _, e in favorable.iterrows():
-        etf_tkr, etf_state, etf_cpos = e["ticker"], e["wl_state"], e["channel_pos"]
+    for etf_tkr, etf_state, etf_cpos in favorable:
         for stock in get_constituents(etf_tkr):
             if stock not in by_ticker.index:
                 continue
