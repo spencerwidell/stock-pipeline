@@ -33,4 +33,10 @@ conda activate stock
 echo "Sending morning alert..." | tee -a "$LOG"
 python morning_alert.py >> "$LOG" 2>&1
 
+# Idea of the Day — the one thing that matters today (Destination Book + Tide).
+# Decoupled + fail-soft so it can't block the morning alert; also records today's
+# tide so tide-turn detection has a prior day to compare against.
+echo "Sending Idea of the Day..." | tee -a "$LOG"
+python -c "import idea_of_the_day as i; i.send_idea()" >> "$LOG" 2>&1 || true
+
 echo "=== Done $(date) ===" | tee -a "$LOG"

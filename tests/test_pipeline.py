@@ -373,3 +373,33 @@ def test_sector_and_ticker_tides_valid():
     sect = tide.sector_tides()
     assert all(v["level"] in ("RISING", "NEUTRAL", "FALLING") for v in sect.values())
     assert tide.ticker_tide("NVDA", sect) in ("RISING", "NEUTRAL", "FALLING")
+
+
+# -----------------------------------------------------------------------
+# idea_of_the_day — the single most important thing today (Session 50)
+# -----------------------------------------------------------------------
+
+def test_idea_has_valid_shape():
+    import idea_of_the_day
+    idea = idea_of_the_day.build_idea()
+    assert idea["tag"] in ("STOP", "THESIS", "TIDE", "STEP", "WAIT", "HOLD")
+    assert idea["headline"] and idea["frame"]
+    assert idea["tide_level"] in ("RISING", "NEUTRAL", "FALLING")
+
+
+def test_idea_to_text_contains_headline():
+    import idea_of_the_day
+    idea = idea_of_the_day.build_idea()
+    txt = idea_of_the_day.to_text(idea)
+    assert "IDEA OF THE DAY" in txt and idea["headline"] in txt
+
+
+def test_tide_history_record_and_prev(tmp_path, monkeypatch):
+    import idea_of_the_day
+    monkeypatch.setattr(idea_of_the_day, "TIDE_HIST", str(tmp_path / "th.json"))
+    idea_of_the_day.record_tide("RISING", on="2026-06-10")
+    idea_of_the_day.record_tide("FALLING", on="2026-06-11")
+    assert idea_of_the_day._prev_level("2026-06-12") == "FALLING"
+    assert idea_of_the_day._prev_level("2026-06-11") == "RISING"
+    idea_of_the_day.record_tide("XX", on="2026-06-11")     # same-day write is a no-op
+    assert idea_of_the_day._prev_level("2026-06-12") == "FALLING"

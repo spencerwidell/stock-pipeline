@@ -192,6 +192,19 @@ with tab_brief:
     st.caption("Plain-English read on today's signals — the same briefing sent to Telegram "
                "after the close.")
 
+    # 💡 Idea of the Day — the ONE thing that matters today, synthesized from the
+    # Destination Book + Tide + stop/thesis context. The antidote to too many choices.
+    try:
+        import idea_of_the_day
+        _idea = idea_of_the_day.build_idea()
+        with st.container(border=True):
+            st.markdown("### 💡 Idea of the Day")
+            st.caption(_idea["frame"])
+            st.markdown(f"**{_idea['icon']} {_idea['headline']}**")
+            st.markdown(_idea["body"])
+    except Exception as _e:
+        st.caption(f"Idea of the Day unavailable: {_e}")
+
     # Portfolio Intelligence — the cockpit, now driven by the Destination Book:
     # concentrate & complete. One decisive, cash-aware queue (sell the non-core,
     # complete the winners), with the speculative sleeve and stop/thesis context below.
